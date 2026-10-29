@@ -1,4 +1,14 @@
 <div class="tool" data-tool="salary-calculator">
+  <div class="field">
+    <span class="label">適用年度（勞健保級距與費率）</span>
+    <div class="seg" role="radiogroup" aria-label="適用年度">
+      <label><input type="radio" name="sc-year" value="2026" checked /><span>2026 年（115 年）</span></label>
+      <label><input type="radio" name="sc-year" value="2027" /><span>2027 年（116 年）</span></label>
+    </div>
+    <span class="hint" id="sc-year-hint">2027 年 1 月 1 日起自動切換為 2027 年。</span>
+  </div>
+  <p class="notice" id="sc-estimate" hidden></p>
+
   <div class="grid-2">
     <div class="field">
       <label for="sc-salary">月薪（元）</label>
@@ -35,7 +45,7 @@
       <div class="field">
         <label for="sc-other">其他扣款（元／月）</label>
         <input id="sc-other" type="text" inputmode="numeric" autocomplete="off" value="0" />
-        <span class="hint">所得稅預扣、福利金等。2026 年月薪 90,501 元起才需查表扣繳，未填免稅額申報表者每月 40,000 元起扣 5%。</span>
+        <span class="hint" id="sc-other-hint">所得稅預扣、福利金等。2026 年月薪 90,501 元起才需查表扣繳，未填免稅額申報表者每月 40,000 元起扣 5%。</span>
       </div>
       <div class="field">
         <label for="sc-occ">職災保險費率（%，雇主負擔）</label>
@@ -96,13 +106,21 @@
     </div>
   </div>
 
-  <p class="hint">依 2026 年（民國 115 年）勞保、健保、勞退投保級距與費率計算：勞保 11.5% + 就保 1%（自付 20%）、健保 5.17%（自付 30%）、雇主勞退提繳 6%。結果僅供參考，實際扣款以公司薪資單與勞保局、健保署公告為準。所有計算在你的瀏覽器內完成，薪資資料不會上傳。</p>
+  <p class="hint" id="sc-foot">依 2026 年（民國 115 年）勞保、健保、勞退投保級距與費率計算：勞保 11.5% + 就保 1%（自付 20%）、健保 5.17%（自付 30%）、雇主勞退提繳 6%。結果僅供參考，實際扣款以公司薪資單與勞保局、健保署公告為準。所有計算在你的瀏覽器內完成，薪資資料不會上傳。</p>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatInteger, parseNumber } from '../../lib/format';
-  import { calculateSalary, INSURANCE_2026, validateSalary, type SalaryInput } from './logic';
+  import {
+    bpToPct,
+    calculateSalary,
+    defaultInsuranceYear,
+    insuranceTable,
+    validateSalary,
+    type InsuranceYear,
+    type SalaryInput,
+  } from './logic';
 
   interface Prefs {
     salary: string;
@@ -121,6 +139,8 @@
   const salary = $<HTMLInputElement>('#sc-salary', root);
   const pension = $<HTMLSelectElement>('#sc-pension', root);
   const deps = $$<HTMLInputElement>('input[name="sc-dep"]', root);
+  const years = $$<HTMLInputElement>('input[name="sc-year"]', root);
+  const estimate = $('#sc-estimate', root);
   const other = $<HTMLInputElement>('#sc-other', root);
   const occ = $<HTMLInputElement>('#sc-occ', root);
   const li = $<HTMLInputElement>('#sc-li', root);
@@ -150,15 +170,22 @@
   if (prefs.pw !== undefined) pw.value = prefs.pw;
   if (prefs.emp !== undefined) emp.checked = prefs.emp;
   if (prefs.pt !== undefined) pt.checked = prefs.pt;
+  // 年度不記憶：每次開啟都依今天日期決定（2027-01-01 起預設 2027 年）。
+  const initialYear = String(defaultInsuranceYear());
+  for (const y of years) y.checked = y.value === initialYear;
+
+  const selectedYear = (): InsuranceYear => (years.find((y) => y.checked)?.value === '2027' ? 2027 : 2026);
 
   function readInput(): SalaryInput {
+    const year = selectedYear();
     return {
+      year,
       salary: parseNumber(salary.value),
       dependents: Number(deps.find((d) => d.checked)?.value ?? 0),
       selfPensionPct: Number(pension.value),
       employmentInsurance: emp.checked,
       partTime: pt.checked,
-      occupationalRatePct: occ.value.trim() === '' ? INSURANCE_2026.defaultOccupationalRatePct : parseNumber(occ.value),
+      occupationalRatePct: occ.value.trim() === '' ? insuranceTable(year).defaultOccupationalRatePct : parseNumber(occ.value),
       otherDeduction: other.value.trim() === '' ? 0 : parseNumber(other.value),
       laborInsuredOverride: optional(li),
       healthInsuredOverride: optional(hi),
@@ -193,6 +220,23 @@
     } satisfies Prefs);
 
     const input = readInput();
+    const t = insuranceTable(input.year);
+    const laborPct = bpToPct(t.laborOrdinaryRateBp);
+    const healthPct = bpToPct(t.healthRateBp);
+    const yearName = `${t.year} 年`;
+    estimate.hidden = !t.estimated;
+    estimate.textContent = t.estimated
+      ? `2027 年最低工資 ${formatInteger(t.minWage)} 元與勞保費率 ${laborPct}%（另就保 1%）已確定，健保費率 ${healthPct}% 衛福部表示不調整；勞保、健保、勞退投保級距依最低工資調整預估，正式分級表公告後更新。`
+      : '';
+    $('#sc-other-hint', root).textContent =
+      t.year === 2026
+        ? '所得稅預扣、福利金等。2026 年月薪 90,501 元起才需查表扣繳，未填免稅額申報表者每月 40,000 元起扣 5%。'
+        : '所得稅預扣、福利金等。2027 年薪資扣繳稅額表由財政部於年底公告，可先填薪資單上的金額。';
+    $('#sc-foot', root).textContent =
+      `依 ${t.label}勞保、健保、勞退投保級距與費率計算：勞保 ${laborPct}% + 就保 1%（自付 20%）、健保 ${healthPct}%（自付 30%）、雇主勞退提繳 6%。` +
+      (t.estimated ? '2027 年投保級距為依最低工資調整預估，正式分級表公告後更新。' : '') +
+      '結果僅供參考，實際扣款以公司薪資單與勞保局、健保署公告為準。所有計算在你的瀏覽器內完成，薪資資料不會上傳。';
+
     const problem = validateSalary(input);
     const r = problem ? null : calculateSalary(input);
     if (!r) {
@@ -205,7 +249,7 @@
     output.hidden = false;
 
     set('#sc-take', money(r.takeHome));
-    set('#sc-take-label', `月薪 ${formatInteger(input.salary)} 元的每月實領薪水`);
+    set('#sc-take-label', `${yearName}月薪 ${formatInteger(input.salary)} 元的每月實領薪水`);
     set('#sc-labor', money(r.employee.labor));
     set('#sc-health', money(r.employee.health));
     set('#sc-self', money(r.employee.pension));
@@ -214,7 +258,7 @@
     set('#sc-cost', money(r.employerCost));
 
     if (r.belowMinWage && !input.partTime) {
-      warn.textContent = `月薪低於 2026 年最低工資 ${formatInteger(INSURANCE_2026.minWage)} 元。全時工作者的月薪不得低於最低工資；若為部分工時，請在進階設定勾選「部分工時」。`;
+      warn.textContent = `月薪低於 ${yearName}最低工資 ${formatInteger(t.minWage)} 元。全時工作者的月薪不得低於最低工資；若為部分工時，請在進階設定勾選「部分工時」。`;
       warn.hidden = false;
     } else if (input.laborInsuredOverride !== undefined && input.laborInsuredOverride < input.salary && input.salary <= 45_800) {
       warn.textContent = '自訂的勞保投保薪資低於實際月薪，屬於「高薪低報」，會影響未來的勞保給付與退休金，勞工可向勞保局檢舉。';
@@ -225,12 +269,12 @@
 
     const e = r.employee;
     const er = r.employer;
-    const depCount = Math.min(input.dependents, INSURANCE_2026.maxDependents);
+    const depCount = Math.min(input.dependents, t.maxDependents);
     table.replaceChildren(
-      row('勞保（普通事故 11.5%）', formatInteger(r.laborInsured), e.laborOrdinary, er.laborOrdinary),
+      row(`勞保（普通事故 ${laborPct}%）`, formatInteger(r.laborInsured), e.laborOrdinary, er.laborOrdinary),
       row('就業保險（1%）', input.employmentInsurance ? formatInteger(r.laborInsured) : '不適用', e.employment, er.employment),
       row(`職災保險（${input.occupationalRatePct}%）`, formatInteger(r.occupationalInsured), null, er.occupational),
-      row(`健保（5.17%，本人＋${depCount} 眷屬）`, formatInteger(r.healthInsured), e.health, er.health),
+      row(`健保（${healthPct}%，本人＋${depCount} 眷屬）`, formatInteger(r.healthInsured), e.health, er.health),
       row(`勞退（雇主 6%，自提 ${input.selfPensionPct}%）`, formatInteger(r.pensionWage), e.pension, er.pension),
       row('工資墊償基金（0.025%）', formatInteger(r.laborInsured), null, er.wageArrears),
       ...(e.other > 0 ? [row('其他扣款', '—', e.other, null)] : []),

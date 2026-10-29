@@ -82,6 +82,12 @@ npm run preview
 
 Build 階段會先跑 `npm test`，測試失敗不會部署。
 
+### 統一發票中獎號碼自動更新
+
+- 號碼存在 `src/tools/invoice-lottery/data.json`（保留最近 12 期），由 `npm run update:invoice`（`scripts/update-invoice.mjs`）從財政部 `invoice.etax.nat.gov.tw` 抓取、驗證後寫入；解析失敗時不寫檔並回傳錯誤碼。
+- GitHub Action `.github/workflows/update-invoice.yml` 在單數月 25–27 日台北時間 19:00 自動執行，有變動就以 `github-actions[bot]` commit 並 push 到 `main`，也可手動執行（workflow_dispatch）。
+- 需要 Coolify 開啟「推送自動部署」才會自動上線；若 GitHub 主機連不到財政部網站（Action 顯示失敗），在本機執行 `npm run update:invoice` 後 push 即可。
+
 ## 上線檢查清單
 
 1. DNS：`tool.6yuwei.com` 指到 Coolify 主機。

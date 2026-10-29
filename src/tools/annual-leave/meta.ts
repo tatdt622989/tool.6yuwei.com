@@ -3,7 +3,7 @@ import { defineTool } from '../types';
 export default defineTool({
   slug: 'annual-leave',
   name: '特休計算',
-  seoTitle: '特休計算 2026：依到職日算特休天數，週年制與曆年制',
+  seoTitle: '特休計算 2026–2027：依到職日算特休天數，週年制與曆年制',
   description:
     '特休天數計算機，輸入到職日即可依勞基法第 38 條算出今年有幾天特休，支援週年制與曆年制按比例計算，列出年資與特休對照表，並試算未休特休折算工資。',
   category: 'finance',

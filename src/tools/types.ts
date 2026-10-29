@@ -13,7 +13,7 @@ export interface ToolMeta {
   name: string;
   /** <title> text without the site suffix. Lead with the main search keyword. */
   seoTitle: string;
-  /** Meta description, 70–120 CJK characters, keyword-rich and natural. */
+  /** Meta description, 70–160 CJK characters, keyword-rich and natural. */
   description: string;
   category: CategoryId;
   /** Lucide icon name (PascalCase), e.g. 'Calculator'. See https://lucide.dev/icons */

@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "update:invoice": "node scripts/update-invoice.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

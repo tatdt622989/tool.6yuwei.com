@@ -95,6 +95,12 @@ describe('calculateTax — married', () => {
     expect(r.basicLivingDiff).toBe(213_000 * 6 - (97_000 * 4 + 145_500 * 2 + 262_000));
     expect(r.tax).toBe(0);
   });
+  it('115 年度 uses the 220,000 基本生活費 estimate (not yet official)', () => {
+    expect(y115.basicLiving).toBe(220_000);
+    expect(y115.basicLivingOfficial).toBe(false);
+    const r = calc({ year: '115', married: true, salarySelf: 600_000, salarySpouse: 500_000, dependents: 2, seniorDependents: 2 });
+    expect(r.basicLivingDiff).toBe(220_000 * 6 - (101_000 * 4 + 151_500 * 2 + 272_000));
+  });
   it('幼兒學前：first child 150,000, second 225,000', () => {
     const r = calc({ married: true, salarySelf: 1_200_000, salarySpouse: 800_000, dependents: 2, preschool: 2 });
     const household = r.parts[r.parts.length - 1];

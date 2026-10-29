@@ -5,6 +5,7 @@ describe('hourlyFromMonthly', () => {
   it('月薪 ÷ 30 ÷ 8', () => {
     expect(hourlyFromMonthly(36_000)).toBe(150);
     expect(hourlyFromMonthly(29_500)).toBeCloseTo(122.9167, 4);
+    expect(hourlyFromMonthly(30_900)).toBe(128.75);
   });
 });
 

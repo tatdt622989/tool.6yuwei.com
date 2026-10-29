@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { calculateSalary, gradeFor, INSURANCE_2026, laborInsuredFor, roundDiv, validateSalary, type SalaryInput } from './logic';
+import {
+  calculateSalary,
+  defaultInsuranceYear,
+  gradeFor,
+  INSURANCE_2026,
+  INSURANCE_2027,
+  insuranceTable,
+  laborInsuredFor,
+  roundDiv,
+  validateSalary,
+  type SalaryInput,
+} from './logic';
 
 const base: SalaryInput = {
   salary: 30_000,
@@ -134,4 +145,74 @@ describe('validateSalary', () => {
       expect(calculateSalary({ ...base, ...patch })).toBeNull();
     },
   );
+});
+
+describe('2027（民國 116 年）', () => {
+  const t = INSURANCE_2027;
+  const calc27 = (patch: Partial<SalaryInput>) => calculateSalary({ ...base, year: 2027, ...patch })!;
+
+  it('defaults to 2026 before 2027-01-01 and 2027 afterwards', () => {
+    expect(defaultInsuranceYear(new Date(2026, 9, 29))).toBe(2026);
+    expect(defaultInsuranceYear(new Date(2026, 11, 31, 23, 59))).toBe(2026);
+    expect(defaultInsuranceYear(new Date(2027, 0, 1, 0, 0))).toBe(2027);
+    expect(insuranceTable(2027)).toBe(t);
+    expect(insuranceTable()).toBe(INSURANCE_2026);
+  });
+  it('official minimum wage and 勞保 rate', () => {
+    expect(t.minWage).toBe(30_900);
+    expect(t.minHourlyWage).toBe(205);
+    expect(t.laborOrdinaryRateBp + t.employmentRateBp).toBe(1300);
+    expect(t.estimated).toBe(true);
+    expect(INSURANCE_2026.estimated).toBe(false);
+  });
+  it('derived tables start at 30,900 and keep the 2026 grades above it', () => {
+    for (const [g27, g26] of [
+      [t.laborGrades, INSURANCE_2026.laborGrades],
+      [t.occupationalGrades, INSURANCE_2026.occupationalGrades],
+      [t.healthGrades, INSURANCE_2026.healthGrades],
+    ] as const) {
+      expect(g27[0]).toBe(30_900);
+      expect(g27.slice(1)).toEqual(g26.filter((g) => g > 30_900));
+      for (let i = 1; i < g27.length; i++) expect(g27[i]).toBeGreaterThan(g27[i - 1]);
+    }
+    expect(t.laborGrades).toHaveLength(10);
+    expect(t.healthGrades).toHaveLength(57);
+    expect(t.pensionGrades).toHaveLength(62);
+    expect(t.pensionGrades).toContain(30_900);
+    expect(t.pensionGrades).not.toContain(30_300);
+    for (let i = 1; i < t.pensionGrades.length; i++) expect(t.pensionGrades[i]).toBeGreaterThan(t.pensionGrades[i - 1]);
+  });
+  it('最低工資 30,900：勞保 742 + 就保 62 = 804，健保 479，雇主勞保含職災 2,846', () => {
+    const r = calc27({ salary: 30_900 });
+    expect(r.laborInsured).toBe(30_900);
+    expect(r.employee.laborOrdinary).toBe(742);
+    expect(r.employee.employment).toBe(62);
+    expect(r.employee.labor).toBe(804);
+    expect(r.employer.labor).toBe(2596 + 216 + 34);
+    expect(r.employee.health).toBe(479);
+    expect(r.employer.health).toBe(1495);
+    expect(r.employer.pension).toBe(1854);
+    expect(r.takeHome).toBe(30_900 - 804 - 479);
+    expect(r.belowMinWage).toBe(false);
+  });
+  it('30,000 月薪 is below the 2027 minimum wage and is insured at 30,900', () => {
+    const r = calc27({ salary: 30_000 });
+    expect(r.belowMinWage).toBe(true);
+    expect(r.laborInsured).toBe(30_900);
+    expect(calc({ salary: 30_000 }).belowMinWage).toBe(false);
+  });
+  it('higher 勞保 rate: 36,000 月薪 自付 944（2026 年 908）', () => {
+    expect(calc27({ salary: 36_000 }).employee.labor).toBe(871 + 73);
+    expect(calc({ salary: 36_000 }).employee.labor).toBe(908);
+  });
+  it('勞保 top grade 45,800：自付 1,191', () => {
+    const r = calc27({ salary: 60_000 });
+    expect(r.laborInsured).toBe(45_800);
+    expect(r.employee.labor).toBe(1099 + 92);
+  });
+  it('part-time grades include 29,500 below the 2027 minimum wage', () => {
+    expect(laborInsuredFor(29_000, true, 2027)).toBe(29_500);
+    expect(laborInsuredFor(30_000, true, 2027)).toBe(30_900);
+    expect(laborInsuredFor(20_000, true, 2027)).toBe(20_008);
+  });
 });

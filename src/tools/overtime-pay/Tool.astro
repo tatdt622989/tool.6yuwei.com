@@ -87,8 +87,11 @@
     type DayType,
     type OvertimeEntry,
   } from './logic';
+  import { defaultInsuranceYear, insuranceTable } from '../salary-calculator/logic';
 
   const KEY = 'overtime-pay';
+  // 依今天日期取當年度最低工資（2027-01-01 起為月薪 30,900 元、時薪 205 元）。
+  const minWage = insuranceTable(defaultInsuranceYear());
   const TYPES: DayType[] = ['weekday', 'restDay', 'holiday', 'regularOff'];
   const root = $('[data-tool="overtime-pay"]');
   const modes = $$<HTMLInputElement>('input[name="ot-mode"]', root);
@@ -155,12 +158,15 @@
     $('#ot-hourly', root).textContent = `${formatNumber(r.hourly, 2)} 元`;
     $('#ot-hours', root).textContent = `${formatNumber(r.countedHours, 1)} 小時`;
 
+    const notes: string[] = [];
     if (r.overCap) {
-      warn.textContent = `延長工時合計 ${formatNumber(r.countedHours, 1)} 小時，超過勞基法第 32 條每月 ${OVERTIME_RULES.monthlyCap} 小時上限（經工會或勞資會議同意最多 ${OVERTIME_RULES.monthlyCapWithConsent} 小時、每 3 個月 138 小時）。超時加班仍應給付加班費。`;
-      warn.hidden = false;
-    } else {
-      warn.hidden = true;
+      notes.push(`延長工時合計 ${formatNumber(r.countedHours, 1)} 小時，超過勞基法第 32 條每月 ${OVERTIME_RULES.monthlyCap} 小時上限（經工會或勞資會議同意最多 ${OVERTIME_RULES.monthlyCapWithConsent} 小時、每 3 個月 138 小時）。超時加班仍應給付加班費。`);
     }
+    if (mode === 'monthly' && raw < minWage.minWage) {
+      notes.push(`月薪低於 ${minWage.year} 年最低工資 ${formatInteger(minWage.minWage)} 元，全時勞工的月薪不得低於最低工資。`);
+    }
+    warn.textContent = notes.join(' ');
+    warn.hidden = notes.length === 0;
 
     const rows = r.lines.map((l) => {
       const tr = document.createElement('tr');
