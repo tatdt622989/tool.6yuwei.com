@@ -1,0 +1,156 @@
+<div class="tool" data-tool="water-intake">
+  <div class="grid-2">
+    <div class="field">
+      <label for="wi-weight">體重（公斤）</label>
+      <input id="wi-weight" type="text" inputmode="decimal" autocomplete="off" value="60" />
+    </div>
+    <div class="field">
+      <span class="label">性別</span>
+      <div class="seg" role="radiogroup" aria-label="性別">
+        <label><input type="radio" name="wi-sex" value="female" checked /><span>女性</span></label>
+        <label><input type="radio" name="wi-sex" value="male" /><span>男性</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="label">日常活動量</span>
+    <div class="seg" role="radiogroup" aria-label="日常活動量">
+      <label><input type="radio" name="wi-activity" value="low" checked /><span>久坐（× 30 ml）</span></label>
+      <label><input type="radio" name="wi-activity" value="normal" /><span>一般（× 35 ml）</span></label>
+      <label><input type="radio" name="wi-activity" value="high" /><span>活動量大（× 40 ml）</span></label>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="wi-exercise">每天運動時間（分鐘）</label>
+      <input id="wi-exercise" type="text" inputmode="numeric" autocomplete="off" value="0" />
+    </div>
+    <div class="field">
+      <label for="wi-cup">杯子容量（毫升）</label>
+      <input id="wi-cup" type="text" inputmode="numeric" autocomplete="off" value="250" />
+    </div>
+  </div>
+
+  <label class="check"><input type="checkbox" id="wi-hot" />天氣炎熱或在高溫環境工作、大量流汗</label>
+
+  <div class="notice error" id="wi-error" hidden></div>
+
+  <div id="wi-output">
+    <div class="result" aria-live="polite">
+      <div class="result-value"><span id="wi-total">—</span> <span class="wi-unit">毫升／天</span></div>
+      <div class="result-label" id="wi-cups">—</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="wi-range">—</span><span class="stat-label">體重 × 30–40 ml 範圍</span></div>
+      <div class="stat"><span class="stat-value" id="wi-base">—</span><span class="stat-label" id="wi-base-label">基本需求</span></div>
+      <div class="stat"><span class="stat-value" id="wi-extra">—</span><span class="stat-label">運動與環境補充</span></div>
+      <div class="stat"><span class="stat-value" id="wi-hpa">—</span><span class="stat-label" id="wi-hpa-label">國健署建議總液體量</span></div>
+    </div>
+
+    <div class="field">
+      <span class="label">建議喝水時間表（07:00–21:00 平均分配）</span>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>時間</th><th class="num">喝水量</th></tr></thead>
+          <tbody id="wi-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="notice">結果僅供參考，請諮詢醫師。腎臟病、心臟衰竭、肝硬化或需要限水的人，每日喝水量請遵照醫囑，不要自行增加。資料只在你的瀏覽器中計算，不會上傳。</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { calcWater, drinkingSchedule, validateWater, WATER_RULES, type ActivityLevel, type Sex, type WaterInput } from './logic';
+
+  const root = $('[data-tool="water-intake"]');
+  const weight = $<HTMLInputElement>('#wi-weight', root);
+  const sexes = $$<HTMLInputElement>('input[name="wi-sex"]', root);
+  const activities = $$<HTMLInputElement>('input[name="wi-activity"]', root);
+  const exercise = $<HTMLInputElement>('#wi-exercise', root);
+  const cup = $<HTMLInputElement>('#wi-cup', root);
+  const hot = $<HTMLInputElement>('#wi-hot', root);
+  const error = $('#wi-error', root);
+  const output = $('#wi-output', root);
+  const table = $('#wi-table', root);
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+
+  interface Prefs {
+    weight: string;
+    sex: Sex;
+    activity: ActivityLevel;
+    exercise: string;
+    cup: string;
+    hot: boolean;
+  }
+  const saved = loadPref<Prefs>('water-intake', { weight: '60', sex: 'female', activity: 'low', exercise: '0', cup: '250', hot: false });
+  weight.value = saved.weight;
+  for (const s of sexes) s.checked = s.value === saved.sex;
+  for (const a of activities) a.checked = a.value === saved.activity;
+  if (!activities.some((a) => a.checked)) activities[0].checked = true;
+  if (!sexes.some((s) => s.checked)) sexes[0].checked = true;
+  exercise.value = saved.exercise;
+  cup.value = saved.cup;
+  hot.checked = saved.hot;
+
+  const ml = (v: number) => `${formatInteger(v)} ml`;
+
+  function render() {
+    const sex = (sexes.find((s) => s.checked)?.value ?? 'female') as Sex;
+    const activity = (activities.find((a) => a.checked)?.value ?? 'low') as ActivityLevel;
+    savePref('water-intake', { weight: weight.value, sex, activity, exercise: exercise.value, cup: cup.value, hot: hot.checked } satisfies Prefs);
+
+    const input: WaterInput = {
+      weightKg: parseNumber(weight.value),
+      activity,
+      exerciseMin: exercise.value.trim() === '' ? 0 : parseNumber(exercise.value),
+      hot: hot.checked,
+      cupMl: parseNumber(cup.value),
+    };
+    const problem = validateWater(input);
+    const r = problem ? null : calcWater(input);
+    if (!r) {
+      error.textContent = problem ?? '無法計算，請檢查輸入。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    output.hidden = false;
+
+    set('#wi-total', formatInteger(r.total));
+    set('#wi-cups', `約 ${formatNumber(r.total / 1000, 1)} 公升，${formatInteger(input.cupMl)} ml 的杯子約喝 ${r.cups} 杯`);
+    set('#wi-range', `${formatNumber(r.low / 1000, 1)}–${formatNumber(r.high / 1000, 1)} L`);
+    set('#wi-base', ml(r.base));
+    set('#wi-base-label', `基本需求（體重 × ${WATER_RULES.mlPerKg[activity]} ml）`);
+    set('#wi-extra', r.exercise + r.climate > 0 ? `+${ml(r.exercise + r.climate)}` : '0 ml');
+    set('#wi-hpa', ml(WATER_RULES.hpaTotalFluid[sex]));
+    set('#wi-hpa-label', `國健署建議${sex === 'male' ? '男' : '女'}性每日總液體量`);
+
+    table.innerHTML = drinkingSchedule(r.total, r.cups)
+      .map((s) => `<tr><td>${s.time}</td><td class="num">${formatInteger(s.ml)} ml</td></tr>`)
+      .join('');
+  }
+
+  [weight, exercise, cup].forEach((el) => el.addEventListener('input', render));
+  [...sexes, ...activities, hot].forEach((el) => el.addEventListener('change', render));
+  render();
+</script>
+
+<style>
+  #wi-output {
+    display: grid;
+    gap: 16px;
+  }
+  .wi-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+</style>

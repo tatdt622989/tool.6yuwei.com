@@ -1,0 +1,377 @@
+<div class="tool" data-tool="pomodoro" data-phase="focus">
+  <div class="pm-top">
+    <div class="seg" role="radiogroup" aria-label="階段">
+      <label><input type="radio" name="pm-phase" value="focus" checked /><span>專注</span></label>
+      <label><input type="radio" name="pm-phase" value="short" /><span>短休息</span></label>
+      <label><input type="radio" name="pm-phase" value="long" /><span>長休息</span></label>
+    </div>
+  </div>
+
+  <div class="pm-ring-wrap">
+    <svg class="pm-ring" viewBox="0 0 220 220" aria-hidden="true">
+      <circle class="pm-track" cx="110" cy="110" r="100"></circle>
+      <circle class="pm-progress" id="pm-progress" cx="110" cy="110" r="100" stroke-dasharray="628.32" stroke-dashoffset="628.32"></circle>
+    </svg>
+    <div class="pm-center">
+      <div class="big-display" id="pm-display" role="timer" aria-label="剩餘時間">25:00</div>
+      <div class="pm-label" id="pm-label">專注・準備開始</div>
+    </div>
+  </div>
+  <p class="visually-hidden" id="pm-live" aria-live="polite"></p>
+
+  <div class="pm-controls">
+    <button class="btn primary" type="button" id="pm-toggle">開始</button>
+    <button class="btn" type="button" id="pm-reset">重設</button>
+    <button class="btn" type="button" id="pm-skip">跳過</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="pm-today">0</span><span class="stat-label">今日完成番茄</span></div>
+    <div class="stat"><span class="stat-value" id="pm-cycle">1 / 4</span><span class="stat-label">本輪進度</span></div>
+    <div class="stat"><span class="stat-value" id="pm-focus-time">0 分鐘</span><span class="stat-label">今日專注時間</span></div>
+  </div>
+
+  <details class="pm-settings">
+    <summary>設定</summary>
+    <div class="pm-settings-body">
+      <div class="grid-2">
+        <div class="field">
+          <label for="pm-focus">專注（分鐘）</label>
+          <input id="pm-focus" data-k="focusMin" type="number" inputmode="numeric" min="1" max="180" value="25" />
+        </div>
+        <div class="field">
+          <label for="pm-short">短休息（分鐘）</label>
+          <input id="pm-short" data-k="shortMin" type="number" inputmode="numeric" min="1" max="60" value="5" />
+        </div>
+        <div class="field">
+          <label for="pm-long">長休息（分鐘）</label>
+          <input id="pm-long" data-k="longMin" type="number" inputmode="numeric" min="1" max="120" value="15" />
+        </div>
+        <div class="field">
+          <label for="pm-every">幾輪後長休息</label>
+          <input id="pm-every" data-k="longEvery" type="number" inputmode="numeric" min="1" max="12" value="4" />
+        </div>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="pm-auto" /> 自動開始下一階段</label>
+        <label class="check"><input type="checkbox" id="pm-sound" checked /> 提示音</label>
+      </div>
+      <div class="row">
+        <button class="btn small ghost" type="button" id="pm-defaults">恢復預設值</button>
+      </div>
+      <p class="hint">變更會自動保存在這個瀏覽器；計時中的階段會在下一階段套用新時間。</p>
+    </div>
+  </details>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import {
+    DEFAULT_SETTINGS,
+    PHASE_LABEL,
+    advance,
+    applySettings,
+    createPomodoro,
+    cyclePosition,
+    formatClock,
+    formatMinutes,
+    localDateKey,
+    normalizeSettings,
+    pausePomodoro,
+    phaseDuration,
+    progressOf,
+    remainingOf,
+    resetPhase,
+    rollDaily,
+    selectPhase,
+    skipPhase,
+    startPomodoro,
+    type Phase,
+    type PomodoroSettings,
+    type PomodoroState,
+  } from './logic';
+
+  const CIRCUMFERENCE = 2 * Math.PI * 100;
+  const root = $('[data-tool="pomodoro"]');
+  const display = $('#pm-display', root);
+  const label = $('#pm-label', root);
+  const live = $('#pm-live', root);
+  const ring = $<SVGCircleElement>('#pm-progress', root);
+  const toggleBtn = $<HTMLButtonElement>('#pm-toggle', root);
+  const todayEl = $('#pm-today', root);
+  const cycleEl = $('#pm-cycle', root);
+  const focusTimeEl = $('#pm-focus-time', root);
+  const phaseRadios = $$<HTMLInputElement>('input[name="pm-phase"]', root);
+  const numberInputs = $$<HTMLInputElement>('.pm-settings input[data-k]', root);
+  const autoBox = $<HTMLInputElement>('#pm-auto', root);
+  const soundBox = $<HTMLInputElement>('#pm-sound', root);
+  const baseTitle = document.title;
+
+  let settings: PomodoroSettings = normalizeSettings(loadPref<Partial<PomodoroSettings> | null>('pomodoro', null));
+  let state: PomodoroState = createPomodoro(settings);
+  let daily = rollDaily(loadPref<unknown>('pomodoro-today', null), localDateKey(new Date()));
+  let alertTitle = '';
+  let lastTitle = '';
+  let ticker: number | undefined;
+  let alarm: number | undefined;
+
+  /* ---------- Sound (WebAudio, unlocked by the user's click) ---------- */
+  let audio: AudioContext | null = null;
+
+  function unlockAudio(): AudioContext | null {
+    const Ctor =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    audio ??= new Ctor();
+    if (audio.state === 'suspended') void audio.resume();
+    return audio;
+  }
+
+  function beep(times: number, frequency: number) {
+    const ctx = unlockAudio();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + 0.05;
+    for (let i = 0; i < times; i++) {
+      const at = t0 + i * 0.32;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.3, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + 0.22);
+    }
+  }
+
+  /* ---------- Rendering ---------- */
+  function setTitle(title: string) {
+    if (title !== lastTitle) document.title = lastTitle = title;
+  }
+
+  function writeSettingsToForm() {
+    for (const input of numberInputs) input.value = String(settings[input.dataset.k as keyof PomodoroSettings]);
+    autoBox.checked = settings.autoStart;
+    soundBox.checked = settings.sound;
+  }
+
+  function render() {
+    const now = Date.now();
+    const clock = formatClock(remainingOf(state, now));
+    const phaseName = PHASE_LABEL[state.phase];
+    display.textContent = clock;
+    root.dataset.phase = state.phase;
+    for (const radio of phaseRadios) radio.checked = radio.value === state.phase;
+    ring.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - progressOf(state, settings, now)));
+
+    const statusText = { running: '中', paused: '・已暫停', idle: '・準備開始' }[state.status];
+    label.textContent = phaseName + statusText;
+    toggleBtn.textContent = state.status === 'running' ? '暫停' : state.status === 'paused' ? '繼續' : '開始';
+
+    const { current, total } = cyclePosition(state, settings.longEvery);
+    todayEl.textContent = String(daily.count);
+    cycleEl.textContent = `${current} / ${total}`;
+    focusTimeEl.textContent = formatMinutes(daily.focusMs);
+
+    if (state.status === 'running') setTitle(`${clock} ${phaseName}中`);
+    else setTitle(alertTitle || baseTitle);
+  }
+
+  /* ---------- Timing ---------- */
+  function onFinished(finished: Phase[]) {
+    const focusCount = finished.filter((p) => p === 'focus').length;
+    if (focusCount > 0) {
+      daily = rollDaily(daily, localDateKey(new Date()));
+      daily = {
+        ...daily,
+        count: daily.count + focusCount,
+        focusMs: daily.focusMs + focusCount * phaseDuration('focus', settings),
+      };
+      savePref('pomodoro-today', daily);
+    }
+    const last = finished[finished.length - 1];
+    const message =
+      last === 'focus' ? `專注結束，接著${PHASE_LABEL[state.phase]}` : `${PHASE_LABEL[last]}結束，準備下一個番茄`;
+    live.textContent = message;
+    if (state.status !== 'running') alertTitle = message;
+    // Two low tones end a focus session, three high tones end a break.
+    if (settings.sound) {
+      if (last === 'focus') beep(2, 660);
+      else beep(3, 880);
+    }
+  }
+
+  function tick() {
+    const result = advance(state, settings, Date.now());
+    if (result.finished.length > 0) {
+      state = result.state;
+      schedule();
+      onFinished(result.finished);
+    }
+    render();
+  }
+
+  function schedule() {
+    window.clearInterval(ticker);
+    window.clearTimeout(alarm);
+    ticker = alarm = undefined;
+    if (state.status !== 'running' || state.endsAt === null) return;
+    ticker = window.setInterval(tick, 250);
+    // One unchained timeout for the phase end is not subject to intensive background throttling.
+    alarm = window.setTimeout(tick, Math.max(0, state.endsAt - Date.now()) + 5);
+  }
+
+  function update(next: PomodoroState) {
+    state = next;
+    alertTitle = '';
+    schedule();
+    render();
+  }
+
+  /* ---------- Events ---------- */
+  toggleBtn.addEventListener('click', () => {
+    if (state.status === 'running') {
+      update(pausePomodoro(state, Date.now()));
+    } else {
+      if (settings.sound) unlockAudio();
+      update(startPomodoro(state, Date.now()));
+    }
+  });
+
+  $('#pm-reset', root).addEventListener('click', () => update(resetPhase(state, settings)));
+  $('#pm-skip', root).addEventListener('click', () => update(skipPhase(state, settings, Date.now())));
+
+  for (const radio of phaseRadios) {
+    radio.addEventListener('change', () => {
+      if (radio.checked) update(selectPhase(state, radio.value as Phase, settings));
+    });
+  }
+
+  function saveSettings(next: PomodoroSettings) {
+    settings = next;
+    savePref('pomodoro', settings);
+    writeSettingsToForm();
+    update(applySettings(state, settings));
+  }
+
+  function readForm(): PomodoroSettings {
+    const raw: Record<string, unknown> = { autoStart: autoBox.checked, sound: soundBox.checked };
+    for (const input of numberInputs) raw[input.dataset.k!] = input.value === '' ? settings[input.dataset.k as keyof PomodoroSettings] : input.value;
+    return normalizeSettings(raw);
+  }
+
+  for (const input of numberInputs) input.addEventListener('change', () => saveSettings(readForm()));
+  autoBox.addEventListener('change', () => saveSettings(readForm()));
+  soundBox.addEventListener('change', () => {
+    if (soundBox.checked) unlockAudio();
+    saveSettings(readForm());
+  });
+  $('#pm-defaults', root).addEventListener('click', () => saveSettings({ ...DEFAULT_SETTINGS }));
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      daily = rollDaily(daily, localDateKey(new Date()));
+      tick();
+    }
+  });
+
+  writeSettingsToForm();
+  render();
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .pm-top {
+    display: flex;
+    justify-content: center;
+  }
+  .pm-ring-wrap {
+    position: relative;
+    width: min(300px, 100%);
+    aspect-ratio: 1;
+    margin: 0 auto;
+  }
+  .pm-ring {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .pm-ring circle {
+    fill: none;
+    stroke-width: 10;
+  }
+  .pm-track {
+    stroke: var(--surface-2);
+  }
+  .pm-progress {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s linear, stroke 0.3s;
+  }
+  [data-phase='short'] .pm-progress,
+  [data-phase='long'] .pm-progress {
+    stroke: var(--success);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pm-progress {
+      transition: none;
+    }
+  }
+  .pm-center {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 4px;
+  }
+  .pm-center .big-display {
+    font-size: clamp(44px, 15vw, 64px);
+  }
+  .pm-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .pm-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .pm-controls .btn {
+    min-height: 48px;
+    padding-inline: 8px;
+    font-size: 16px;
+  }
+  .pm-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .pm-settings summary {
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .pm-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .pm-settings-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+  .pm-settings-body .hint {
+    margin: 0;
+  }
+</style>

@@ -1,0 +1,87 @@
+---
+import Wordmark from './Wordmark.astro';
+import { categories } from '../config/categories';
+import { site } from '../config/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="cols">
+      <div class="about">
+        <Wordmark size="lg" />
+        <p>{site.tagline}。所有工具都在你的瀏覽器裡執行，免安裝、免註冊，資料不會上傳。</p>
+      </div>
+      <nav aria-label="分類">
+        <h2>分類</h2>
+        <ul class="two">
+          {categories.map((c) => <li><a href={`/category/${c.id}/`}>{c.name}</a></li>)}
+          <li><a href="/convert/">常用單位換算</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="關於">
+        <h2>關於</h2>
+        <ul>
+          <li><a href="/app/">安裝成 App</a></li>
+          <li><a href="/about/">關於隨手</a></li>
+          <li><a href="/contact/">聯絡我們</a></li>
+          <li><a href="/privacy/">隱私權政策</a></li>
+          <li><a href="/terms/">使用條款</a></li>
+          <li><a href={site.blogUrl} rel="noopener">6yuwei 部落格</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="legal">© {year} {site.author}</div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 80px;
+    padding: 48px 0 32px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .cols {
+    display: grid;
+    gap: 32px;
+  }
+  @media (min-width: 860px) {
+    .cols {
+      grid-template-columns: 1.4fr 1.4fr 1fr;
+    }
+  }
+  .about p {
+    margin: 12px 0 0;
+    color: var(--muted);
+    max-width: 40ch;
+    line-height: 1.7;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 9px;
+  }
+  .two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  a {
+    color: var(--text-2);
+  }
+  .legal {
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>

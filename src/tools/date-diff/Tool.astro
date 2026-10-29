@@ -1,0 +1,196 @@
+<div class="tool" data-tool="date-diff">
+  <div class="seg" role="radiogroup" aria-label="計算模式">
+    <label><input type="radio" name="dd-mode" value="diff" checked /><span>兩個日期相差幾天</span></label>
+    <label><input type="radio" name="dd-mode" value="add" /><span>日期加減天數</span></label>
+  </div>
+
+  <div class="dd-pane" data-pane="diff">
+    <div class="grid-2">
+      <div class="field">
+        <label for="dd-start">開始日期</label>
+        <input id="dd-start" type="date" />
+      </div>
+      <div class="field">
+        <label for="dd-end">結束日期</label>
+        <input id="dd-end" type="date" />
+      </div>
+    </div>
+
+    <div class="row between">
+      <label class="check"><input id="dd-include" type="checkbox" /> 包含結束日（多算 1 天）</label>
+      <div class="row">
+        <button class="btn small" type="button" id="dd-today">開始日設為今天</button>
+        <button class="btn small ghost" type="button" id="dd-swap">對調日期</button>
+      </div>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <div class="result-value" id="dd-days">0 天</div>
+      <div class="result-label" id="dd-range"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="dd-span">—</span><span class="stat-label">年／月／日</span></div>
+      <div class="stat"><span class="stat-value" id="dd-weeks">—</span><span class="stat-label">週數</span></div>
+      <div class="stat"><span class="stat-value" id="dd-work">—</span><span class="stat-label">工作天（週一至週五）</span></div>
+      <div class="stat"><span class="stat-value" id="dd-hours">—</span><span class="stat-label">總小時數</span></div>
+    </div>
+    <p class="hint">工作天只排除週六、週日，未扣除國定假日、颱風假與補班日。</p>
+  </div>
+
+  <div class="dd-pane" data-pane="add" hidden>
+    <div class="grid-3">
+      <div class="field">
+        <label for="dd-base">起算日期</label>
+        <input id="dd-base" type="date" />
+      </div>
+      <div class="field">
+        <label for="dd-n">天數</label>
+        <input id="dd-n" type="text" inputmode="numeric" value="100" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="dd-dir">方向</label>
+        <select id="dd-dir">
+          <option value="1">之後（往後算）</option>
+          <option value="-1">之前（往前算）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row" aria-label="常用天數">
+      <span class="hint">常用：</span>
+      <button class="btn small" type="button" data-n="7">7 天</button>
+      <button class="btn small" type="button" data-n="30">30 天</button>
+      <button class="btn small" type="button" data-n="90">90 天</button>
+      <button class="btn small" type="button" data-n="100">100 天</button>
+      <button class="btn small" type="button" data-n="180">180 天</button>
+      <button class="btn small" type="button" data-n="365">365 天</button>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <div class="result-value" id="dd-target">—</div>
+      <div class="result-label" id="dd-target-label"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, parseNumber } from '../../lib/format';
+  import { addDays, dateDiff, formatSpan, formatYMD, parseISODate, toISODate, type YMD } from './logic';
+
+  const root = $('[data-tool="date-diff"]');
+  const modes = $$<HTMLInputElement>('input[name="dd-mode"]', root);
+  const panes = $$<HTMLElement>('.dd-pane', root);
+  const start = $<HTMLInputElement>('#dd-start', root);
+  const end = $<HTMLInputElement>('#dd-end', root);
+  const include = $<HTMLInputElement>('#dd-include', root);
+  const base = $<HTMLInputElement>('#dd-base', root);
+  const nInput = $<HTMLInputElement>('#dd-n', root);
+  const dir = $<HTMLSelectElement>('#dd-dir', root);
+
+  interface Prefs {
+    mode: string;
+    include: boolean;
+    n: string;
+    dir: string;
+  }
+
+  function today(): YMD {
+    const now = new Date();
+    return { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+  }
+
+  function currentMode(): string {
+    return modes.find((m) => m.checked)?.value ?? 'diff';
+  }
+
+  function renderDiff() {
+    const a = parseISODate(start.value);
+    const b = parseISODate(end.value);
+    const set = (id: string, text: string) => ($(id, root).textContent = text);
+    if (!a || !b) {
+      set('#dd-days', '—');
+      set('#dd-range', '請選擇開始與結束日期');
+      ['#dd-span', '#dd-weeks', '#dd-work', '#dd-hours'].forEach((id) => set(id, '—'));
+      return;
+    }
+    const r = dateDiff(a, b, include.checked);
+    set('#dd-days', `${formatInteger(r.days)} 天`);
+    set(
+      '#dd-range',
+      r.reversed
+        ? '結束日期早於開始日期，已改以較早的日期起算'
+        : `${formatYMD(a)} 到 ${formatYMD(b)}${include.checked ? '（含結束日）' : ''}`,
+    );
+    set('#dd-span', formatSpan(r.span));
+    set('#dd-weeks', r.weekRemainder ? `${formatInteger(r.weeks)} 週 ${r.weekRemainder} 天` : `${formatInteger(r.weeks)} 週`);
+    set('#dd-work', `${formatInteger(r.workdays)} 天`);
+    set('#dd-hours', `${formatInteger(r.days * 24)} 小時`);
+  }
+
+  function renderAdd() {
+    const from = parseISODate(base.value);
+    const n = Math.trunc(parseNumber(nInput.value));
+    const target = $('#dd-target', root);
+    const label = $('#dd-target-label', root);
+    if (!from || !Number.isFinite(n)) {
+      target.textContent = '—';
+      label.textContent = from ? '請輸入天數，例如 100' : '請選擇起算日期';
+      return;
+    }
+    const sign = Number(dir.value) * Math.sign(n || 1);
+    const result = addDays(from, Number(dir.value) * n);
+    target.textContent = formatYMD(result);
+    label.textContent = `${formatYMD(from)} ${sign < 0 ? '之前' : '之後'} ${formatInteger(Math.abs(n))} 天`;
+  }
+
+  function render() {
+    const mode = currentMode();
+    for (const pane of panes) pane.hidden = pane.dataset.pane !== mode;
+    savePref('date-diff', { mode, include: include.checked, n: nInput.value, dir: dir.value } satisfies Prefs);
+    if (mode === 'diff') renderDiff();
+    else renderAdd();
+  }
+
+  // Prefill: today → end of this year, and today + 100 days.
+  const t = today();
+  start.value = toISODate(t);
+  end.value = toISODate({ y: t.y, m: 12, d: 31 });
+  base.value = toISODate(t);
+  const prefs = loadPref<Prefs>('date-diff', { mode: 'diff', include: false, n: '100', dir: '1' });
+  for (const m of modes) m.checked = m.value === prefs.mode;
+  if (!modes.some((m) => m.checked)) modes[0].checked = true;
+  include.checked = prefs.include;
+  nInput.value = prefs.n || '100';
+  dir.value = prefs.dir === '-1' ? '-1' : '1';
+
+  modes.forEach((m) => m.addEventListener('change', render));
+  [start, end, base, nInput].forEach((el) => el.addEventListener('input', render));
+  [include, dir].forEach((el) => el.addEventListener('change', render));
+  $('#dd-today', root).addEventListener('click', () => {
+    start.value = toISODate(today());
+    render();
+  });
+  $('#dd-swap', root).addEventListener('click', () => {
+    [start.value, end.value] = [end.value, start.value];
+    render();
+  });
+  $$<HTMLButtonElement>('[data-n]', root).forEach((btn) =>
+    btn.addEventListener('click', () => {
+      nInput.value = btn.dataset.n!;
+      render();
+    }),
+  );
+  render();
+</script>
+
+<style>
+  .dd-pane:not([hidden]) {
+    display: grid;
+    gap: 16px;
+  }
+  .dd-pane .result-value {
+    font-size: clamp(24px, 6vw, 32px);
+  }
+</style>

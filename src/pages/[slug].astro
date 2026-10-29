@@ -1,0 +1,332 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AdSlot from '../components/AdSlot.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import ToolCard from '../components/ToolCard.astro';
+import Icon from '../components/Icon.astro';
+import { getCategory } from '../config/categories';
+import { getTool, relatedTools, toolPath, tools, toolsInCategory } from '../tools/registry';
+import { getToolComponent } from '../tools/components';
+import { breadcrumbJsonLd, faqJsonLd, toolJsonLd } from '../lib/seo';
+import { convertPath, pairs } from '../conversions/pairs';
+
+export function getStaticPaths() {
+  return tools.map((tool) => ({ params: { slug: tool.slug } }));
+}
+
+const tool = getTool(Astro.params.slug!);
+const category = getCategory(tool.category);
+const ToolUI = getToolComponent(tool.slug);
+const related = relatedTools(tool, 8);
+const siblings = toolsInCategory(tool.category).filter((t) => t.slug !== tool.slug);
+const crumbs = [
+  { name: '首頁', path: '/' },
+  { name: category.name, path: `/category/${category.id}/` },
+  { name: tool.name, path: toolPath(tool.slug) },
+];
+const [firstSection, ...restSections] = tool.sections;
+const updated = new Date(tool.updated);
+// Unit tools link out to the long-tail conversion landing pages.
+const conversionLinks = ['unit-converter', 'ping-converter'].includes(tool.slug) ? pairs : [];
+---
+
+<BaseLayout
+  title={tool.seoTitle}
+  description={tool.description}
+  path={toolPath(tool.slug)}
+  activeCategory={category.id}
+  jsonLd={[toolJsonLd(tool, category), breadcrumbJsonLd(crumbs), faqJsonLd(tool.faq)]}
+>
+  <div class="container layout">
+    <div class="primary">
+      <Breadcrumbs items={crumbs} />
+      <header class="head">
+        <div class="title-row">
+          <Icon name={tool.icon} size={34} strokeWidth={1.6} class="title-icon" />
+          <h1>{tool.name}</h1>
+        </div>
+        <p class="intro">{tool.intro}</p>
+      </header>
+
+      <section class="tool-card" aria-label={`${tool.name}工具`}>
+        <ToolUI />
+      </section>
+
+      <AdSlot slot="afterTool" />
+
+      <article class="prose">
+        <h2>如何使用{tool.name}</h2>
+        <ol class="steps">
+          {tool.howTo.map((step) => <li>{step}</li>)}
+        </ol>
+
+        {
+          firstSection && (
+            <section>
+              <h2>{firstSection.heading}</h2>
+              {firstSection.body.map((p) => <p>{p}</p>)}
+            </section>
+          )
+        }
+
+        <AdSlot slot="inArticle" />
+
+        {
+          restSections.map((s) => (
+            <section>
+              <h2>{s.heading}</h2>
+              {s.body.map((p) => <p>{p}</p>)}
+            </section>
+          ))
+        }
+
+        {
+          conversionLinks.length > 0 && (
+            <section>
+              <h2>常用換算</h2>
+              <ul class="pair-links">
+                {conversionLinks.map((p) => (
+                  <li>
+                    <a href={convertPath(p.slug)}>{p.keyword}</a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        }
+
+        {
+          tool.faq.length > 0 && (
+            <section class="faq">
+              <h2>常見問題</h2>
+              {tool.faq.map((item) => (
+                <div class="qa">
+                  <h3>{item.q}</h3>
+                  <p>{item.a}</p>
+                </div>
+              ))}
+            </section>
+          )
+        }
+
+        {
+          tool.blogPosts && tool.blogPosts.length > 0 && (
+            <section>
+              <h2>延伸閱讀</h2>
+              <ul>
+                {tool.blogPosts.map((post) => (
+                  <li>
+                    <a href={post.url}>{post.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        }
+
+        <p class="updated">
+          最後更新：<time datetime={tool.updated}>{updated.toLocaleDateString('zh-TW', { dateStyle: 'long' })}</time>
+        </p>
+      </article>
+
+      <AdSlot slot="bottom" />
+
+      <section class="related" aria-labelledby="related-title">
+        <h2 id="related-title">你可能也需要</h2>
+        <div class="related-grid">
+          {related.map((t) => <ToolCard tool={t} />)}
+        </div>
+      </section>
+    </div>
+
+    <aside class="secondary">
+      <div class="sticky">
+        <AdSlot slot="sidebar" />
+        {
+          siblings.length > 0 && (
+            <nav class="side-list" aria-label={`更多${category.name}`}>
+              <h2>更多{category.name}</h2>
+              {siblings.map((t) => <ToolCard tool={t} compact />)}
+            </nav>
+          )
+        }
+      </div>
+    </aside>
+  </div>
+</BaseLayout>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding-top: 20px;
+  }
+  @media (min-width: 1100px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 300px;
+    }
+  }
+  .primary {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-content: start;
+  }
+  .head {
+    display: grid;
+    gap: 8px;
+  }
+  h1 {
+    font-size: clamp(30px, 4.5vw, 42px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .title-row :global(.title-icon) {
+    flex: none;
+    color: var(--accent);
+  }
+  .intro {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 17px;
+    line-height: 1.8;
+    max-width: 68ch;
+  }
+  .tool-card {
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  @media (min-width: 640px) {
+    .tool-card {
+      padding: 24px;
+    }
+  }
+  .prose {
+    max-width: 72ch;
+    color: var(--text-2);
+  }
+  .prose h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    margin: 40px 0 14px;
+  }
+  .prose h3 {
+    font-size: 17px;
+    color: var(--text);
+    margin: 0 0 4px;
+  }
+  .prose p {
+    margin: 0 0 14px;
+    line-height: 1.9;
+  }
+  .steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 40px;
+    line-height: 1.8;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 2px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .qa {
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .qa h3 {
+    font-size: 16px !important;
+  }
+  .qa p {
+    margin: 0;
+  }
+  .pair-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pair-links a {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .updated {
+    margin-top: 28px !important;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .related h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+  .related-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .secondary {
+    display: none;
+  }
+  @media (min-width: 1100px) {
+    .secondary {
+      display: block;
+    }
+  }
+  .sticky {
+    position: sticky;
+    top: 112px;
+    display: grid;
+    gap: 20px;
+  }
+  .side-list {
+    display: grid;
+    gap: 8px;
+  }
+  .side-list h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-2);
+    margin: 0 0 2px;
+  }
+</style>

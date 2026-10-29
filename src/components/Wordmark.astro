@@ -1,0 +1,50 @@
+---
+// Text-only brand: 「隨手」 plus a descriptor so the name explains itself.
+import { site } from '../config/site';
+
+interface Props {
+  size?: 'md' | 'lg';
+}
+const { size = 'md' } = Astro.props;
+---
+
+<span class:list={['wordmark', size]}>
+  <span class="name">{site.name}</span>
+  <span class="desc">線上工具</span>
+</span>
+
+<style>
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .name {
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+  }
+  .name::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: baseline;
+  }
+  .desc {
+    padding-left: 10px;
+    border-left: 1px solid var(--border-strong);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .lg .name {
+    font-size: 26px;
+  }
+</style>

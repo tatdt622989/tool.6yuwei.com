@@ -1,0 +1,50 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { breadcrumbJsonLd } from '../lib/seo';
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+}
+const { title, description, path } = Astro.props;
+const crumbs = [
+  { name: '首頁', path: '/' },
+  { name: title, path },
+];
+---
+
+<BaseLayout title={title} description={description} path={path} jsonLd={[breadcrumbJsonLd(crumbs)]}>
+  <div class="container page">
+    <Breadcrumbs items={crumbs} />
+    <article class="doc">
+      <h1>{title}</h1>
+      <slot />
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-top: 20px;
+  }
+  .doc {
+    max-width: 72ch;
+    color: var(--text-2);
+  }
+  .doc h1 {
+    font-size: clamp(28px, 4vw, 36px);
+    color: var(--text);
+    margin: 12px 0 20px;
+  }
+  .doc :global(h2) {
+    font-size: 20px;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+  .doc :global(p),
+  .doc :global(li) {
+    margin: 0 0 10px;
+  }
+</style>

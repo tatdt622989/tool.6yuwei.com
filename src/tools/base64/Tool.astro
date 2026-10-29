@@ -1,0 +1,122 @@
+<div class="tool" data-tool="base64">
+  <div class="row">
+    <div class="seg" role="radiogroup" aria-label="轉換方向">
+      <label><input type="radio" name="b64-mode" value="encode" checked /><span>編碼</span></label>
+      <label><input type="radio" name="b64-mode" value="decode" /><span>解碼</span></label>
+    </div>
+    <label class="check b64-enc-opt"><input type="checkbox" id="b64-urlsafe" /> URL-safe（- _）</label>
+    <label class="check b64-enc-opt"><input type="checkbox" id="b64-nopad" /> 移除結尾 =</label>
+  </div>
+
+  <div class="field">
+    <label for="b64-input" id="b64-input-label">要編碼的文字</label>
+    <textarea id="b64-input" rows="8" spellcheck="false" autocomplete="off"></textarea>
+  </div>
+
+  <div id="b64-error" class="notice error" role="alert" hidden></div>
+  <div id="b64-hex" class="output" hidden></div>
+
+  <div class="field">
+    <label for="b64-output" id="b64-output-label">Base64 結果</label>
+    <textarea id="b64-output" class="mono" rows="8" readonly spellcheck="false"></textarea>
+    <span class="hint" id="b64-meta"></span>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" type="button" data-copy="#b64-output">複製結果</button>
+    <button class="btn" type="button" id="b64-swap">用結果反向轉換</button>
+    <button class="btn ghost" type="button" id="b64-clear">清除</button>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import { decodeText, encodeText, toHex } from './logic';
+
+  type Mode = 'encode' | 'decode';
+  interface Prefs {
+    mode: Mode;
+    urlSafe: boolean;
+    noPadding: boolean;
+  }
+
+  const root = $('[data-tool="base64"]');
+  const input = $<HTMLTextAreaElement>('#b64-input', root);
+  const output = $<HTMLTextAreaElement>('#b64-output', root);
+  const inputLabel = $('#b64-input-label', root);
+  const outputLabel = $('#b64-output-label', root);
+  const error = $('#b64-error', root);
+  const hex = $('#b64-hex', root);
+  const meta = $('#b64-meta', root);
+  const urlSafe = $<HTMLInputElement>('#b64-urlsafe', root);
+  const noPadding = $<HTMLInputElement>('#b64-nopad', root);
+  const modeRadios = $$<HTMLInputElement>('input[name="b64-mode"]', root);
+  const encOpts = $$<HTMLElement>('.b64-enc-opt', root);
+  const encoder = new TextEncoder();
+
+  const mode = (): Mode => (modeRadios.find((r) => r.checked)?.value ?? 'encode') as Mode;
+
+  function setMode(m: Mode) {
+    modeRadios.forEach((r) => (r.checked = r.value === m));
+  }
+
+  function render() {
+    const m = mode();
+    savePref('base64', { mode: m, urlSafe: urlSafe.checked, noPadding: noPadding.checked } satisfies Prefs);
+    encOpts.forEach((el) => (el.style.display = m === 'encode' ? '' : 'none'));
+    inputLabel.textContent = m === 'encode' ? '要編碼的文字' : '要解碼的 Base64';
+    outputLabel.textContent = m === 'encode' ? 'Base64 結果' : '解碼後的文字';
+    input.placeholder = m === 'encode' ? '輸入任何文字，支援中文與表情符號' : '貼上 Base64 字串，標準或 URL-safe 格式皆可';
+    input.classList.toggle('mono', m === 'decode');
+    error.hidden = true;
+    hex.hidden = true;
+
+    if (input.value === '') {
+      output.value = '';
+      meta.textContent = '';
+      return;
+    }
+
+    if (m === 'encode') {
+      output.value = encodeText(input.value, { urlSafe: urlSafe.checked, noPadding: noPadding.checked });
+      meta.textContent = `原文 ${formatInteger(encoder.encode(input.value).length)} 位元組（UTF-8）→ ${formatInteger(output.value.length)} 個字元`;
+      return;
+    }
+
+    const result = decodeText(input.value);
+    if (result.ok) {
+      output.value = result.text;
+      meta.textContent = `解碼為 ${formatInteger(result.bytes.length)} 位元組（UTF-8）`;
+    } else {
+      output.value = '';
+      meta.textContent = '';
+      error.textContent = result.error;
+      error.hidden = false;
+      if (result.bytes) {
+        hex.textContent = `前 64 位元組（十六進位）：\n${toHex(result.bytes)}`;
+        hex.hidden = false;
+      }
+    }
+  }
+
+  const prefs = loadPref<Prefs>('base64', { mode: 'encode', urlSafe: false, noPadding: false });
+  setMode(prefs.mode);
+  urlSafe.checked = prefs.urlSafe;
+  noPadding.checked = prefs.noPadding;
+
+  input.addEventListener('input', render);
+  [...modeRadios, urlSafe, noPadding].forEach((el) => el.addEventListener('change', render));
+  $('#b64-swap', root).addEventListener('click', () => {
+    if (!output.value) return;
+    input.value = output.value;
+    setMode(mode() === 'encode' ? 'decode' : 'encode');
+    render();
+  });
+  $('#b64-clear', root).addEventListener('click', () => {
+    input.value = '';
+    render();
+    input.focus();
+  });
+  render();
+</script>

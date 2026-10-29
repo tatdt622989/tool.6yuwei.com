@@ -1,0 +1,147 @@
+---
+const styles = [
+  { value: 'upper', label: 'UPPER CASE', hint: '全部大寫' },
+  { value: 'lower', label: 'lower case', hint: '全部小寫' },
+  { value: 'title', label: 'Title Case', hint: '標題大寫' },
+  { value: 'sentence', label: 'Sentence case', hint: '句首大寫' },
+  { value: 'toggle', label: 'tOGGLE cASE', hint: '大小寫互換' },
+  { value: 'camel', label: 'camelCase', hint: '小駝峰' },
+  { value: 'pascal', label: 'PascalCase', hint: '大駝峰' },
+  { value: 'snake', label: 'snake_case', hint: '底線' },
+  { value: 'kebab', label: 'kebab-case', hint: '連字號' },
+  { value: 'constant', label: 'CONSTANT_CASE', hint: '常數' },
+];
+---
+
+<div class="tool" data-tool="case-converter">
+  <div class="field">
+    <label for="cc-input">輸入文字</label>
+    <textarea id="cc-input" rows="7" placeholder="貼上英文句子、標題或變數名稱，例如 getUserName 或 hello world"></textarea>
+  </div>
+
+  <fieldset class="cc-styles">
+    <legend class="label">轉換格式</legend>
+    {
+      styles.map((s, i) => (
+        <label class="cc-style">
+          <input type="radio" name="cc-style" value={s.value} checked={i === 0} />
+          <span class="cc-style-box">
+            <span class="cc-style-name mono">{s.label}</span>
+            <span class="cc-style-hint">{s.hint}</span>
+          </span>
+        </label>
+      ))
+    }
+  </fieldset>
+
+  <div class="field">
+    <label for="cc-output">轉換結果</label>
+    <textarea id="cc-output" rows="7" readonly placeholder="結果會即時顯示在這裡"></textarea>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" type="button" data-copy="#cc-output">複製結果</button>
+    <button class="btn" type="button" id="cc-apply">以結果取代輸入</button>
+    <button class="btn ghost" type="button" id="cc-clear">清除</button>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { convertCase, isCaseStyle, type CaseStyle } from './logic';
+
+  const root = $('[data-tool="case-converter"]');
+  const input = $<HTMLTextAreaElement>('#cc-input', root);
+  const output = $<HTMLTextAreaElement>('#cc-output', root);
+  const radios = $$<HTMLInputElement>('input[name="cc-style"]', root);
+
+  function current(): CaseStyle {
+    const value = radios.find((r) => r.checked)?.value;
+    return isCaseStyle(value) ? value : 'upper';
+  }
+
+  function render() {
+    const style = current();
+    savePref('case-converter', style);
+    output.value = convertCase(input.value, style);
+  }
+
+  const saved = loadPref<string>('case-converter', 'upper');
+  if (isCaseStyle(saved)) for (const r of radios) r.checked = r.value === saved;
+
+  input.addEventListener('input', render);
+  for (const r of radios) r.addEventListener('change', render);
+  $('#cc-apply', root).addEventListener('click', () => {
+    input.value = output.value;
+    render();
+  });
+  $('#cc-clear', root).addEventListener('click', () => {
+    input.value = '';
+    render();
+    input.focus();
+  });
+  render();
+</script>
+
+<style>
+  .cc-styles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .cc-styles legend {
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  @media (min-width: 640px) {
+    .cc-styles {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  .cc-style {
+    cursor: pointer;
+    min-width: 0;
+  }
+  .cc-style input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .cc-style-box {
+    display: grid;
+    gap: 2px;
+    height: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .cc-style:hover .cc-style-box {
+    background: var(--surface-2);
+  }
+  .cc-style input:checked + .cc-style-box {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .cc-style input:focus-visible + .cc-style-box {
+    box-shadow: var(--focus);
+  }
+  .cc-style-name {
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cc-style-hint {
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>

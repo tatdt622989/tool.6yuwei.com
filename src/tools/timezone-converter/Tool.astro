@@ -1,0 +1,316 @@
+<div class="tool" data-tool="timezone-converter">
+  <div class="grid-2">
+    <div class="field">
+      <label for="tz-source">來源時區</label>
+      <select id="tz-source"></select>
+    </div>
+    <div class="field">
+      <label for="tz-when">來源時區的日期與時間</label>
+      <div class="tz-when">
+        <input id="tz-when" type="datetime-local" step="60" />
+        <button class="btn" type="button" id="tz-now">現在</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint" id="tz-utc" aria-live="polite"></p>
+  <div class="notice" id="tz-status" hidden></div>
+
+  <ul class="tz-list" id="tz-list" aria-label="各時區時間"></ul>
+
+  <div class="field">
+    <label for="tz-add">加入其他時區</label>
+    <div class="tz-add">
+      <select id="tz-add"></select>
+      <button class="btn primary" type="button" id="tz-add-btn">加入</button>
+      <button class="btn ghost" type="button" id="tz-reset">恢復預設</button>
+    </div>
+    <span class="hint">時區清單會記在這個瀏覽器，下次開啟時自動帶入。</span>
+  </div>
+</div>
+
+<script>
+  import { $, loadPref, savePref } from '../../lib/client';
+  import { formatNumber } from '../../lib/format';
+  import {
+    dayShift,
+    DEFAULT_ZONES,
+    formatOffset,
+    hourDifference,
+    instantToZoned,
+    isDST,
+    isValidTimeZone,
+    listTimeZones,
+    normalizeZones,
+    parseWallTime,
+    toWallTimeValue,
+    ZONE_LABELS,
+    zonedToInstant,
+    zoneLabel,
+    type ZonedTime,
+  } from './logic';
+
+  const root = $('[data-tool="timezone-converter"]');
+  const sourceSel = $<HTMLSelectElement>('#tz-source', root);
+  const whenInput = $<HTMLInputElement>('#tz-when', root);
+  const list = $('#tz-list', root);
+  const addSel = $<HTMLSelectElement>('#tz-add', root);
+  const status = $('#tz-status', root);
+  const utcLine = $('#tz-utc', root);
+
+  interface Prefs {
+    source: string;
+    zones: string[];
+  }
+
+  const WEEKDAY = ['日', '一', '二', '三', '四', '五', '六'];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const allZones = listTimeZones();
+
+  const prefs = loadPref<Prefs>('timezone-converter', { source: 'Asia/Taipei', zones: [...DEFAULT_ZONES] });
+  let source = isValidTimeZone(prefs.source) ? prefs.source : 'Asia/Taipei';
+  let zones = normalizeZones(prefs.zones);
+
+  function fillZoneSelect(select: HTMLSelectElement, selected?: string) {
+    const common = document.createElement('optgroup');
+    common.label = '常用城市';
+    const seen = new Set<string>();
+    for (const zone of Object.keys(ZONE_LABELS)) {
+      const label = ZONE_LABELS[zone];
+      if (seen.has(label) || !allZones.includes(zone)) continue;
+      seen.add(label);
+      common.append(new Option(`${label}（${zone}）`, zone));
+    }
+    const rest = document.createElement('optgroup');
+    rest.label = '所有時區';
+    for (const zone of allZones) rest.append(new Option(zone.replace(/_/g, ' '), zone));
+    select.replaceChildren(common, rest);
+    if (selected) select.value = selected;
+  }
+
+  function setNow() {
+    const now = instantToZoned(Date.now(), source);
+    whenInput.value = toWallTimeValue(now);
+  }
+
+  function persist() {
+    savePref('timezone-converter', { source, zones } satisfies Prefs);
+  }
+
+  function formatDiff(hours: number): string {
+    if (hours === 0) return '與來源同時間';
+    return `${hours > 0 ? '快' : '慢'} ${formatNumber(Math.abs(hours), 2)} 小時`;
+  }
+
+  function card(zone: string, instant: number, base: ZonedTime): HTMLLIElement {
+    const t = instantToZoned(instant, zone);
+    const shift = dayShift(base, t);
+    const li = document.createElement('li');
+    li.className = 'tz-card';
+    if (zone === source) li.dataset.source = '';
+    if (t.hour < 7 || t.hour >= 22) li.dataset.night = '';
+
+    const info = document.createElement('div');
+    info.className = 'tz-info';
+    const name = document.createElement('div');
+    name.className = 'tz-name';
+    name.textContent = zoneLabel(zone);
+    const meta = document.createElement('div');
+    meta.className = 'tz-meta';
+    meta.textContent = [zone, formatOffset(t.offset), isDST(instant, zone) ? '夏令時間' : ''].filter(Boolean).join(' · ');
+    info.append(name, meta);
+
+    const time = document.createElement('div');
+    time.className = 'tz-time';
+    const clock = document.createElement('div');
+    clock.className = 'tz-clock';
+    clock.textContent = `${pad(t.hour)}:${pad(t.minute)}`;
+    const date = document.createElement('div');
+    date.className = 'tz-date';
+    const tags = [
+      `${t.month}/${t.day}（${WEEKDAY[t.weekday]}）`,
+      shift < 0 ? '前一天' : shift > 0 ? '隔天' : '',
+      li.dataset.night === undefined ? '' : '夜間',
+      zone === source ? '來源' : formatDiff(hourDifference(instant, source, zone)),
+    ];
+    date.textContent = tags.filter(Boolean).join(' · ');
+    time.append(clock, date);
+
+    const actions = document.createElement('div');
+    actions.className = 'tz-actions';
+    if (zone !== source) {
+      const use = document.createElement('button');
+      use.type = 'button';
+      use.className = 'btn small ghost';
+      use.textContent = '設為來源';
+      use.dataset.use = zone;
+      actions.append(use);
+    }
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn small ghost';
+    remove.textContent = '移除';
+    remove.dataset.remove = zone;
+    remove.setAttribute('aria-label', `移除${zoneLabel(zone)}`);
+    actions.append(remove);
+
+    li.append(info, time, actions);
+    return li;
+  }
+
+  function render() {
+    persist();
+    const wall = parseWallTime(whenInput.value);
+    if (!wall) {
+      utcLine.textContent = '請選擇日期與時間';
+      status.hidden = true;
+      list.replaceChildren();
+      return;
+    }
+    const { instant, status: kind } = zonedToInstant(wall, source);
+    const base = instantToZoned(instant, source);
+    const u = new Date(instant);
+    utcLine.textContent = `${zoneLabel(source)} ${formatOffset(base.offset)}，對應 UTC 時間 ${u.getUTCFullYear()}-${pad(u.getUTCMonth() + 1)}-${pad(u.getUTCDate())} ${pad(u.getUTCHours())}:${pad(u.getUTCMinutes())}`;
+    status.hidden = kind === 'ok';
+    status.textContent =
+      kind === 'gap'
+        ? `這個時間因夏令時間開始而不存在，已順延為 ${pad(base.hour)}:${pad(base.minute)}。`
+        : '這個時間因夏令時間結束會出現兩次，以下以第一次（夏令時間）計算。';
+    list.replaceChildren(...zones.map((zone) => card(zone, instant, base)));
+    if (zones.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'notice';
+      empty.textContent = '目前沒有要比較的時區，請從下方加入。';
+      list.append(empty);
+    }
+  }
+
+  fillZoneSelect(sourceSel, source);
+  fillZoneSelect(addSel, 'Europe/Paris');
+  setNow();
+
+  sourceSel.addEventListener('change', () => {
+    source = sourceSel.value;
+    render();
+  });
+  whenInput.addEventListener('input', render);
+  $('#tz-now', root).addEventListener('click', () => {
+    setNow();
+    render();
+  });
+  $('#tz-add-btn', root).addEventListener('click', () => {
+    const zone = addSel.value;
+    if (zone && !zones.includes(zone)) zones.push(zone);
+    render();
+  });
+  $('#tz-reset', root).addEventListener('click', () => {
+    zones = [...DEFAULT_ZONES];
+    render();
+  });
+  list.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('button');
+    if (!button) return;
+    const { remove, use } = button.dataset;
+    if (remove) {
+      zones = zones.filter((z) => z !== remove);
+    } else if (use) {
+      // Keep the same moment: show it as wall time in the new source zone.
+      const wall = parseWallTime(whenInput.value);
+      const instant = wall ? zonedToInstant(wall, source).instant : Date.now();
+      source = use;
+      sourceSel.value = source;
+      whenInput.value = toWallTimeValue(instantToZoned(instant, source));
+    }
+    render();
+  });
+  render();
+</script>
+
+<style>
+  .tz-when,
+  .tz-add {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .tz-add {
+    grid-template-columns: 1fr auto auto;
+  }
+  @media (max-width: 420px) {
+    .tz-add {
+      grid-template-columns: 1fr 1fr;
+    }
+    .tz-add select {
+      grid-column: 1 / -1;
+    }
+  }
+  .tz-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tz-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'info time'
+      'actions actions';
+    align-items: center;
+    gap: 4px 12px;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .tz-card[data-source] {
+    background: var(--accent-soft);
+    border-color: color-mix(in oklab, var(--accent) 25%, transparent);
+  }
+  .tz-info {
+    grid-area: info;
+    min-width: 0;
+  }
+  .tz-name {
+    font-weight: 700;
+  }
+  .tz-meta,
+  .tz-date {
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .tz-time {
+    grid-area: time;
+    text-align: right;
+  }
+  .tz-clock {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .tz-card[data-night] .tz-clock {
+    color: var(--text-2);
+  }
+  .tz-actions {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0 -6px -6px 0;
+  }
+  @media (min-width: 640px) {
+    .tz-card {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-areas: 'info time actions';
+    }
+    .tz-actions {
+      margin: 0;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+  }
+</style>

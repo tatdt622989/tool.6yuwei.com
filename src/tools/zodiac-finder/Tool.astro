@@ -1,0 +1,191 @@
+---
+import { animalYearTable, SIGNS } from './logic';
+
+// Both reference tables are rendered at build time so they are part of the HTML.
+const range = (s: [number, number], e: [number, number]) => `${s[0]}/${s[1]} – ${e[0]}/${e[1]}`;
+const animals = animalYearTable(1924, 2031);
+---
+
+<div class="tool" data-tool="zodiac-finder">
+  <div class="row zf-inputs">
+    <div class="field zf-date">
+      <label for="zf-date">出生日期（國曆／西元）</label>
+      <input id="zf-date" type="date" min="1900-01-31" max="2100-12-31" value="1995-08-15" />
+    </div>
+  </div>
+
+  <div class="notice error" id="zf-error" hidden></div>
+
+  <div class="result" aria-live="polite">
+    <div class="result-value" id="zf-main">—</div>
+    <div class="result-label" id="zf-sub"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="zf-sign">—</span><span class="stat-label" id="zf-sign-label">星座</span></div>
+    <div class="stat"><span class="stat-value" id="zf-element">—</span><span class="stat-label">元素・性質</span></div>
+    <div class="stat"><span class="stat-value" id="zf-ruler">—</span><span class="stat-label">守護星</span></div>
+    <div class="stat"><span class="stat-value" id="zf-animal">—</span><span class="stat-label" id="zf-animal-label">生肖</span></div>
+    <div class="stat"><span class="stat-value" id="zf-ny">—</span><span class="stat-label" id="zf-ny-label">當年春節</span></div>
+  </div>
+  <p class="notice" id="zf-note" hidden></p>
+
+  <div class="field">
+    <span class="label">十二星座日期表</span>
+    <div class="table-wrap">
+      <table class="table zf-table">
+        <thead>
+          <tr><th>星座</th><th>日期</th><th>元素</th><th>性質</th><th>守護星</th><th>起始節氣</th></tr>
+        </thead>
+        <tbody id="zf-signs">
+          {
+            SIGNS.map((s) => (
+              <tr data-sign={s.name}>
+                <td>
+                  {s.name} <span class="muted">{s.english}</span>
+                </td>
+                <td>{range(s.start, s.end)}</td>
+                <td>{s.element}象</td>
+                <td>{s.modality}</td>
+                <td>{s.ruler}</td>
+                <td>{s.term}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="label">十二生肖年份對照表（括號內為該年春節日期）</span>
+    <div class="table-wrap">
+      <table class="table zf-table">
+        <thead>
+          <tr><th>生肖</th><th>年份（農曆年，自春節起算）</th></tr>
+        </thead>
+        <tbody id="zf-animals">
+          {
+            animals.map((row) => (
+              <tr data-animal={row.animal}>
+                <td>{row.animal}</td>
+                <td class="zf-years-cell">
+                  <div class="zf-years">
+                    {row.years.map((y) => (
+                      <span>
+                        {y.year}
+                        <span class="muted">（{y.newYear.m}/{y.newYear.d}）</span>
+                      </span>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <span class="hint">上升星座需要出生時間與出生地點才能計算，不在本工具範圍內；這裡查的是一般所說的太陽星座。</span>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { parseISODate, WEEKDAY_LABEL, weekdayOf } from '../date-diff/logic';
+  import { dayName, monthName, solarToLunar } from '../lunar-converter/logic';
+  import { lookup } from './logic';
+
+  const root = $('[data-tool="zodiac-finder"]');
+  const input = $<HTMLInputElement>('#zf-date', root);
+  const error = $('#zf-error', root);
+  const note = $('#zf-note', root);
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+
+  function clear(message: string) {
+    error.textContent = message;
+    error.hidden = false;
+    note.hidden = true;
+    ['#zf-main', '#zf-sign', '#zf-element', '#zf-ruler', '#zf-animal', '#zf-ny'].forEach((id) => set(id, '—'));
+    set('#zf-sub', '');
+  }
+
+  function highlight(attr: 'sign' | 'animal', value: string | null) {
+    for (const tr of $$<HTMLElement>(`tr[data-${attr}]`, root)) tr.classList.toggle('is-current', tr.dataset[attr] === value);
+  }
+
+  function render() {
+    const date = parseISODate(input.value);
+    if (!date) {
+      clear('請選擇出生日期。');
+      return;
+    }
+    savePref('zodiac-finder', input.value);
+    error.hidden = true;
+    const r = lookup(date);
+    const s = r.sign;
+    const a = r.animal;
+    set('#zf-main', a ? `${s.name}・屬${a.animal}` : s.name);
+    const lunar = solarToLunar(date);
+    set(
+      '#zf-sub',
+      `${date.y} 年 ${date.m} 月 ${date.d} 日（${WEEKDAY_LABEL[weekdayOf(date)]}）出生` +
+        (lunar && a ? `，農曆${a.ganzhi}年${monthName(lunar.month, lunar.isLeap)}${dayName(lunar.day)}` : ''),
+    );
+    set('#zf-sign', s.name);
+    set('#zf-sign-label', `星座（${s.start[0]}/${s.start[1]}–${s.end[0]}/${s.end[1]}，${s.english}）`);
+    set('#zf-element', `${s.element}象・${s.modality}`);
+    set('#zf-ruler', s.ruler);
+    if (a) {
+      set('#zf-animal', `${a.animal}（${a.ganzhi}）`);
+      set('#zf-animal-label', `生肖（農曆 ${a.lunarYear} 年，五行屬${a.element}）`);
+      set('#zf-ny', `${a.newYear.m}/${a.newYear.d}`);
+      set('#zf-ny-label', `${date.y} 年春節（正月初一）`);
+    } else {
+      set('#zf-animal', '—');
+      set('#zf-animal-label', '生肖（支援 1900/1/31 到 2100 年）');
+      set('#zf-ny', '—');
+    }
+
+    const notes: string[] = [];
+    if (a?.beforeNewYear) {
+      notes.push(`你在 ${date.y} 年春節（${a.newYear.m}/${a.newYear.d}）之前出生，農曆仍是前一年，所以生肖屬${a.animal}，不是依西元 ${date.y} 年算的${a.naiveAnimal}。`);
+    }
+    if (r.termSign) {
+      notes.push(`依 ${date.y} 年實際節氣，太陽在這天已進入${r.termSign.name}（${r.termSign.term}當天）。生日在星座交界日，確切星座要看出生時間，建議兩個都參考。`);
+    } else if (r.nearCusp) {
+      notes.push('這天接近星座交界（前後一天就換星座），若出生時間接近午夜，星座可能不同。');
+    }
+    note.textContent = notes.join('');
+    note.hidden = notes.length === 0;
+    highlight('sign', s.name);
+    highlight('animal', a?.animal ?? null);
+  }
+
+  const saved = loadPref<string>('zodiac-finder', '');
+  if (parseISODate(saved)) input.value = saved;
+  input.addEventListener('input', render);
+  render();
+</script>
+
+<style>
+  .zf-date {
+    flex: 1 1 220px;
+    max-width: 320px;
+  }
+  .zf-table :global(tr.is-current) td {
+    background: var(--accent-soft);
+    font-weight: 700;
+  }
+  .zf-years-cell {
+    white-space: normal !important;
+  }
+  .zf-years {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    min-width: 260px;
+  }
+  .zf-years .muted {
+    font-size: 12px;
+  }
+</style>

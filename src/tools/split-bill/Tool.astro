@@ -1,0 +1,323 @@
+<div class="tool" data-tool="split-bill">
+  <div class="seg" role="radiogroup" aria-label="分帳方式">
+    <label><input type="radio" name="sb-mode" value="equal" checked /><span>平均分攤</span></label>
+    <label><input type="radio" name="sb-mode" value="items" /><span>各付各的</span></label>
+  </div>
+
+  <div class="grid-2" id="sb-equal">
+    <div class="field">
+      <label for="sb-total">消費金額（元）</label>
+      <input id="sb-total" type="text" inputmode="decimal" autocomplete="off" value="3280" />
+    </div>
+    <div class="field">
+      <label for="sb-people">人數</label>
+      <input id="sb-people" type="text" inputmode="numeric" autocomplete="off" value="4" />
+    </div>
+  </div>
+
+  <div class="field" id="sb-items" hidden>
+    <span class="label">每個人自己點的金額（元）</span>
+    <div class="sb-list" id="sb-list"></div>
+    <div class="row">
+      <button class="btn small" type="button" id="sb-add">新增一人</button>
+    </div>
+    <label class="label" for="sb-shared">共同分攤金額（合菜、飲料等，平均分給所有人）</label>
+    <input id="sb-shared" type="text" inputmode="decimal" autocomplete="off" value="600" />
+  </div>
+
+  <div class="grid-2">
+    <div class="field">
+      <label for="sb-service">服務費（%）</label>
+      <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value="10" />
+      <span class="hint">台灣餐廳常見 10%，沒有收就填 0。</span>
+    </div>
+    <div class="field">
+      <label for="sb-tip">小費（%，選填）</label>
+      <input id="sb-tip" type="text" inputmode="decimal" autocomplete="off" value="0" />
+      <span class="hint">以消費金額計算，出國用餐時常用。</span>
+    </div>
+  </div>
+
+  <div class="field" id="sb-round-wrap">
+    <span class="label">進位方式</span>
+    <div class="seg" role="radiogroup" aria-label="進位方式">
+      <label><input type="radio" name="sb-round" value="1" checked /><span>精確到 1 元</span></label>
+      <label><input type="radio" name="sb-round" value="10" /><span>每人進位到 10 元</span></label>
+    </div>
+  </div>
+
+  <p class="notice error" id="sb-error" hidden></p>
+
+  <div id="sb-results">
+    <div class="result">
+      <div class="result-value" id="sb-main">—</div>
+      <div class="result-label" id="sb-main-label">每人應付</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="sb-subtotal">—</span><span class="stat-label">消費小計</span></div>
+      <div class="stat"><span class="stat-value" id="sb-service-out">—</span><span class="stat-label">服務費</span></div>
+      <div class="stat"><span class="stat-value" id="sb-tip-out">—</span><span class="stat-label">小費</span></div>
+      <div class="stat"><span class="stat-value" id="sb-grand">—</span><span class="stat-label">應付總額（四捨五入）</span></div>
+    </div>
+
+    <p class="notice" id="sb-note"></p>
+
+    <div class="table-wrap" id="sb-table-wrap" hidden>
+      <table class="table">
+        <thead>
+          <tr><th>姓名</th><th class="num">個人</th><th class="num">共同分攤</th><th class="num">服務費＋小費</th><th class="num">應付</th></tr>
+        </thead>
+        <tbody id="sb-table"></tbody>
+      </table>
+    </div>
+
+    <div class="row">
+      <button class="btn small" type="button" data-copy="#sb-summary">複製分帳結果</button>
+    </div>
+    <textarea id="sb-summary" hidden readonly aria-hidden="true"></textarea>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { splitEqually, splitItemized } from './logic';
+
+  type Mode = 'equal' | 'items';
+  interface Prefs {
+    mode: Mode;
+    total: string;
+    people: string;
+    service: string;
+    tip: string;
+    roundTo: '1' | '10';
+    shared: string;
+    persons: { name: string; amount: string }[];
+  }
+
+  const defaults: Prefs = {
+    mode: 'equal',
+    total: '3280',
+    people: '4',
+    service: '10',
+    tip: '0',
+    roundTo: '1',
+    shared: '600',
+    persons: [
+      { name: '小明', amount: '320' },
+      { name: '小華', amount: '450' },
+      { name: '小美', amount: '280' },
+    ],
+  };
+
+  const root = $('[data-tool="split-bill"]');
+  const modeRadios = $$<HTMLInputElement>('input[name="sb-mode"]', root);
+  const roundRadios = $$<HTMLInputElement>('input[name="sb-round"]', root);
+  const total = $<HTMLInputElement>('#sb-total', root);
+  const people = $<HTMLInputElement>('#sb-people', root);
+  const service = $<HTMLInputElement>('#sb-service', root);
+  const tip = $<HTMLInputElement>('#sb-tip', root);
+  const shared = $<HTMLInputElement>('#sb-shared', root);
+  const list = $('#sb-list', root);
+  const equalPanel = $('#sb-equal', root);
+  const itemsPanel = $('#sb-items', root);
+  const roundWrap = $('#sb-round-wrap', root);
+  const error = $('#sb-error', root);
+  const results = $('#sb-results', root);
+  const main = $('#sb-main', root);
+  const mainLabel = $('#sb-main-label', root);
+  const note = $('#sb-note', root);
+  const tableWrap = $('#sb-table-wrap', root);
+  const table = $('#sb-table', root);
+  const summary = $<HTMLTextAreaElement>('#sb-summary', root);
+
+  const yuan = (n: number) => `${formatInteger(n)} 元`;
+  const mode = (): Mode => (modeRadios.find((r) => r.checked)?.value as Mode) ?? 'equal';
+  const roundTo = (): 1 | 10 => (roundRadios.find((r) => r.checked)?.value === '10' ? 10 : 1);
+
+  function addPersonRow(name = '', amount = '') {
+    const row = document.createElement('div');
+    row.className = 'sb-person';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = `第 ${list.children.length + 1} 位`;
+    nameInput.value = name;
+    nameInput.setAttribute('aria-label', '姓名');
+    nameInput.dataset.role = 'name';
+    const amountInput = document.createElement('input');
+    amountInput.type = 'text';
+    amountInput.inputMode = 'decimal';
+    amountInput.placeholder = '金額';
+    amountInput.value = amount;
+    amountInput.setAttribute('aria-label', '個人消費金額');
+    amountInput.dataset.role = 'amount';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn small ghost';
+    remove.textContent = '移除';
+    remove.addEventListener('click', () => {
+      if (list.children.length <= 1) return;
+      row.remove();
+      render();
+    });
+    row.append(nameInput, amountInput, remove);
+    list.append(row);
+  }
+
+  function readPersons() {
+    return $$<HTMLElement>('.sb-person', list).map((row, i) => {
+      const name = $<HTMLInputElement>('[data-role="name"]', row).value.trim();
+      const amount = $<HTMLInputElement>('[data-role="amount"]', row).value;
+      return { name: name || `第 ${i + 1} 位`, rawName: name, amount };
+    });
+  }
+
+  function showError(message: string) {
+    error.textContent = message;
+    error.hidden = false;
+    results.hidden = true;
+  }
+
+  function render() {
+    const m = mode();
+    const persons = readPersons();
+    savePref('split-bill', {
+      mode: m,
+      total: total.value,
+      people: people.value,
+      service: service.value,
+      tip: tip.value,
+      roundTo: roundTo() === 10 ? '10' : '1',
+      shared: shared.value,
+      persons: persons.map((p) => ({ name: p.rawName, amount: p.amount })),
+    } satisfies Prefs);
+
+    equalPanel.hidden = m !== 'equal';
+    itemsPanel.hidden = m !== 'items';
+    roundWrap.hidden = m !== 'equal';
+    tableWrap.hidden = m !== 'items';
+
+    const servicePct = service.value.trim() === '' ? 0 : parseNumber(service.value);
+    const tipPct = tip.value.trim() === '' ? 0 : parseNumber(tip.value);
+
+    if (m === 'equal') {
+      const r = splitEqually({
+        subtotal: parseNumber(total.value),
+        people: parseNumber(people.value),
+        servicePct,
+        tipPct,
+        roundTo: roundTo(),
+      });
+      if (!r) return showError('請輸入大於 0 的消費金額、至少 1 人（整數），服務費與小費不可為負數。');
+      error.hidden = true;
+      results.hidden = false;
+      fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
+      const n = parseNumber(people.value);
+      if (roundTo() === 10) {
+        main.textContent = yuan(r.roundedPerPerson);
+        mainLabel.textContent = '每人應付（進位到 10 元）';
+        note.textContent =
+          r.surplus > 0
+            ? `每人付 ${yuan(r.roundedPerPerson)}，${n} 人共收 ${yuan(r.collected)}，比應付總額多 ${yuan(r.surplus)}，可留給結帳的人找零或當作公基金。`
+            : `每人付 ${yuan(r.roundedPerPerson)}，剛好等於應付總額。`;
+      } else if (r.extraCount > 0) {
+        main.textContent = `${formatInteger(r.basePerPerson)}–${yuan(r.basePerPerson + 1)}`;
+        mainLabel.textContent = `每人應付（精確值 ${formatNumber(r.exactPerPerson, 2)} 元）`;
+        note.textContent = `總額 ${yuan(r.grandTotal)} 無法被 ${n} 人整除：${r.extraCount} 人付 ${yuan(r.basePerPerson + 1)}，${n - r.extraCount} 人付 ${yuan(r.basePerPerson)}，合計剛好 ${yuan(r.grandTotal)}。`;
+      } else {
+        main.textContent = yuan(r.basePerPerson);
+        mainLabel.textContent = '每人應付';
+        note.textContent = `總額 ${yuan(r.grandTotal)} 由 ${n} 人平分，每人 ${yuan(r.basePerPerson)}，剛好整除。`;
+      }
+      summary.value = `${main.textContent}（${mainLabel.textContent}）\n${note.textContent}`;
+      return;
+    }
+
+    const r = splitItemized({
+      people: persons.map((p) => ({ name: p.name, amount: p.amount.trim() === '' ? 0 : parseNumber(p.amount) })),
+      shared: shared.value.trim() === '' ? 0 : parseNumber(shared.value),
+      servicePct,
+      tipPct,
+    });
+    if (!r) return showError('請確認每個金額都是不為負的數字，且總消費大於 0。');
+    error.hidden = true;
+    results.hidden = false;
+    fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
+    main.textContent = yuan(r.grandTotal);
+    mainLabel.textContent = `應付總額（${r.shares.length} 人）`;
+    note.textContent = '服務費與小費依每個人的消費比例分攤；四捨五入後的零頭已分配好，所有人加總剛好等於應付總額。';
+    table.replaceChildren(
+      ...r.shares.map((s) => {
+        const tr = document.createElement('tr');
+        const cells = [s.name, formatNumber(s.own, 2), formatNumber(s.sharedPart, 2), formatNumber(s.charges, 2), yuan(s.pay)];
+        cells.forEach((text, i) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (i > 0) td.className = 'num';
+          tr.append(td);
+        });
+        return tr;
+      }),
+    );
+    summary.value = [
+      `應付總額 ${yuan(r.grandTotal)}`,
+      ...r.shares.map((s) => `${s.name}：${yuan(s.pay)}`),
+    ].join('\n');
+  }
+
+  function fillStats(subtotal: number, serviceAmount: number, tipAmount: number, grand: number) {
+    $('#sb-subtotal', root).textContent = formatNumber(subtotal, 2);
+    $('#sb-service-out', root).textContent = formatNumber(serviceAmount, 2);
+    $('#sb-tip-out', root).textContent = formatNumber(tipAmount, 2);
+    $('#sb-grand', root).textContent = yuan(grand);
+  }
+
+  const prefs = { ...defaults, ...loadPref<Partial<Prefs>>('split-bill', {}) };
+  total.value = prefs.total;
+  people.value = prefs.people;
+  service.value = prefs.service;
+  tip.value = prefs.tip;
+  shared.value = prefs.shared;
+  for (const r of modeRadios) r.checked = r.value === prefs.mode;
+  for (const r of roundRadios) r.checked = r.value === prefs.roundTo;
+  const persons = Array.isArray(prefs.persons) && prefs.persons.length > 0 ? prefs.persons : defaults.persons;
+  persons.forEach((p) => addPersonRow(p.name, p.amount));
+
+  root.addEventListener('input', render);
+  root.addEventListener('change', render);
+  $('#sb-add', root).addEventListener('click', () => {
+    addPersonRow();
+    render();
+    $$<HTMLInputElement>('[data-role="name"]', list).at(-1)?.focus();
+  });
+  render();
+</script>
+
+<style>
+  #sb-results {
+    display: grid;
+    gap: 16px;
+  }
+  #sb-results[hidden] {
+    display: none;
+  }
+  .sb-list {
+    display: grid;
+    gap: 8px;
+  }
+  .sb-list :global(.sb-person) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  #sb-items .label + input,
+  #sb-items .row + .label {
+    margin-top: 4px;
+  }
+  .field[hidden],
+  .grid-2[hidden] {
+    display: none;
+  }
+</style>

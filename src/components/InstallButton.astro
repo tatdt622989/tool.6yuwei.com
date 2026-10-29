@@ -1,0 +1,10 @@
+---
+// Revealed by lib/pwa.ts only when the browser offers installation (Chrome, Edge, Android).
+interface Props {
+  label?: string;
+  class?: string;
+}
+const { label = '安裝隨手 App', class: className } = Astro.props;
+---
+
+<button type="button" class:list={['btn', 'primary', className]} data-install hidden>{label}</button>

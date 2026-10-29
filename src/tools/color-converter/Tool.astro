@@ -1,0 +1,259 @@
+---
+const FORMATS = [
+  ['hex', 'HEX'],
+  ['rgb', 'RGB'],
+  ['hsl', 'HSL'],
+  ['oklch', 'OKLCH'],
+];
+const CARDS = [
+  ['white', '白色文字'],
+  ['black', '黑色文字'],
+];
+---
+
+<div class="tool" data-tool="color-converter">
+  <div class="cc-top">
+    <input type="color" id="cc-picker" value="#2456e3" aria-label="用調色盤選擇顏色" />
+    <div class="field">
+      <label for="cc-input">輸入任意色碼</label>
+      <input
+        id="cc-input"
+        type="text"
+        class="mono"
+        spellcheck="false"
+        autocomplete="off"
+        autocapitalize="off"
+        placeholder="#2456e3、rgb(36, 86, 227)、hsl(224, 77%, 52%)" />
+    </div>
+  </div>
+  <div id="cc-error" class="notice error" role="alert" hidden>
+    無法辨識這個色碼。支援 HEX、rgb()、hsl() 與 oklch() 格式。
+  </div>
+
+  <div class="cc-swatch" aria-hidden="true"><div id="cc-swatch"></div></div>
+
+  <div class="cc-rows">
+    {
+      FORMATS.map(([key, label]) => (
+        <div class="cc-row">
+          <label for={`cc-${key}`}>{label}</label>
+          <input id={`cc-${key}`} type="text" class="mono" readonly />
+          <button class="btn small" type="button" data-copy={`#cc-${key}`}>複製</button>
+        </div>
+      ))
+    }
+  </div>
+  <p class="hint cc-note" id="cc-gamut"></p>
+
+  <h2 class="cc-title">對比度檢查（WCAG 2）</h2>
+  <div class="grid-2">
+    {
+      CARDS.map(([key, label]) => (
+        <div class="cc-card">
+          <div class="cc-preview" id={`cc-preview-${key}`}>
+            <span class="cc-big">{label} Aa</span>
+            <span>一般大小的內文範例</span>
+          </div>
+          <div class="cc-ratio">
+            <span class="cc-ratio-value" id={`cc-ratio-${key}`}>—</span>
+            <span class="hint">對比度</span>
+          </div>
+          <div class="cc-badges" id={`cc-badges-${key}`}></div>
+        </div>
+      ))
+    }
+  </div>
+  <p class="hint cc-note">一般文字需達 AA 4.5:1、AAA 7:1；大字（18pt 以上，或 14pt 以上粗體）需達 AA 3:1、AAA 4.5:1。半透明色會以疊在白色背景上的結果計算。</p>
+</div>
+
+<script>
+  import { $, debounce, loadPref, savePref } from '../../lib/client';
+  import {
+    BLACK,
+    WHITE,
+    composite,
+    contrastRatio,
+    parseColor,
+    toHex,
+    toHslString,
+    toOklchString,
+    toRgbString,
+    wcag,
+    type Rgba,
+  } from './logic';
+
+  const root = $('[data-tool="color-converter"]');
+  const input = $<HTMLInputElement>('#cc-input', root);
+  const picker = $<HTMLInputElement>('#cc-picker', root);
+  const error = $('#cc-error', root);
+  const swatch = $('#cc-swatch', root);
+  const gamut = $('#cc-gamut', root);
+  const field = (key: string) => $<HTMLInputElement>(`#cc-${key}`, root);
+
+  function badges(container: HTMLElement, ratio: number) {
+    const r = wcag(ratio);
+    const items: [string, boolean][] = [
+      ['AA', r.aaNormal],
+      ['AAA', r.aaaNormal],
+      ['AA 大字', r.aaLarge],
+      ['AAA 大字', r.aaaLarge],
+    ];
+    container.replaceChildren(
+      ...items.map(([label, pass]) => {
+        const span = document.createElement('span');
+        span.className = `cc-badge ${pass ? 'pass' : 'fail'}`;
+        span.textContent = `${label} ${pass ? '通過' : '未通過'}`;
+        return span;
+      }),
+    );
+  }
+
+  function render(color: Rgba, fromPicker = false) {
+    error.hidden = true;
+    const hex = toHex(color);
+    field('hex').value = hex;
+    field('rgb').value = toRgbString(color);
+    field('hsl').value = toHslString(color);
+    field('oklch').value = toOklchString(color);
+    swatch.style.background = toRgbString(color);
+    if (!fromPicker) picker.value = hex.slice(0, 7);
+
+    gamut.textContent = color.clipped ? '這個 OKLCH 顏色超出 sRGB 色域，已裁切為可顯示的顏色，轉換結果會略有差異。' : '';
+
+    const opaque = composite(color, WHITE);
+    for (const [key, text] of [
+      ['white', WHITE],
+      ['black', BLACK],
+    ] as const) {
+      const ratio = contrastRatio(opaque, text);
+      const preview = $(`#cc-preview-${key}`, root);
+      preview.style.background = toHex(opaque);
+      preview.style.color = toHex(text);
+      $(`#cc-ratio-${key}`, root).textContent = `${ratio.toFixed(2)} : 1`;
+      badges($(`#cc-badges-${key}`, root), ratio);
+    }
+    savePref('color-converter', input.value.trim() || hex);
+  }
+
+  function fromInput() {
+    const color = parseColor(input.value);
+    if (color) render(color);
+    else if (input.value.trim() !== '') error.hidden = false;
+  }
+
+  input.addEventListener('input', debounce(fromInput, 100));
+  picker.addEventListener('input', () => {
+    input.value = picker.value;
+    const color = parseColor(picker.value);
+    if (color) render(color, true);
+  });
+
+  input.value = loadPref('color-converter', '#2456e3');
+  fromInput();
+  if (!parseColor(input.value)) {
+    input.value = '#2456e3';
+    fromInput();
+  }
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .cc-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: 12px;
+  }
+  .cc-top input[type='color'] {
+    width: 56px;
+    height: 42px;
+    cursor: pointer;
+  }
+  .cc-swatch {
+    height: 96px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background-color: var(--surface);
+    background-image: repeating-conic-gradient(var(--surface-2) 0% 25%, transparent 0% 50%);
+    background-size: 16px 16px;
+  }
+  .cc-swatch > div {
+    height: 100%;
+  }
+  .cc-rows {
+    display: grid;
+    gap: 8px;
+  }
+  .cc-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .cc-row label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .cc-note {
+    margin: 0;
+  }
+  .cc-note:empty {
+    display: none;
+  }
+  .cc-title {
+    font-size: 18px;
+    margin-top: 8px;
+  }
+  .cc-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .cc-preview {
+    display: grid;
+    gap: 2px;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .cc-big {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .cc-ratio {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .cc-ratio-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .cc-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cc-badges :global(.cc-badge) {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .cc-badges :global(.pass) {
+    color: var(--success);
+    background: color-mix(in oklab, var(--success) 12%, transparent);
+  }
+  .cc-badges :global(.fail) {
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 12%, transparent);
+  }
+</style>

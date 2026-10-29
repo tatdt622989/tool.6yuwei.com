@@ -1,0 +1,480 @@
+/* ---------- Tokens ---------- */
+/* Light-only palette: clean white surfaces, neutral greys, one coral accent used sparingly. */
+:root {
+  color-scheme: light;
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f2f3f5;
+  --text: #18191c;
+  --text-2: #4a4d55;
+  --muted: #80838c;
+  --border: #e6e7ea;
+  --border-strong: #d4d6db;
+  --ink: #151826;
+  --on-ink: #ffffff;
+  --accent: #f0522e;
+  --accent-hover: #d9431f;
+  --accent-soft: #fff0ea;
+  --on-accent: #ffffff;
+  --success: #12936a;
+  --warning: #b86b00;
+  --danger: #e0364e;
+  --focus: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
+  --shadow-sm: 0 1px 2px rgb(21 24 38 / 0.05);
+  --shadow: 0 1px 2px rgb(20 20 25 / 0.04), 0 8px 24px -12px rgb(20 20 25 / 0.12);
+  --shadow-lg: 0 1px 2px rgb(20 20 25 / 0.04), 0 16px 40px -20px rgb(20 20 25 / 0.18);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei',
+    'Segoe UI', Roboto, sans-serif;
+  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei',
+    sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --content: 1200px;
+}
+
+/* ---------- Base ---------- */
+[hidden] {
+  display: none !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Keep in-page anchors clear of the sticky header. */
+  scroll-padding-top: 120px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* ---------- Tool UI primitives (used inside every Tool.astro) ---------- */
+.tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.tool > * {
+  min-width: 0;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+.field > label,
+.field > .label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+input[type='text'],
+input[type='number'],
+input[type='search'],
+input[type='date'],
+input[type='datetime-local'],
+input[type='time'],
+input[type='url'],
+input[type='email'],
+input[type='password'],
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px; /* prevents iOS zoom */
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+textarea {
+  min-height: 180px;
+  resize: vertical;
+  line-height: 1.6;
+}
+textarea.mono,
+input.mono,
+.mono {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+input[readonly],
+textarea[readonly] {
+  background: var(--surface-2);
+}
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+input[type='range'] {
+  accent-color: var(--accent);
+  width: 100%;
+}
+input[type='color'] {
+  width: 44px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+.btn.ghost:hover {
+  background: var(--surface-2);
+}
+.btn.small {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+.btn.is-done {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.row.between {
+  justify-content: space-between;
+}
+.grid-2,
+.grid-3,
+.grid-4 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Segmented control: <div class="seg"><label><input type="radio" name="x"><span>A</span></label>…</div> */
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.seg label {
+  cursor: pointer;
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.seg span {
+  display: block;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  border-radius: 9px;
+}
+.seg input:checked + span {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm), 0 0 0 1px var(--border);
+}
+.seg input:focus-visible + span {
+  box-shadow: var(--focus);
+}
+
+/* Stats: <div class="stats"><div class="stat"><span class="stat-value">12</span><span class="stat-label">字數</span></div></div> */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.stat {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Highlighted primary result */
+.result {
+  padding: 20px 22px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+}
+.result-value {
+  font-family: var(--display);
+  font-size: 34px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.result-label {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.output {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 44px;
+}
+
+.notice {
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.notice.error {
+  color: var(--danger);
+  background: color-mix(in oklab, var(--danger) 10%, transparent);
+}
+.notice.ok {
+  color: var(--success);
+  background: color-mix(in oklab, var(--success) 10%, transparent);
+}
+
+/* File drop zone: <label class="dropzone"><input type="file" hidden>…</label> */
+.dropzone {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 160px;
+  padding: 24px;
+  text-align: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone:hover,
+.dropzone.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dropzone strong {
+  color: var(--text);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th,
+.table td {
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table th {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.table tr:last-child td {
+  border-bottom: 0;
+}
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.big-display {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(48px, 12vw, 96px);
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}

@@ -1,0 +1,287 @@
+<div class="tool" data-tool="line-tools">
+  <div class="field">
+    <label for="lt-input">文字內容（每行一筆）</label>
+    <textarea id="lt-input" class="mono" rows="12" spellcheck="false" placeholder="貼上名單、關鍵字或任何一行一筆的資料，再點選下方的操作"></textarea>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="lt-total">0</span><span class="stat-label">行數</span></div>
+    <div class="stat"><span class="stat-value" id="lt-nonempty">0</span><span class="stat-label">非空白行</span></div>
+    <div class="stat"><span class="stat-value" id="lt-dupes">0</span><span class="stat-label">重複行</span></div>
+  </div>
+
+  <p class="notice" id="lt-msg" aria-live="polite" hidden></p>
+
+  <div class="row">
+    <button class="btn primary" type="button" data-copy="#lt-input">複製結果</button>
+    <button class="btn" type="button" id="lt-undo" disabled>復原</button>
+    <button class="btn ghost" type="button" id="lt-clear">清除</button>
+  </div>
+
+  <section class="lt-group" aria-labelledby="lt-h-sort">
+    <span id="lt-h-sort" class="lt-title">排序</span>
+    <div class="row">
+      <button class="btn small" type="button" data-op="asc">A → Z</button>
+      <button class="btn small" type="button" data-op="desc">Z → A</button>
+      <button class="btn small" type="button" data-op="natural">數字自然排序</button>
+      <button class="btn small" type="button" data-op="length">依長度</button>
+      <button class="btn small" type="button" data-op="reverse">反轉順序</button>
+      <button class="btn small" type="button" data-op="shuffle">隨機打亂</button>
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="lt-case" /> 區分大小寫</label>
+      <label class="lt-inline" for="lt-collation">
+        中文排序
+        <select id="lt-collation">
+          <option value="stroke">依筆畫</option>
+          <option value="zhuyin">依注音</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="lt-group" aria-labelledby="lt-h-clean">
+    <span id="lt-h-clean" class="lt-title">整理</span>
+    <div class="row">
+      <button class="btn small" type="button" data-op="dedupe">移除重複行</button>
+      <button class="btn small" type="button" data-op="empty">移除空白行</button>
+      <button class="btn small" type="button" data-op="trim">去除每行前後空白</button>
+    </div>
+  </section>
+
+  <section class="lt-group" aria-labelledby="lt-h-affix">
+    <span id="lt-h-affix" class="lt-title">加上前綴／後綴</span>
+    <div class="lt-affix">
+      <input type="text" id="lt-prefix" class="mono" placeholder="前綴，例如 &quot;" aria-label="前綴" />
+      <input type="text" id="lt-suffix" class="mono" placeholder="後綴，例如 &quot;," aria-label="後綴" />
+      <button class="btn small" type="button" data-op="affix">加上</button>
+    </div>
+  </section>
+
+  <section class="lt-group" aria-labelledby="lt-h-number">
+    <span id="lt-h-number" class="lt-title">加上行號</span>
+    <div class="row">
+      <select id="lt-format" aria-label="行號格式" class="lt-narrow">
+        <option value="dot">1. 文字</option>
+        <option value="paren">1) 文字</option>
+        <option value="comma">1、文字</option>
+        <option value="tab">1（Tab）文字</option>
+      </select>
+      <label class="lt-inline" for="lt-start">
+        起始
+        <input type="number" id="lt-start" value="1" min="0" step="1" class="lt-num" />
+      </label>
+      <label class="check"><input type="checkbox" id="lt-pad" /> 補零（01、02）</label>
+      <button class="btn small" type="button" data-op="number">加上行號</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import {
+    addAffixes,
+    dedupeLines,
+    isNumberFormat,
+    joinLines,
+    lineStats,
+    numberLines,
+    removeEmptyLines,
+    reverseLines,
+    shuffleLines,
+    sortLines,
+    splitLines,
+    trimLines,
+    type CompareOptions,
+  } from './logic';
+
+  const root = $('[data-tool="line-tools"]');
+  const input = $<HTMLTextAreaElement>('#lt-input', root);
+  const msg = $('#lt-msg', root);
+  const undoBtn = $<HTMLButtonElement>('#lt-undo', root);
+  const caseBox = $<HTMLInputElement>('#lt-case', root);
+  const collation = $<HTMLSelectElement>('#lt-collation', root);
+  const prefix = $<HTMLInputElement>('#lt-prefix', root);
+  const suffix = $<HTMLInputElement>('#lt-suffix', root);
+  const format = $<HTMLSelectElement>('#lt-format', root);
+  const start = $<HTMLInputElement>('#lt-start', root);
+  const pad = $<HTMLInputElement>('#lt-pad', root);
+
+  interface Prefs {
+    caseSensitive: boolean;
+    collation: string;
+    format: string;
+    pad: boolean;
+  }
+
+  const prefs = loadPref<Prefs>('line-tools', { caseSensitive: false, collation: 'stroke', format: 'dot', pad: false });
+  caseBox.checked = Boolean(prefs.caseSensitive);
+  collation.value = prefs.collation === 'zhuyin' ? 'zhuyin' : 'stroke';
+  format.value = isNumberFormat(prefs.format) ? prefs.format : 'dot';
+  pad.checked = Boolean(prefs.pad);
+
+  function persist() {
+    savePref('line-tools', {
+      caseSensitive: caseBox.checked,
+      collation: collation.value,
+      format: format.value,
+      pad: pad.checked,
+    } satisfies Prefs);
+  }
+
+  function compareOptions(): CompareOptions {
+    return { caseSensitive: caseBox.checked, collation: collation.value === 'zhuyin' ? 'zhuyin' : 'stroke' };
+  }
+
+  const LABELS: Record<string, string> = {
+    asc: '已依 A → Z 排序',
+    desc: '已依 Z → A 排序',
+    natural: '已依數字自然排序',
+    length: '已依長度排序',
+    reverse: '已反轉順序',
+    shuffle: '已隨機打亂',
+    dedupe: '已移除重複行',
+    empty: '已移除空白行',
+    trim: '已去除前後空白',
+    affix: '已加上前綴／後綴',
+    number: '已加上行號',
+  };
+
+  function apply(op: string, lines: string[]): string[] {
+    const cmp = compareOptions();
+    switch (op) {
+      case 'asc':
+      case 'desc':
+      case 'natural':
+      case 'length':
+        return sortLines(lines, op, cmp);
+      case 'reverse':
+        return reverseLines(lines);
+      case 'shuffle':
+        return shuffleLines(lines);
+      case 'dedupe':
+        return dedupeLines(lines, cmp.caseSensitive);
+      case 'empty':
+        return removeEmptyLines(lines);
+      case 'trim':
+        return trimLines(lines);
+      case 'affix':
+        return addAffixes(lines, prefix.value, suffix.value);
+      case 'number': {
+        const first = Number.parseInt(start.value, 10);
+        const fmt = isNumberFormat(format.value) ? format.value : 'dot';
+        return numberLines(lines, fmt, Number.isFinite(first) ? first : 1, pad.checked);
+      }
+      default:
+        return lines;
+    }
+  }
+
+  const history: string[] = [];
+
+  function renderStats() {
+    const stats = lineStats(splitLines(input.value), caseBox.checked);
+    $('#lt-total', root).textContent = formatInteger(stats.total);
+    $('#lt-nonempty', root).textContent = formatInteger(stats.nonEmpty);
+    $('#lt-dupes', root).textContent = formatInteger(stats.duplicates);
+    undoBtn.disabled = history.length === 0;
+  }
+
+  function showMessage(text: string, kind: '' | 'ok' = '') {
+    msg.textContent = text;
+    msg.className = kind ? `notice ${kind}` : 'notice';
+    msg.hidden = text === '';
+  }
+
+  for (const button of $$<HTMLButtonElement>('[data-op]', root)) {
+    button.addEventListener('click', () => {
+      const op = button.dataset.op!;
+      const before = splitLines(input.value);
+      if (before.length === 0) {
+        showMessage('請先輸入或貼上文字。');
+        input.focus();
+        return;
+      }
+      if (op === 'affix' && prefix.value === '' && suffix.value === '') {
+        showMessage('請先輸入前綴或後綴。');
+        prefix.focus();
+        return;
+      }
+      const after = apply(op, before);
+      history.push(input.value);
+      if (history.length > 50) history.shift();
+      input.value = joinLines(after);
+      showMessage(`${LABELS[op]}：${formatInteger(before.length)} 行 → ${formatInteger(after.length)} 行`, 'ok');
+      renderStats();
+    });
+  }
+
+  undoBtn.addEventListener('click', () => {
+    const previous = history.pop();
+    if (previous === undefined) return;
+    input.value = previous;
+    showMessage('已復原上一步。');
+    renderStats();
+  });
+
+  $('#lt-clear', root).addEventListener('click', () => {
+    if (input.value) history.push(input.value);
+    input.value = '';
+    showMessage('');
+    renderStats();
+    input.focus();
+  });
+
+  input.addEventListener('input', renderStats);
+  caseBox.addEventListener('change', () => {
+    persist();
+    renderStats();
+  });
+  for (const el of [collation, format, pad]) el.addEventListener('change', persist);
+  renderStats();
+</script>
+
+<style>
+  .lt-group {
+    display: grid;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .lt-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .lt-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .lt-inline select {
+    width: auto;
+  }
+  .lt-narrow {
+    width: auto;
+  }
+  .lt-num {
+    width: 84px;
+  }
+  .lt-affix {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  @media (max-width: 480px) {
+    .lt-affix {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .lt-affix .btn {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

@@ -1,0 +1,176 @@
+<div class="tool" data-tool="deposit-interest">
+  <div class="field">
+    <span class="label">存款方式</span>
+    <div class="seg" role="radiogroup" aria-label="存款方式">
+      <label><input type="radio" name="di-mode" value="lump" checked /><span>整存整付</span></label>
+      <label><input type="radio" name="di-mode" value="income" /><span>存本取息</span></label>
+      <label><input type="radio" name="di-mode" value="recurring" /><span>零存整付</span></label>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="di-amount" id="di-amount-label">存入本金（元）</label>
+      <input id="di-amount" type="text" inputmode="numeric" autocomplete="off" value="1000000" />
+    </div>
+    <div class="field">
+      <label for="di-rate">年利率（%）</label>
+      <input id="di-rate" type="text" inputmode="decimal" autocomplete="off" value="1.7" />
+      <span class="hint">依銀行牌告或專案利率填寫。</span>
+    </div>
+    <div class="field">
+      <label for="di-months">存款期間（月）</label>
+      <input id="di-months" type="text" inputmode="numeric" autocomplete="off" value="12" />
+      <span class="hint">1 年 = 12 個月，3 年 = 36 個月。</span>
+    </div>
+  </div>
+
+  <div class="field" id="di-compound-field">
+    <span class="label">計息方式</span>
+    <div class="seg" role="radiogroup" aria-label="計息方式">
+      <label><input type="radio" name="di-comp" value="1" checked /><span>按月複利</span></label>
+      <label><input type="radio" name="di-comp" value="0" /><span>單利</span></label>
+    </div>
+  </div>
+
+  <div class="notice error" id="di-error" hidden></div>
+
+  <div id="di-output">
+    <div class="result" aria-live="polite">
+      <div class="result-value" id="di-interest">—</div>
+      <div class="result-label" id="di-interest-label">利息合計</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="di-maturity">—</span><span class="stat-label">到期本利和</span></div>
+      <div class="stat"><span class="stat-value" id="di-single">—</span><span class="stat-label" id="di-single-label">每次領取利息</span></div>
+      <div class="stat"><span class="stat-value" id="di-nhi">—</span><span class="stat-label">二代健保補充保費</span></div>
+      <div class="stat"><span class="stat-value" id="di-net">—</span><span class="stat-label">扣補充保費後利息</span></div>
+    </div>
+
+    <p class="notice" id="di-note"></p>
+
+    <div class="field">
+      <span class="label">逐月明細</span>
+      <div class="table-wrap di-table">
+        <table class="table">
+          <thead><tr><th>月份</th><th class="num">累計存入</th><th class="num">當月利息</th><th class="num">月底金額</th></tr></thead>
+          <tbody id="di-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">月利率＝年利率 ÷ 12；補充保費與扣繳依 2026 年規定（利息單次給付達 2 萬元扣 2.11%、超過 2 萬元預扣 10% 所得稅）估算。結果僅供參考，實際利息以銀行計息方式與利率為準；資料只在你的瀏覽器內計算。</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { calculateDeposit, DEPOSIT_TAX_2026, validateDeposit, type DepositInput, type DepositMode } from './logic';
+
+  const KEY = 'deposit-interest';
+  const root = $('[data-tool="deposit-interest"]');
+  const modes = $$<HTMLInputElement>('input[name="di-mode"]', root);
+  const comps = $$<HTMLInputElement>('input[name="di-comp"]', root);
+  const amount = $<HTMLInputElement>('#di-amount', root);
+  const rate = $<HTMLInputElement>('#di-rate', root);
+  const months = $<HTMLInputElement>('#di-months', root);
+  const error = $('#di-error', root);
+  const output = $('#di-output', root);
+  const table = $('#di-table', root);
+
+  const prefs = loadPref<Partial<{ mode: string; comp: string; amount: string; rate: string; months: string }>>(KEY, {});
+  if (prefs.mode) for (const m of modes) m.checked = m.value === prefs.mode;
+  if (prefs.comp) for (const c of comps) c.checked = c.value === prefs.comp;
+  if (prefs.amount !== undefined) amount.value = prefs.amount;
+  if (prefs.rate !== undefined) rate.value = prefs.rate;
+  if (prefs.months !== undefined) months.value = prefs.months;
+
+  const money = (n: number) => `${formatInteger(n)} 元`;
+  const set = (id: string, text: string) => {
+    $(id, root).textContent = text;
+  };
+  const MODE_LABEL: Record<DepositMode, string> = { lump: '整存整付', income: '存本取息', recurring: '零存整付' };
+
+  function render() {
+    const mode = (modes.find((m) => m.checked)?.value ?? 'lump') as DepositMode;
+    const comp = comps.find((c) => c.checked)?.value ?? '1';
+    savePref(KEY, { mode, comp, amount: amount.value, rate: rate.value, months: months.value });
+    $('#di-compound-field', root).hidden = mode === 'income';
+    set('#di-amount-label', mode === 'recurring' ? '每月存入金額（元）' : '存入本金（元）');
+
+    const input: DepositInput = {
+      mode,
+      amount: parseNumber(amount.value),
+      ratePct: parseNumber(rate.value),
+      months: parseNumber(months.value),
+      compound: mode !== 'income' && comp === '1',
+    };
+    const problem = validateDeposit(input);
+    const r = problem ? null : calculateDeposit(input);
+    if (!r) {
+      error.textContent = problem ?? '無法計算，請檢查輸入。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    output.hidden = false;
+
+    set('#di-interest', money(r.totalInterest));
+    set('#di-interest-label', `${MODE_LABEL[mode]}${mode === 'income' ? '' : input.compound ? '（按月複利）' : '（單利）'}，${input.months} 個月利息合計`);
+    set('#di-maturity', money(r.maturity));
+    set('#di-single', money(r.singlePayment));
+    set('#di-single-label', mode === 'income' ? `每月領取利息（共 ${r.payments} 次）` : '到期一次領取利息');
+    set('#di-nhi', money(r.supplementary));
+    set('#di-net', money(r.totalInterest - r.supplementary));
+
+    const t = DEPOSIT_TAX_2026;
+    const notes: string[] = [];
+    if (r.supplementary > 0) {
+      notes.push(
+        `單次利息 ${money(r.singlePayment)} 達 ${formatInteger(t.supplementaryThreshold)} 元，銀行會扣 ${t.supplementaryRatePct}% 二代健保補充保費 ${money(r.supplementary)}；改用存本取息或分成較小的存單，讓每次利息低於 2 萬元即可不用扣。`,
+      );
+    } else {
+      notes.push(`每次領取的利息未達 ${formatInteger(t.supplementaryThreshold)} 元，不需扣二代健保補充保費。`);
+    }
+    if (r.withholding > 0) notes.push(`另會預扣 ${t.withholdingRatePct}% 所得稅 ${money(r.withholding)}，報稅時可抵繳或退回。`);
+    notes.push(
+      `換算每年利息約 ${money(r.annualInterest)}，全戶全年利息在 ${formatInteger(t.savingsDeduction)} 元以內可用儲蓄投資特別扣除額全額扣除${r.annualInterest > t.savingsDeduction ? '，你的利息已超過此額度' : ''}。`,
+    );
+    set('#di-note', notes.join(' '));
+
+    table.replaceChildren(
+      ...r.rows.map((row) => {
+        const tr = document.createElement('tr');
+        [`第 ${row.month} 月`, formatInteger(row.deposited), formatNumber(row.interest, 0), formatInteger(row.balance)].forEach((text, i) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (i > 0) td.className = 'num';
+          tr.append(td);
+        });
+        return tr;
+      }),
+    );
+  }
+
+  root.addEventListener('input', render);
+  root.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  #di-output {
+    display: grid;
+    gap: 16px;
+  }
+  #di-output[hidden],
+  .field[hidden] {
+    display: none;
+  }
+  .di-table {
+    max-height: 360px;
+    overflow-y: auto;
+  }
+</style>

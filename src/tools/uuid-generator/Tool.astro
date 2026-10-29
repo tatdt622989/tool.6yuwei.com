@@ -1,0 +1,159 @@
+<div class="tool" data-tool="uuid-generator">
+  <div class="row uu-controls">
+    <div class="seg" role="radiogroup" aria-label="UUID 版本">
+      <label><input type="radio" name="uu-version" value="v4" checked /><span>v4 隨機</span></label>
+      <label><input type="radio" name="uu-version" value="v7" /><span>v7 時間排序</span></label>
+    </div>
+    <label class="uu-count">
+      <span>數量</span>
+      <input id="uu-count" type="number" min="1" max="100" step="1" value="5" inputmode="numeric" />
+    </label>
+  </div>
+
+  <div class="row">
+    <label class="check"><input type="checkbox" id="uu-upper" /> 大寫</label>
+    <label class="check"><input type="checkbox" id="uu-nohyphen" /> 移除連字號</label>
+  </div>
+
+  <div class="field">
+    <label for="uu-output">產生結果</label>
+    <textarea id="uu-output" class="mono" rows="6" readonly spellcheck="false"></textarea>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" type="button" id="uu-generate">重新產生</button>
+    <button class="btn" type="button" data-copy="#uu-output">複製全部</button>
+    <button class="btn ghost" type="button" id="uu-download">下載 .txt</button>
+  </div>
+
+  <hr class="uu-sep" />
+
+  <div class="field">
+    <label for="uu-parse">解析 UUID</label>
+    <input id="uu-parse" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder="貼上一個 UUID 查看版本與時間" />
+  </div>
+  <div id="uu-parse-error" class="notice error" hidden></div>
+  <div class="stats" id="uu-info" hidden>
+    <div class="stat"><span class="stat-value" id="uu-info-version"></span><span class="stat-label">版本</span></div>
+    <div class="stat"><span class="stat-value" id="uu-info-variant"></span><span class="stat-label">變體（Variant）</span></div>
+    <div class="stat" id="uu-info-time-wrap"><span class="stat-value" id="uu-info-time"></span><span class="stat-label">內含的建立時間（本地時間）</span></div>
+  </div>
+</div>
+
+<script>
+  import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { clampCount, createV7Generator, formatUuid, parseUuid, uuidV4, type UuidVersion } from './logic';
+
+  interface Prefs {
+    version: UuidVersion;
+    count: number;
+    uppercase: boolean;
+    noHyphens: boolean;
+  }
+
+  const root = $('[data-tool="uuid-generator"]');
+  const output = $<HTMLTextAreaElement>('#uu-output', root);
+  const count = $<HTMLInputElement>('#uu-count', root);
+  const upper = $<HTMLInputElement>('#uu-upper', root);
+  const noHyphen = $<HTMLInputElement>('#uu-nohyphen', root);
+  const versionRadios = $$<HTMLInputElement>('input[name="uu-version"]', root);
+  const nextV7 = createV7Generator();
+
+  let raw: string[] = [];
+
+  function readPrefs(): Prefs {
+    return {
+      version: (versionRadios.find((r) => r.checked)?.value ?? 'v4') as UuidVersion,
+      count: clampCount(Number(count.value)),
+      uppercase: upper.checked,
+      noHyphens: noHyphen.checked,
+    };
+  }
+
+  /** Re-format without regenerating, so toggling case keeps the same IDs. */
+  function show() {
+    const prefs = readPrefs();
+    savePref('uuid-generator', prefs);
+    output.value = raw.map((id) => formatUuid(id, { uppercase: prefs.uppercase, hyphens: !prefs.noHyphens })).join('\n');
+    output.rows = Math.min(12, Math.max(3, raw.length));
+  }
+
+  function generate() {
+    const prefs = readPrefs();
+    const make = prefs.version === 'v7' ? nextV7 : () => uuidV4();
+    raw = Array.from({ length: prefs.count }, make);
+    show();
+  }
+
+  const saved = loadPref<Prefs>('uuid-generator', { version: 'v4', count: 5, uppercase: false, noHyphens: false });
+  versionRadios.forEach((r) => (r.checked = r.value === saved.version));
+  count.value = String(clampCount(saved.count));
+  upper.checked = saved.uppercase;
+  noHyphen.checked = saved.noHyphens;
+
+  versionRadios.forEach((r) => r.addEventListener('change', generate));
+  count.addEventListener('change', () => {
+    count.value = String(clampCount(Number(count.value)));
+    generate();
+  });
+  [upper, noHyphen].forEach((el) => el.addEventListener('change', show));
+  $('#uu-generate', root).addEventListener('click', generate);
+  $('#uu-download', root).addEventListener('click', () => {
+    if (output.value) downloadBlob(new Blob([`${output.value}\n`], { type: 'text/plain' }), 'uuids.txt');
+  });
+  generate();
+
+  // ---- Parser ----
+  const parseInput = $<HTMLInputElement>('#uu-parse', root);
+  const parseError = $('#uu-parse-error', root);
+  const info = $('#uu-info', root);
+  const timeWrap = $('#uu-info-time-wrap', root);
+  const dateFmt = new Intl.DateTimeFormat('zh-TW', { dateStyle: 'medium', timeStyle: 'medium' });
+
+  parseInput.addEventListener('input', () => {
+    parseError.hidden = true;
+    info.hidden = true;
+    if (parseInput.value.trim() === '') return;
+    const result = parseUuid(parseInput.value);
+    if (!result.ok) {
+      parseError.textContent = result.error;
+      parseError.hidden = false;
+      return;
+    }
+    const { label, variant, timestamp } = result.info;
+    $('#uu-info-version', root).textContent = label;
+    $('#uu-info-variant', root).textContent = variant;
+    timeWrap.hidden = timestamp === undefined;
+    if (timestamp !== undefined) {
+      const ms = timestamp % 1000;
+      $('#uu-info-time', root).textContent = `${dateFmt.format(new Date(timestamp))}.${String(ms).padStart(3, '0')}`;
+    }
+    info.hidden = false;
+  });
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .uu-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .uu-count input {
+    width: 88px;
+  }
+  .uu-sep {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 8px 0 0;
+    width: 100%;
+  }
+  .stat-value {
+    font-size: 17px;
+  }
+</style>

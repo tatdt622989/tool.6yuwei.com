@@ -1,0 +1,223 @@
+---
+import { CATEGORIES } from './logic';
+const first = CATEGORIES[0];
+---
+
+<div class="tool" data-tool="unit-converter">
+  <div class="seg" role="radiogroup" aria-label="換算類別">
+    {
+      CATEGORIES.map((c, i) => (
+        <label>
+          <input type="radio" name="uc-cat" value={c.key} checked={i === 0} />
+          <span>{c.name}</span>
+        </label>
+      ))
+    }
+  </div>
+
+  <div class="uc-pair">
+    <div class="field">
+      <label for="uc-value">數值</label>
+      <input id="uc-value" type="text" inputmode="decimal" autocomplete="off" value={String(first.defaults.value)} />
+      <select id="uc-from" aria-label="原單位">
+        {first.units.map((u) => <option value={u.id} selected={u.id === first.defaults.from}>{u.name}（{u.symbol}）</option>)}
+      </select>
+    </div>
+    <button class="btn uc-swap" type="button" id="uc-swap" aria-label="交換單位" title="交換單位">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"></path></svg>
+    </button>
+    <div class="field">
+      <label for="uc-result">換算結果</label>
+      <input id="uc-result" type="text" readonly />
+      <select id="uc-to" aria-label="目標單位">
+        {first.units.map((u) => <option value={u.id} selected={u.id === first.defaults.to}>{u.name}（{u.symbol}）</option>)}
+      </select>
+    </div>
+  </div>
+
+  <div class="row between">
+    <p class="uc-line" id="uc-line" aria-live="polite"></p>
+    <button class="btn small" type="button" data-copy="#uc-result">複製結果</button>
+  </div>
+  <p class="notice error" id="uc-error" hidden></p>
+
+  <div class="field">
+    <span class="label" id="uc-table-title">全部單位換算</span>
+    <div class="table-wrap">
+      <table class="table" aria-labelledby="uc-table-title">
+        <thead>
+          <tr><th>單位</th><th class="num">數值</th></tr>
+        </thead>
+        <tbody id="uc-table"></tbody>
+      </table>
+    </div>
+    <p class="hint" id="uc-hint"></p>
+  </div>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { parseNumber } from '../../lib/format';
+  import { CATEGORIES, convert, convertAll, formatValue, getCategory, getUnit, type CategoryKey } from './logic';
+
+  interface CategoryState {
+    from: string;
+    to: string;
+    value: string;
+  }
+  interface Prefs {
+    cat: CategoryKey;
+    state: Partial<Record<CategoryKey, CategoryState>>;
+  }
+
+  const HINTS: Record<CategoryKey, string> = {
+    length: '1 台尺 = 10/33 公尺（約 30.3 公分），1 英寸 = 2.54 公分。',
+    weight: '1 台斤 = 600 公克 = 16 兩，1 兩 = 37.5 公克 = 10 錢。',
+    temperature: '溫度換算含位移量：°F = °C × 9/5 + 32，K = °C + 273.15。',
+    area: '1 坪 = 400/121 平方公尺（約 3.3058 m²），1 甲 = 2,934 坪。',
+    volume: '杯、液量盎司與加侖預設為美制；大匙 15 mL、小匙 5 mL。',
+    speed: '1 節 = 1 海里／小時 = 1.852 公里／小時。',
+    data: '十進位 1 KB = 1,000 B；二進位 1 KiB = 1,024 B。硬碟廠商用十進位，作業系統常用二進位。',
+  };
+
+  const root = $('[data-tool="unit-converter"]');
+  const radios = $$<HTMLInputElement>('input[name="uc-cat"]', root);
+  const valueInput = $<HTMLInputElement>('#uc-value', root);
+  const fromSelect = $<HTMLSelectElement>('#uc-from', root);
+  const toSelect = $<HTMLSelectElement>('#uc-to', root);
+  const result = $<HTMLInputElement>('#uc-result', root);
+  const line = $('#uc-line', root);
+  const error = $('#uc-error', root);
+  const table = $('#uc-table', root);
+  const hint = $('#uc-hint', root);
+
+  const prefs = loadPref<Prefs>('unit-converter', { cat: 'length', state: {} });
+  let current: CategoryKey = getCategory(prefs.cat).key;
+
+  function stateFor(key: CategoryKey): CategoryState {
+    const cat = getCategory(key);
+    const saved = prefs.state[key];
+    const valid = saved && getUnit(cat, saved.from) && getUnit(cat, saved.to);
+    return valid ? saved : { from: cat.defaults.from, to: cat.defaults.to, value: String(cat.defaults.value) };
+  }
+
+  function fillSelect(select: HTMLSelectElement, key: CategoryKey, selected: string) {
+    select.replaceChildren(
+      ...getCategory(key).units.map((u) => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = `${u.name}（${u.symbol}）`;
+        opt.selected = u.id === selected;
+        return opt;
+      }),
+    );
+  }
+
+  function loadCategory(key: CategoryKey) {
+    current = key;
+    const s = stateFor(key);
+    for (const r of radios) r.checked = r.value === key;
+    fillSelect(fromSelect, key, s.from);
+    fillSelect(toSelect, key, s.to);
+    valueInput.value = s.value;
+    hint.textContent = HINTS[key];
+    render();
+  }
+
+  function render() {
+    const cat = getCategory(current);
+    prefs.cat = current;
+    prefs.state[current] = { from: fromSelect.value, to: toSelect.value, value: valueInput.value };
+    savePref('unit-converter', prefs);
+
+    const value = parseNumber(valueInput.value);
+    const from = getUnit(cat, fromSelect.value)!;
+    const to = getUnit(cat, toSelect.value)!;
+    const converted = convert(value, cat.key, from.id, to.id);
+
+    if (valueInput.value.trim() === '') {
+      error.hidden = true;
+      result.value = '';
+      line.textContent = '請輸入數值';
+      table.replaceChildren();
+      return;
+    }
+    if (Number.isNaN(converted)) {
+      error.hidden = false;
+      error.textContent =
+        cat.key === 'temperature' && Number.isFinite(value) ? '溫度不能低於絕對零度（−273.15 °C）。' : '請輸入有效的正數。';
+      result.value = '';
+      line.textContent = '';
+      table.replaceChildren();
+      return;
+    }
+
+    error.hidden = true;
+    result.value = formatValue(converted);
+    line.textContent = `${formatValue(value)} ${from.symbol} = ${formatValue(converted)} ${to.symbol}`;
+    table.replaceChildren(
+      ...convertAll(value, cat.key, from.id).map(({ unit, value: v }) => {
+        const tr = document.createElement('tr');
+        if (unit.id === to.id) tr.className = 'is-target';
+        const name = document.createElement('td');
+        name.textContent = `${unit.name}（${unit.symbol}）`;
+        const num = document.createElement('td');
+        num.className = 'num';
+        num.textContent = formatValue(v);
+        tr.append(name, num);
+        return tr;
+      }),
+    );
+  }
+
+  radios.forEach((r) => r.addEventListener('change', () => loadCategory(r.value as CategoryKey)));
+  valueInput.addEventListener('input', render);
+  fromSelect.addEventListener('change', render);
+  toSelect.addEventListener('change', render);
+  $('#uc-swap', root).addEventListener('click', () => {
+    const from = fromSelect.value;
+    fromSelect.value = toSelect.value;
+    toSelect.value = from;
+    render();
+  });
+
+  loadCategory(CATEGORIES.some((c) => c.key === current) ? current : 'length');
+</script>
+
+<style>
+  .uc-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: end;
+    gap: 12px;
+  }
+  .uc-swap {
+    margin-bottom: 26px;
+    padding: 8px 10px;
+  }
+  #uc-result {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .uc-line {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  #uc-table :global(.is-target td) {
+    background: var(--accent-soft);
+    font-weight: 600;
+  }
+  @media (max-width: 560px) {
+    .uc-pair {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .uc-swap {
+      justify-self: center;
+      margin: 0;
+      transform: rotate(90deg);
+    }
+  }
+</style>

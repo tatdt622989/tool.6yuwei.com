@@ -1,0 +1,161 @@
+<div class="tool" data-tool="age-calculator">
+  <div class="field">
+    <span class="label">出生年份格式</span>
+    <div class="seg" role="radiogroup" aria-label="出生年份格式">
+      <label><input type="radio" name="ag-era" value="ad" checked /><span>西元年</span></label>
+      <label><input type="radio" name="ag-era" value="roc" /><span>民國年</span></label>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="ag-year" id="ag-year-label">出生年（西元）</label>
+      <input id="ag-year" type="text" inputmode="numeric" autocomplete="bday-year" value="1990" />
+    </div>
+    <div class="field">
+      <label for="ag-month">月</label>
+      <select id="ag-month" autocomplete="bday-month"></select>
+    </div>
+    <div class="field">
+      <label for="ag-day">日</label>
+      <select id="ag-day" autocomplete="bday-day"></select>
+    </div>
+  </div>
+
+  <div class="field ag-on">
+    <label for="ag-on">計算到哪一天</label>
+    <input id="ag-on" type="date" />
+    <span class="hint">預設為今天，可改成任一日期，查詢當時或未來的年齡。</span>
+  </div>
+
+  <div class="result" aria-live="polite">
+    <div class="result-value" id="ag-main">—</div>
+    <div class="result-label" id="ag-detail"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="ag-nominal">—</span><span class="stat-label">虛歲</span></div>
+    <div class="stat"><span class="stat-value" id="ag-lived">—</span><span class="stat-label">已經活了</span></div>
+    <div class="stat"><span class="stat-value" id="ag-next">—</span><span class="stat-label" id="ag-next-label">距離下次生日</span></div>
+    <div class="stat"><span class="stat-value" id="ag-zodiac">—</span><span class="stat-label">生肖（依西元年）</span></div>
+    <div class="stat"><span class="stat-value" id="ag-sign">—</span><span class="stat-label">星座</span></div>
+    <div class="stat"><span class="stat-value" id="ag-born">—</span><span class="stat-label" id="ag-born-label">出生日</span></div>
+  </div>
+  <p class="hint">生肖以西元年切換；1–2 月出生、在農曆新年前的人，傳統上屬前一年的生肖。</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, parseNumber } from '../../lib/format';
+  import { daysInMonth, formatYMD, parseISODate, toISODate, WEEKDAY_LABEL, weekdayOf } from '../date-diff/logic';
+  import { adToRoc, calcAge, rocLabel, rocToAD, type YMD } from './logic';
+
+  const root = $('[data-tool="age-calculator"]');
+  const eras = $$<HTMLInputElement>('input[name="ag-era"]', root);
+  const yearInput = $<HTMLInputElement>('#ag-year', root);
+  const yearLabel = $('#ag-year-label', root);
+  const monthSel = $<HTMLSelectElement>('#ag-month', root);
+  const daySel = $<HTMLSelectElement>('#ag-day', root);
+  const onInput = $<HTMLInputElement>('#ag-on', root);
+
+  interface Prefs {
+    era: 'ad' | 'roc';
+    y: number;
+    m: number;
+    d: number;
+  }
+
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+
+  function era(): 'ad' | 'roc' {
+    return eras.find((e) => e.checked)?.value === 'roc' ? 'roc' : 'ad';
+  }
+
+  /** Gregorian birth year from the input, or NaN. */
+  function birthYear(): number {
+    const raw = Math.trunc(parseNumber(yearInput.value));
+    if (!Number.isFinite(raw) || raw <= 0) return Number.NaN;
+    return era() === 'roc' ? rocToAD(raw) : raw;
+  }
+
+  function fillDays() {
+    const y = birthYear();
+    const max = daysInMonth(Number.isFinite(y) ? y : 2000, Number(monthSel.value));
+    const keep = Math.min(Number(daySel.value) || 1, max);
+    daySel.replaceChildren(
+      ...Array.from({ length: max }, (_, i) => new Option(`${i + 1} 日`, String(i + 1), false, i + 1 === keep)),
+    );
+  }
+
+  function today(): YMD {
+    const now = new Date();
+    return { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+  }
+
+  function clear(message: string) {
+    set('#ag-main', '—');
+    set('#ag-detail', message);
+    ['#ag-nominal', '#ag-lived', '#ag-next', '#ag-zodiac', '#ag-sign', '#ag-born'].forEach((id) => set(id, '—'));
+  }
+
+  function render() {
+    yearLabel.textContent = era() === 'roc' ? '出生年（民國）' : '出生年（西元）';
+    fillDays();
+    const y = birthYear();
+    const birth: YMD = { y, m: Number(monthSel.value), d: Number(daySel.value) };
+    const on = parseISODate(onInput.value) ?? today();
+    if (!Number.isFinite(y) || y < 1000) {
+      clear(era() === 'roc' ? '請輸入民國出生年，例如 79' : '請輸入西元出生年，例如 1990');
+      return;
+    }
+    savePref('age-calculator', { era: era(), y, m: birth.m, d: birth.d } satisfies Prefs);
+    const r = calcAge(birth, on);
+    if (!r) {
+      clear('出生日期晚於計算日期，請確認年份是否正確');
+      return;
+    }
+    set('#ag-main', `${r.years} 歲`);
+    set('#ag-detail', `實歲 ${r.years} 歲 ${r.months} 個月 ${r.days} 天`);
+    set('#ag-nominal', `${r.nominal} 歲`);
+    set('#ag-lived', `${formatInteger(r.daysLived)} 天`);
+    if (r.daysToNextBirthday === 0) {
+      set('#ag-next', '就是今天');
+      set('#ag-next-label', `${r.nextAge} 歲生日`);
+    } else {
+      set('#ag-next', `${formatInteger(r.daysToNextBirthday)} 天`);
+      set('#ag-next-label', `距離 ${r.nextAge} 歲生日（${r.nextBirthday.m}/${r.nextBirthday.d} 星期${WEEKDAY_LABEL[weekdayOf(r.nextBirthday)]}）`);
+    }
+    set('#ag-zodiac', r.zodiac);
+    set('#ag-sign', r.constellation);
+    set('#ag-born', `星期${WEEKDAY_LABEL[weekdayOf(birth)]}`);
+    set('#ag-born-label', era() === 'roc' ? `西元 ${formatYMD(birth).replace(/（.）$/, '')}` : `${rocLabel(birth.y)} ${birth.m} 月 ${birth.d} 日`);
+  }
+
+  monthSel.replaceChildren(...Array.from({ length: 12 }, (_, i) => new Option(`${i + 1} 月`, String(i + 1))));
+  const prefs = loadPref<Prefs>('age-calculator', { era: 'ad', y: 1990, m: 6, d: 15 });
+  for (const e of eras) e.checked = e.value === prefs.era;
+  if (!eras.some((e) => e.checked)) eras[0].checked = true;
+  yearInput.value = String(era() === 'roc' ? adToRoc(prefs.y) : prefs.y);
+  monthSel.value = String(prefs.m);
+  daySel.replaceChildren(new Option('', String(prefs.d), false, true));
+  onInput.value = toISODate(today());
+
+  eras.forEach((e) =>
+    e.addEventListener('change', () => {
+      // Keep the same birth year when switching between 西元 and 民國.
+      const raw = Math.trunc(parseNumber(yearInput.value));
+      if (Number.isFinite(raw) && raw > 0) yearInput.value = String(era() === 'roc' ? adToRoc(raw) : rocToAD(raw));
+      render();
+    }),
+  );
+  yearInput.addEventListener('input', render);
+  [monthSel, daySel].forEach((el) => el.addEventListener('change', render));
+  onInput.addEventListener('input', render);
+  render();
+</script>
+
+<style>
+  .ag-on {
+    max-width: 320px;
+  }
+</style>

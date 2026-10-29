@@ -1,0 +1,137 @@
+---
+import Wordmark from './Wordmark.astro';
+import { categories } from '../config/categories';
+import { site } from '../config/site';
+
+interface Props {
+  activeCategory?: string;
+}
+const { activeCategory } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <a class="brand" href="/" aria-label={`${site.name} 首頁`}>
+      <Wordmark />
+    </a>
+    <nav class="meta" aria-label="站內連結">
+      <button class="search" type="button" data-open-search aria-haspopup="dialog">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
+        </svg>
+        搜尋工具
+        <kbd>/</kbd>
+      </button>
+      <a href={site.blogUrl} rel="noopener">部落格</a>
+    </nav>
+  </div>
+  <nav class="container cats" aria-label="工具分類">
+    {
+      categories.map((c) => (
+        <a href={`/category/${c.id}/`} aria-current={c.id === activeCategory ? 'page' : undefined}>
+          {c.name}
+        </a>
+      ))
+    }
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in oklab, var(--surface) 82%, transparent);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+  }
+  .brand:hover {
+    text-decoration: none;
+  }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .meta a {
+    color: var(--text-2);
+  }
+  .search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 6px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .search:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  kbd {
+    min-width: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .cats {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 10px;
+  }
+  .cats::-webkit-scrollbar {
+    display: none;
+  }
+  .cats a {
+    flex: none;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .cats a:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .cats a[aria-current='page'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  @media (max-width: 420px) {
+    kbd {
+      display: none;
+    }
+    .search {
+      padding: 6px 12px;
+    }
+  }
+</style>

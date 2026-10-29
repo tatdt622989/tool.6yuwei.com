@@ -1,0 +1,249 @@
+<div class="tool" data-tool="mortgage-calculator">
+  <div class="grid-2">
+    <div class="field">
+      <label for="mg-amount">貸款金額（萬元）</label>
+      <input id="mg-amount" type="text" inputmode="decimal" autocomplete="off" value="1000" />
+    </div>
+    <div class="field">
+      <label for="mg-rate">年利率（%）</label>
+      <input id="mg-rate" type="text" inputmode="decimal" autocomplete="off" value="2.2" />
+    </div>
+    <div class="field">
+      <label for="mg-years">貸款年限（年）</label>
+      <input id="mg-years" type="text" inputmode="numeric" autocomplete="off" value="30" />
+    </div>
+    <div class="field">
+      <label for="mg-grace">寬限期（年，只繳利息）</label>
+      <input id="mg-grace" type="text" inputmode="numeric" autocomplete="off" value="0" />
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="label">還款方式</span>
+    <div class="seg" role="radiogroup" aria-label="還款方式">
+      <label><input type="radio" name="mg-method" value="annuity" checked /><span>本息平均攤還</span></label>
+      <label><input type="radio" name="mg-method" value="principal" /><span>本金平均攤還</span></label>
+    </div>
+  </div>
+
+  <div class="notice error" id="mg-error" hidden></div>
+
+  <div id="mg-output">
+    <div class="result" aria-live="polite">
+      <div class="result-value" id="mg-main">—</div>
+      <div class="result-label" id="mg-main-label">每月應繳</div>
+    </div>
+
+    <div class="stats mg-stats">
+      <div class="stat" id="mg-grace-stat"><span class="stat-value" id="mg-grace-pay">—</span><span class="stat-label">寬限期每月（只繳利息）</span></div>
+      <div class="stat" id="mg-last-stat"><span class="stat-value" id="mg-last">—</span><span class="stat-label">最後一期</span></div>
+      <div class="stat"><span class="stat-value" id="mg-interest">—</span><span class="stat-label">總利息</span></div>
+      <div class="stat"><span class="stat-value" id="mg-total">—</span><span class="stat-label">本息合計</span></div>
+    </div>
+
+    <p class="hint" id="mg-compare"></p>
+
+    <div class="field">
+      <span class="label">還款明細（點年度展開每月）</span>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>期間</th>
+              <th class="num">繳款</th>
+              <th class="num">本金</th>
+              <th class="num">利息</th>
+              <th class="num">剩餘本金</th>
+            </tr>
+          </thead>
+          <tbody id="mg-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="notice">試算結果為估算值，以月利率＝年利率 ÷ 12 計算，未含手續費、保險與利率調整。實際金額以銀行核貸條件為準。</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, parseNumber } from '../../lib/format';
+  import {
+    buildSchedule,
+    summarizeByYear,
+    validateLoan,
+    wanToYuan,
+    type LoanInput,
+    type MonthRow,
+    type RepaymentMethod,
+  } from './logic';
+
+  const root = $('[data-tool="mortgage-calculator"]');
+  const amount = $<HTMLInputElement>('#mg-amount', root);
+  const rate = $<HTMLInputElement>('#mg-rate', root);
+  const years = $<HTMLInputElement>('#mg-years', root);
+  const grace = $<HTMLInputElement>('#mg-grace', root);
+  const methods = $$<HTMLInputElement>('input[name="mg-method"]', root);
+  const error = $('#mg-error', root);
+  const output = $('#mg-output', root);
+  const table = $('#mg-table', root);
+
+  const METHOD_LABEL: Record<RepaymentMethod, string> = { annuity: '本息平均攤還', principal: '本金平均攤還' };
+  const money = (v: number) => `${formatInteger(v)} 元`;
+
+  const saved = loadPref('mortgage-calculator', { amount: '1000', rate: '2.2', years: '30', grace: '0', method: 'annuity' });
+  amount.value = saved.amount;
+  rate.value = saved.rate;
+  years.value = saved.years;
+  grace.value = saved.grace;
+  for (const m of methods) m.checked = m.value === saved.method;
+
+  let months: MonthRow[] = [];
+  const open = new Set<number>();
+
+  function readInput(): LoanInput {
+    return {
+      principal: wanToYuan(parseNumber(amount.value)),
+      annualRate: parseNumber(rate.value),
+      years: parseNumber(years.value),
+      graceYears: grace.value.trim() === '' ? 0 : parseNumber(grace.value),
+      method: (methods.find((m) => m.checked)?.value ?? 'annuity') as RepaymentMethod,
+    };
+  }
+
+  function cells(first: string, row: { payment: number; principal: number; interest: number; balance: number }) {
+    const nums = [row.payment, row.principal, row.interest, row.balance];
+    return first + nums.map((n) => `<td class="num">${formatInteger(n)}</td>`).join('');
+  }
+
+  function renderTable() {
+    const rows: string[] = [];
+    for (const y of summarizeByYear(months)) {
+      const expanded = open.has(y.year);
+      rows.push(
+        `<tr class="mg-year">${cells(
+          `<td><button type="button" class="mg-toggle" data-year="${y.year}" aria-expanded="${expanded}">第 ${y.year} 年</button></td>`,
+          y,
+        )}</tr>`,
+      );
+      if (expanded) {
+        for (const m of months.slice((y.year - 1) * 12, y.year * 12)) {
+          rows.push(`<tr class="mg-month">${cells(`<td>第 ${m.month} 期</td>`, m)}</tr>`);
+        }
+      }
+    }
+    table.innerHTML = rows.join('');
+  }
+
+  function render() {
+    const input = readInput();
+    savePref('mortgage-calculator', {
+      amount: amount.value,
+      rate: rate.value,
+      years: years.value,
+      grace: grace.value,
+      method: input.method,
+    });
+
+    const problem = validateLoan(input);
+    const result = problem ? null : buildSchedule(input);
+    if (!result) {
+      error.textContent = problem ?? '無法計算，請檢查輸入。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    output.hidden = false;
+
+    const hasGrace = input.graceYears > 0;
+    const isAnnuity = input.method === 'annuity';
+    $('#mg-main', root).textContent = money(result.firstAmortizingPayment);
+    $('#mg-main-label', root).textContent = `${hasGrace ? '寬限期後' : ''}${isAnnuity ? '每月應繳' : '首月應繳（之後逐月遞減）'}`;
+    $('#mg-grace-stat', root).hidden = !hasGrace;
+    $('#mg-grace-pay', root).textContent = money(result.firstPayment);
+    $('#mg-last-stat', root).hidden = isAnnuity;
+    $('#mg-last', root).textContent = money(result.lastPayment);
+    $('#mg-interest', root).textContent = money(result.totalInterest);
+    $('#mg-total', root).textContent = money(result.totalPaid);
+
+    const other: RepaymentMethod = isAnnuity ? 'principal' : 'annuity';
+    const alt = buildSchedule({ ...input, method: other });
+    if (alt && input.annualRate > 0) {
+      const diff = alt.totalInterest - result.totalInterest;
+      $('#mg-compare', root).textContent =
+        diff > 0
+          ? `若改用${METHOD_LABEL[other]}，總利息約多 ${money(diff)}。`
+          : `若改用${METHOD_LABEL[other]}，總利息約少 ${money(-diff)}，但前期月付較高（首月 ${money(alt.firstAmortizingPayment)}）。`;
+    } else {
+      $('#mg-compare', root).textContent = '';
+    }
+
+    months = result.months;
+    renderTable();
+  }
+
+  table.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('.mg-toggle');
+    if (!button) return;
+    const year = Number(button.dataset.year);
+    if (open.has(year)) open.delete(year);
+    else open.add(year);
+    renderTable();
+    $<HTMLButtonElement>(`.mg-toggle[data-year="${year}"]`, table).focus();
+  });
+
+  [amount, rate, years, grace].forEach((el) =>
+    el.addEventListener('input', () => {
+      open.clear();
+      render();
+    }),
+  );
+  methods.forEach((m) => m.addEventListener('change', render));
+  render();
+</script>
+
+<style>
+  #mg-output {
+    display: grid;
+    gap: 16px;
+  }
+  #mg-output[hidden] {
+    display: none;
+  }
+  .mg-stats .stat[hidden] {
+    display: none;
+  }
+  #mg-table :global(.mg-toggle) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  #mg-table :global(.mg-toggle)::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  #mg-table :global(.mg-toggle[aria-expanded='true'])::before {
+    transform: rotate(45deg);
+  }
+  #mg-table :global(.mg-month td) {
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  #mg-table :global(.mg-month td:first-child) {
+    padding-left: 26px;
+  }
+</style>

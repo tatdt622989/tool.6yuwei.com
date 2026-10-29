@@ -1,0 +1,348 @@
+<div class="tool" data-tool="random-picker">
+  <div class="field">
+    <label for="rp-input">名單（每行一個）</label>
+    <textarea id="rp-input" rows="8" placeholder={'王小明\n李小華\n陳小美\n林志明\n張春嬌'}></textarea>
+    <div class="row between">
+      <span class="hint" id="rp-count">共 0 個項目</span>
+      <div class="row">
+        <button class="btn small ghost" type="button" id="rp-sample">填入範例</button>
+        <button class="btn small ghost" type="button" id="rp-clear">清除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="seg" role="radiogroup" aria-label="模式">
+    <label><input type="radio" name="rp-mode" value="pick" checked /><span>抽籤</span></label>
+    <label><input type="radio" name="rp-mode" value="group" /><span>分組</span></label>
+    <label><input type="radio" name="rp-mode" value="order" /><span>排順序</span></label>
+  </div>
+
+  <div class="rp-opts" data-for="pick">
+    <div class="field rp-num">
+      <label for="rp-pick-count">抽出人數</label>
+      <input id="rp-pick-count" type="number" min="1" step="1" value="1" inputmode="numeric" />
+    </div>
+    <label class="check"><input id="rp-remove" type="checkbox" /> 抽中後從名單移除</label>
+  </div>
+
+  <div class="rp-opts" data-for="group" hidden>
+    <div class="seg" role="radiogroup" aria-label="分組方式">
+      <label><input type="radio" name="rp-group-by" value="count" checked /><span>依組數</span></label>
+      <label><input type="radio" name="rp-group-by" value="size" /><span>依每組人數</span></label>
+    </div>
+    <div class="field rp-num">
+      <label for="rp-group-value" id="rp-group-label">組數</label>
+      <input id="rp-group-value" type="number" min="1" step="1" value="2" inputmode="numeric" />
+    </div>
+  </div>
+
+  <label class="check"><input id="rp-dedupe" type="checkbox" checked /> 移除重複的項目</label>
+
+  <div class="row">
+    <button class="btn primary" type="button" id="rp-go">開始抽籤</button>
+    <button class="btn" type="button" id="rp-copy" disabled>複製結果</button>
+  </div>
+
+  <div class="notice error" id="rp-error" hidden></div>
+
+  <div id="rp-result" aria-live="polite" hidden></div>
+</div>
+
+<script>
+  import { $, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import {
+    countDuplicates,
+    formatGroups,
+    formatWinners,
+    groupsForSize,
+    parseEntries,
+    pickWinners,
+    removeDrawn,
+    shuffle,
+    splitIntoGroups,
+  } from './logic';
+
+  type Mode = 'pick' | 'group' | 'order';
+  type GroupBy = 'count' | 'size';
+
+  interface Prefs {
+    mode: Mode;
+    pickCount: number;
+    removeAfter: boolean;
+    groupBy: GroupBy;
+    groupValue: number;
+    dedupe: boolean;
+  }
+
+  const defaults: Prefs = { mode: 'pick', pickCount: 1, removeAfter: false, groupBy: 'count', groupValue: 2, dedupe: true };
+  const LABEL: Record<Mode, string> = { pick: '開始抽籤', group: '開始分組', order: '打亂順序' };
+  const SAMPLE = ['王小明', '李小華', '陳小美', '林志明', '張春嬌', '黃建宏', '吳怡君', '劉家豪', '蔡雅婷', '鄭宇翔'];
+
+  const root = $('[data-tool="random-picker"]');
+  const input = $<HTMLTextAreaElement>('#rp-input', root);
+  const countHint = $('#rp-count', root);
+  const pickCount = $<HTMLInputElement>('#rp-pick-count', root);
+  const removeAfter = $<HTMLInputElement>('#rp-remove', root);
+  const groupValue = $<HTMLInputElement>('#rp-group-value', root);
+  const groupLabel = $('#rp-group-label', root);
+  const dedupe = $<HTMLInputElement>('#rp-dedupe', root);
+  const go = $<HTMLButtonElement>('#rp-go', root);
+  const copyBtn = $<HTMLButtonElement>('#rp-copy', root);
+  const error = $('#rp-error', root);
+  const result = $('#rp-result', root);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const checked = (name: string) => $<HTMLInputElement>(`input[name="${name}"]:checked`, root).value;
+  const setChecked = (name: string, value: string) => {
+    const el = root.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
+    if (el) el.checked = true;
+  };
+
+  function readPrefs(): Prefs {
+    return {
+      mode: checked('rp-mode') as Mode,
+      pickCount: Math.max(1, Math.floor(Number(pickCount.value)) || 1),
+      removeAfter: removeAfter.checked,
+      groupBy: checked('rp-group-by') as GroupBy,
+      groupValue: Math.max(1, Math.floor(Number(groupValue.value)) || 1),
+      dedupe: dedupe.checked,
+    };
+  }
+
+  function applyPrefs(p: Prefs) {
+    setChecked('rp-mode', p.mode);
+    setChecked('rp-group-by', p.groupBy);
+    pickCount.value = String(p.pickCount);
+    removeAfter.checked = p.removeAfter;
+    groupValue.value = String(p.groupValue);
+    dedupe.checked = p.dedupe;
+  }
+
+  let lastText = '';
+
+  function refresh() {
+    const p = readPrefs();
+    savePref('random-picker', p);
+    savePref('random-picker:list', input.value);
+    for (const box of root.querySelectorAll<HTMLElement>('[data-for]')) box.hidden = box.dataset.for !== p.mode;
+    groupLabel.textContent = p.groupBy === 'count' ? '組數' : '每組人數';
+    go.textContent = LABEL[p.mode];
+    const total = parseEntries(input.value, p.dedupe).length;
+    const dupes = countDuplicates(input.value);
+    countHint.textContent =
+      `共 ${formatInteger(total)} 個項目` + (dupes > 0 ? (p.dedupe ? `（已略過 ${dupes} 個重複）` : `（含 ${dupes} 個重複）`) : '');
+  }
+
+  function showError(message: string) {
+    error.textContent = message;
+    error.hidden = message === '';
+  }
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function renderWinners(winners: string[], title: string) {
+    result.replaceChildren();
+    result.className = 'rp-result';
+    result.append(el('p', 'rp-title', title));
+    if (winners.length === 1) {
+      result.append(el('div', 'rp-single', winners[0]));
+      return;
+    }
+    const list = el('ol', 'rp-list');
+    for (const w of winners) list.append(el('li', '', w));
+    result.append(list);
+  }
+
+  function renderGroups(groups: string[][]) {
+    result.replaceChildren();
+    result.className = 'rp-result';
+    result.append(el('p', 'rp-title', `分成 ${groups.length} 組`));
+    const grid = el('div', 'rp-groups');
+    groups.forEach((g, i) => {
+      const card = el('section', 'rp-group');
+      card.append(el('h3', '', `第 ${i + 1} 組`), el('span', 'rp-group-n', `${g.length} 人`));
+      const ul = el('ul', '');
+      for (const name of g) ul.append(el('li', '', name));
+      card.append(ul);
+      grid.append(card);
+    });
+    result.append(grid);
+  }
+
+  /** Brief rolling display before revealing; skipped when the user prefers reduced motion. */
+  function roll(entries: string[]): Promise<void> {
+    if (reducedMotion.matches || entries.length < 2) return Promise.resolve();
+    result.hidden = false;
+    result.className = 'rp-result';
+    const display = el('div', 'rp-single rp-rolling');
+    result.replaceChildren(el('p', 'rp-title', '抽籤中…'), display);
+    const start = performance.now();
+    const duration = 900;
+    return new Promise((resolve) => {
+      let last = 0;
+      const tick = (now: number) => {
+        const t = now - start;
+        // Slow down toward the end so the stop feels natural.
+        const interval = 50 + 150 * (t / duration) ** 2;
+        if (now - last >= interval) {
+          // Display-only flicker; the actual result was already drawn with crypto randomness.
+          display.textContent = entries[Math.floor(Math.random() * entries.length)];
+          last = now;
+        }
+        if (t < duration) requestAnimationFrame(tick);
+        else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  async function run() {
+    const p = readPrefs();
+    const entries = parseEntries(input.value, p.dedupe);
+    showError('');
+    if (entries.length === 0) {
+      showError('請先輸入名單，每行一個項目。');
+      return;
+    }
+
+    go.disabled = true;
+    try {
+      if (p.mode === 'pick') {
+        if (p.pickCount > entries.length) {
+          showError(`名單只有 ${entries.length} 個項目，無法抽出 ${p.pickCount} 個。`);
+          return;
+        }
+        const winners = pickWinners(entries, p.pickCount);
+        await roll(entries);
+        renderWinners(winners, `抽出 ${winners.length} 個（共 ${entries.length} 個）`);
+        lastText = formatWinners(winners);
+        if (p.removeAfter) {
+          input.value = removeDrawn(parseEntries(input.value, p.dedupe), winners).join('\n');
+          refresh();
+        }
+      } else if (p.mode === 'group') {
+        const k = p.groupBy === 'count' ? p.groupValue : groupsForSize(entries.length, p.groupValue);
+        if (k > entries.length) {
+          showError(`名單只有 ${entries.length} 個項目，無法分成 ${k} 組。`);
+          return;
+        }
+        const groups = splitIntoGroups(entries, k);
+        renderGroups(groups);
+        lastText = formatGroups(groups);
+      } else {
+        const order = shuffle(entries);
+        renderWinners(order, `新順序（共 ${order.length} 個）`);
+        lastText = formatWinners(order);
+      }
+      result.hidden = false;
+      copyBtn.disabled = false;
+    } finally {
+      go.disabled = false;
+    }
+  }
+
+  applyPrefs(loadPref('random-picker', defaults));
+  input.value = loadPref('random-picker:list', '');
+  refresh();
+
+  root.addEventListener('input', refresh);
+  root.addEventListener('change', refresh);
+  go.addEventListener('click', run);
+  copyBtn.addEventListener('click', async () => {
+    if (lastText && (await copyText(lastText))) flashButton(copyBtn);
+  });
+  $('#rp-sample', root).addEventListener('click', () => {
+    input.value = SAMPLE.join('\n');
+    refresh();
+  });
+  $('#rp-clear', root).addEventListener('click', () => {
+    input.value = '';
+    result.hidden = true;
+    copyBtn.disabled = true;
+    lastText = '';
+    showError('');
+    refresh();
+    input.focus();
+  });
+</script>
+
+<style>
+  .rp-opts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px 20px;
+  }
+  .rp-opts[hidden],
+  .notice[hidden],
+  #rp-result[hidden] {
+    display: none !important;
+  }
+  .rp-num {
+    width: 160px;
+  }
+  .rp-result {
+    display: grid;
+    gap: 12px;
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent);
+  }
+  .rp-result :global(.rp-title) {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .rp-result :global(.rp-single) {
+    font-size: clamp(32px, 9vw, 56px);
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+    padding: 8px 0;
+  }
+  .rp-result :global(.rp-rolling) {
+    color: var(--text-2);
+  }
+  .rp-result :global(.rp-list) {
+    margin: 0;
+    padding-left: 1.8em;
+    display: grid;
+    gap: 4px;
+    font-size: 18px;
+    font-weight: 600;
+    columns: auto;
+  }
+  .rp-result :global(.rp-groups) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .rp-result :global(.rp-group) {
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .rp-result :global(.rp-group h3) {
+    display: inline;
+    font-size: 16px;
+  }
+  .rp-result :global(.rp-group-n) {
+    margin-left: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .rp-result :global(.rp-group ul) {
+    margin: 8px 0 0;
+    padding-left: 1.2em;
+    font-size: 15px;
+  }
+</style>

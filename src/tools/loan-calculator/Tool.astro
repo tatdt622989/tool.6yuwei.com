@@ -1,0 +1,179 @@
+<div class="tool" data-tool="loan-calculator">
+  <div class="grid-2">
+    <div class="field">
+      <label for="ln-amount">貸款金額（萬元）</label>
+      <input id="ln-amount" type="text" inputmode="decimal" autocomplete="off" value="50" />
+    </div>
+    <div class="field">
+      <label for="ln-months">還款期數（月）</label>
+      <input id="ln-months" type="text" inputmode="numeric" autocomplete="off" value="60" />
+      <span class="hint">5 年 = 60 期，7 年 = 84 期。</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="label">利率方式</span>
+    <div class="seg" role="radiogroup" aria-label="利率方式">
+      <label><input type="radio" name="ln-kind" value="single" checked /><span>單一利率</span></label>
+      <label><input type="radio" name="ln-kind" value="staged" /><span>分段式利率</span></label>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="ln-rate1" id="ln-rate1-label">年利率（%）</label>
+      <input id="ln-rate1" type="text" inputmode="decimal" autocomplete="off" value="2.88" />
+    </div>
+    <div class="field ln-staged">
+      <label for="ln-stage1">第一段期數（月）</label>
+      <input id="ln-stage1" type="text" inputmode="numeric" autocomplete="off" value="3" />
+    </div>
+    <div class="field ln-staged">
+      <label for="ln-rate2">第二段年利率（%）</label>
+      <input id="ln-rate2" type="text" inputmode="decimal" autocomplete="off" value="4.68" />
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="ln-fees">開辦費與其他費用（元）</label>
+    <input id="ln-fees" type="text" inputmode="numeric" autocomplete="off" value="3000" />
+    <span class="hint">開辦費、帳戶管理費、徵信查詢費等貸款時一次支付的費用。</span>
+  </div>
+
+  <div class="notice error" id="ln-error" hidden></div>
+
+  <div id="ln-output">
+    <div class="result" aria-live="polite">
+      <div class="result-value" id="ln-payment">—</div>
+      <div class="result-label" id="ln-payment-label">每月月付金</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="ln-apr">—</span><span class="stat-label">總費用年百分率</span></div>
+      <div class="stat"><span class="stat-value" id="ln-interest">—</span><span class="stat-label">總利息</span></div>
+      <div class="stat"><span class="stat-value" id="ln-cost">—</span><span class="stat-label">總成本（利息＋費用）</span></div>
+      <div class="stat"><span class="stat-value" id="ln-total">—</span><span class="stat-label">本息合計</span></div>
+    </div>
+
+    <p class="hint" id="ln-stage-note"></p>
+
+    <div class="field">
+      <span class="label">攤還明細表</span>
+      <div class="table-wrap ln-table">
+        <table class="table">
+          <thead>
+            <tr><th>期數</th><th class="num">利率</th><th class="num">月付金</th><th class="num">本金</th><th class="num">利息</th><th class="num">剩餘本金</th></tr>
+          </thead>
+          <tbody id="ln-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">採本息平均攤還、月利率＝年利率 ÷ 12；分段式利率在利率變動時以剩餘本金重新計算月付金。總費用年百分率依實際撥款金額（貸款金額 − 費用）與每期還款求內部報酬率再乘以 12。結果僅供參考，實際條件以銀行契約為準；資料只在你的瀏覽器內計算。</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { calculateLoan, validateLoan, type LoanInput } from './logic';
+
+  const KEY = 'loan-calculator';
+  const root = $('[data-tool="loan-calculator"]');
+  const ids = ['amount', 'months', 'rate1', 'stage1', 'rate2', 'fees'] as const;
+  type Id = (typeof ids)[number];
+  const inputs = Object.fromEntries(ids.map((id) => [id, $<HTMLInputElement>(`#ln-${id}`, root)])) as Record<Id, HTMLInputElement>;
+  const kinds = $$<HTMLInputElement>('input[name="ln-kind"]', root);
+  const error = $('#ln-error', root);
+  const output = $('#ln-output', root);
+  const table = $('#ln-table', root);
+
+  const prefs = loadPref<Partial<Record<Id | 'kind', string>>>(KEY, {});
+  for (const id of ids) if (prefs[id] !== undefined) inputs[id].value = prefs[id]!;
+  if (prefs.kind) for (const k of kinds) k.checked = k.value === prefs.kind;
+
+  const money = (n: number) => `${formatInteger(n)} 元`;
+  const num = (id: Id) => (inputs[id].value.trim() === '' ? 0 : parseNumber(inputs[id].value));
+  const set = (id: string, text: string) => {
+    $(id, root).textContent = text;
+  };
+
+  function render() {
+    const kind = kinds.find((k) => k.checked)?.value ?? 'single';
+    savePref(KEY, { ...Object.fromEntries(ids.map((id) => [id, inputs[id].value])), kind });
+    const staged = kind === 'staged';
+    for (const el of $$('.ln-staged', root)) el.hidden = !staged;
+    set('#ln-rate1-label', staged ? '第一段年利率（%）' : '年利率（%）');
+
+    const input: LoanInput = {
+      principal: parseNumber(inputs.amount.value) * 10_000,
+      months: parseNumber(inputs.months.value),
+      stages: staged
+        ? [
+            { ratePct: parseNumber(inputs.rate1.value), months: num('stage1') },
+            { ratePct: parseNumber(inputs.rate2.value), months: 0 },
+          ]
+        : [{ ratePct: parseNumber(inputs.rate1.value), months: 0 }],
+      fees: num('fees'),
+    };
+    if (staged && (input.stages[0].months <= 0 || input.stages[0].months >= input.months)) {
+      error.textContent = '第一段期數需大於 0 且小於總期數。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    const problem = validateLoan(input);
+    const r = problem ? null : calculateLoan(input);
+    if (!r) {
+      error.textContent = problem ?? '無法計算，請檢查輸入。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    output.hidden = false;
+
+    const sp = r.stagePayments;
+    set('#ln-payment', money(sp[0].payment));
+    set('#ln-payment-label', sp.length > 1 ? `第 1–${sp[0].toMonth} 期每月月付金` : `每月月付金（共 ${input.months} 期）`);
+    set('#ln-stage-note', sp.length > 1 ? `第 ${sp[1].fromMonth}–${sp[1].toMonth} 期利率 ${sp[1].ratePct}%，每月月付金 ${money(sp[1].payment)}。` : '');
+    set('#ln-apr', `${formatNumber(r.aprPct, 2)}%`);
+    set('#ln-interest', money(r.totalInterest));
+    set('#ln-cost', money(r.totalCost));
+    set('#ln-total', money(r.totalPaid));
+
+    table.replaceChildren(
+      ...r.rows.map((row) => {
+        const tr = document.createElement('tr');
+        [`第 ${row.month} 期`, `${row.ratePct}%`, formatInteger(row.payment), formatInteger(row.principal), formatInteger(row.interest), formatInteger(row.balance)].forEach(
+          (text, i) => {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (i > 0) td.className = 'num';
+            tr.append(td);
+          },
+        );
+        return tr;
+      }),
+    );
+  }
+
+  root.addEventListener('input', render);
+  root.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  #ln-output {
+    display: grid;
+    gap: 16px;
+  }
+  #ln-output[hidden],
+  .ln-staged[hidden] {
+    display: none;
+  }
+  .ln-table {
+    max-height: 420px;
+    overflow-y: auto;
+  }
+</style>

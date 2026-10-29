@@ -1,0 +1,220 @@
+<div class="tool" data-tool="compound-interest">
+  <div class="grid-2">
+    <div class="field">
+      <label for="ci-principal">初始本金（元）</label>
+      <input id="ci-principal" type="text" inputmode="decimal" autocomplete="off" value="100000" />
+    </div>
+    <div class="field">
+      <label for="ci-monthly">每月投入（元）</label>
+      <input id="ci-monthly" type="text" inputmode="decimal" autocomplete="off" value="5000" />
+      <span class="hint">於每月月底投入，不投入填 0。</span>
+    </div>
+    <div class="field">
+      <label for="ci-rate">年利率／年報酬率（%）</label>
+      <input id="ci-rate" type="text" inputmode="decimal" autocomplete="off" value="5" />
+    </div>
+    <div class="field">
+      <label for="ci-years">投資年數</label>
+      <input id="ci-years" type="text" inputmode="numeric" autocomplete="off" value="20" />
+    </div>
+    <div class="field">
+      <label for="ci-freq">複利頻率</label>
+      <select id="ci-freq">
+        <option value="1">每年</option>
+        <option value="2">每半年</option>
+        <option value="4">每季</option>
+        <option value="12" selected>每月</option>
+        <option value="365">每日</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="notice error" id="ci-error" hidden></p>
+
+  <div id="ci-results">
+    <div class="result">
+      <div class="result-value" id="ci-final">—</div>
+      <div class="result-label" id="ci-final-label">期末總金額</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="ci-contributed">—</span><span class="stat-label">累計投入本金</span></div>
+      <div class="stat"><span class="stat-value" id="ci-interest">—</span><span class="stat-label">累計利息</span></div>
+      <div class="stat"><span class="stat-value" id="ci-effective">—</span><span class="stat-label">實質年利率</span></div>
+      <div class="stat"><span class="stat-value" id="ci-double">—</span><span class="stat-label">72 法則翻倍年數</span></div>
+    </div>
+
+    <div class="ci-bar" aria-hidden="true">
+      <div class="ci-bar-principal" id="ci-bar-principal"></div>
+      <div class="ci-bar-interest" id="ci-bar-interest"></div>
+    </div>
+    <div class="ci-legend">
+      <span><i class="ci-dot ci-dot-principal"></i>投入本金 <b id="ci-pct-principal">—</b></span>
+      <span><i class="ci-dot ci-dot-interest"></i>利息 <b id="ci-pct-interest">—</b></span>
+    </div>
+
+    <div class="field">
+      <span class="label" id="ci-table-title">逐年明細</span>
+      <div class="table-wrap">
+        <table class="table" aria-labelledby="ci-table-title">
+          <thead>
+            <tr><th>年度</th><th class="num">累計投入</th><th class="num">當年利息</th><th class="num">累計利息</th><th class="num">年底餘額</th></tr>
+          </thead>
+          <tbody id="ci-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">計算結果為假設利率固定不變的試算，未計入稅負、手續費與通膨，實際報酬請以金融機構或投資商品的資料為準。</p>
+</div>
+
+<script>
+  import { $, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { calculateCompound, FREQUENCY_LABEL, ruleOf72, type Frequency } from './logic';
+
+  interface Prefs {
+    principal: string;
+    monthly: string;
+    rate: string;
+    years: string;
+    freq: string;
+  }
+
+  const root = $('[data-tool="compound-interest"]');
+  const principal = $<HTMLInputElement>('#ci-principal', root);
+  const monthly = $<HTMLInputElement>('#ci-monthly', root);
+  const rate = $<HTMLInputElement>('#ci-rate', root);
+  const years = $<HTMLInputElement>('#ci-years', root);
+  const freq = $<HTMLSelectElement>('#ci-freq', root);
+  const error = $('#ci-error', root);
+  const results = $('#ci-results', root);
+  const table = $('#ci-table', root);
+
+  const yuan = (n: number) => `${formatInteger(n)} 元`;
+  const optional = (input: HTMLInputElement) => (input.value.trim() === '' ? 0 : parseNumber(input.value));
+  const set = (id: string, text: string) => {
+    $(id, root).textContent = text;
+  };
+
+  function render() {
+    savePref('compound-interest', {
+      principal: principal.value,
+      monthly: monthly.value,
+      rate: rate.value,
+      years: years.value,
+      freq: freq.value,
+    } satisfies Prefs);
+
+    const ratePct = parseNumber(rate.value);
+    const frequency = Number(freq.value) as Frequency;
+    const r = calculateCompound({
+      principal: optional(principal),
+      monthly: optional(monthly),
+      ratePct,
+      years: parseNumber(years.value),
+      frequency,
+    });
+
+    if (!r) {
+      error.textContent = '請輸入本金或每月投入（不可為負）、0–100% 的年利率，以及 1–100 的整數年數。';
+      error.hidden = false;
+      results.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    results.hidden = false;
+
+    set('#ci-final', yuan(r.finalValue));
+    set('#ci-final-label', `${r.rows.length} 年後期末總金額（${FREQUENCY_LABEL[frequency]}複利）`);
+    set('#ci-contributed', yuan(r.totalContributed));
+    set('#ci-interest', yuan(r.totalInterest));
+    set('#ci-effective', `${formatNumber(r.effectiveRatePct, 3)}%`);
+    const doubling = ruleOf72(ratePct);
+    set('#ci-double', Number.isFinite(doubling) ? `約 ${formatNumber(doubling, 1)} 年` : '—');
+
+    const principalShare = r.finalValue > 0 ? (r.totalContributed / r.finalValue) * 100 : 100;
+    $('#ci-bar-principal', root).style.width = `${principalShare}%`;
+    $('#ci-bar-interest', root).style.width = `${100 - principalShare}%`;
+    set('#ci-pct-principal', `${formatNumber(principalShare, 1)}%`);
+    set('#ci-pct-interest', `${formatNumber(100 - principalShare, 1)}%`);
+
+    table.replaceChildren(
+      ...r.rows.map((row) => {
+        const tr = document.createElement('tr');
+        [`第 ${row.year} 年`, yuan(row.contributed), yuan(row.interest), yuan(row.totalInterest), yuan(row.balance)].forEach(
+          (text, i) => {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (i > 0) td.className = 'num';
+            tr.append(td);
+          },
+        );
+        return tr;
+      }),
+    );
+  }
+
+  const prefs = loadPref<Partial<Prefs>>('compound-interest', {});
+  if (prefs.principal !== undefined) principal.value = prefs.principal;
+  if (prefs.monthly !== undefined) monthly.value = prefs.monthly;
+  if (prefs.rate !== undefined) rate.value = prefs.rate;
+  if (prefs.years !== undefined) years.value = prefs.years;
+  if (prefs.freq && freq.querySelector(`option[value="${prefs.freq}"]`)) freq.value = prefs.freq;
+
+  root.addEventListener('input', render);
+  freq.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  #ci-results {
+    display: grid;
+    gap: 16px;
+  }
+  #ci-results[hidden] {
+    display: none;
+  }
+  .ci-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .ci-bar-principal {
+    background: var(--accent);
+    transition: width 0.2s;
+  }
+  .ci-bar-interest {
+    background: var(--success);
+    transition: width 0.2s;
+  }
+  .ci-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: -6px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .ci-legend b {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .ci-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: baseline;
+  }
+  .ci-dot-principal {
+    background: var(--accent);
+  }
+  .ci-dot-interest {
+    background: var(--success);
+  }
+</style>

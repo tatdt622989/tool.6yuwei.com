@@ -1,0 +1,56 @@
+<div class="tool" data-tool="word-counter">
+  <div class="field">
+    <label for="wc-input">輸入或貼上文字</label>
+    <textarea id="wc-input" rows="10" placeholder="在這裡貼上你的文章、報告或貼文內容…"></textarea>
+  </div>
+
+  <div class="result">
+    <div class="result-value" id="wc-main">0</div>
+    <div class="result-label">字數（中文字 + 英文單字）</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" data-k="characters">0</span><span class="stat-label">總字元（含空白）</span></div>
+    <div class="stat"><span class="stat-value" data-k="charactersNoSpaces">0</span><span class="stat-label">字元（不含空白）</span></div>
+    <div class="stat"><span class="stat-value" data-k="cjk">0</span><span class="stat-label">中文字</span></div>
+    <div class="stat"><span class="stat-value" data-k="words">0</span><span class="stat-label">英文單字</span></div>
+    <div class="stat"><span class="stat-value" data-k="punctuation">0</span><span class="stat-label">標點符號</span></div>
+    <div class="stat"><span class="stat-value" data-k="lines">0</span><span class="stat-label">行數</span></div>
+    <div class="stat"><span class="stat-value" data-k="paragraphs">0</span><span class="stat-label">段落</span></div>
+    <div class="stat"><span class="stat-value" data-k="reading">0 分鐘</span><span class="stat-label">閱讀時間</span></div>
+  </div>
+
+  <div class="row">
+    <button class="btn" type="button" data-copy="#wc-input">複製文字</button>
+    <button class="btn ghost" type="button" id="wc-clear">清除</button>
+  </div>
+</div>
+
+<script>
+  import { $, $$ } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import { analyzeText, formatReadingTime, type TextStats } from './logic';
+
+  const root = $('[data-tool="word-counter"]');
+  const input = $<HTMLTextAreaElement>('#wc-input', root);
+  const main = $('#wc-main', root);
+  const cells = $$<HTMLElement>('[data-k]', root);
+
+  function render() {
+    const stats = analyzeText(input.value);
+    main.textContent = formatInteger(stats.mixedCount);
+    for (const cell of cells) {
+      const key = cell.dataset.k!;
+      cell.textContent =
+        key === 'reading' ? formatReadingTime(stats.readingMinutes) : formatInteger(stats[key as keyof TextStats]);
+    }
+  }
+
+  input.addEventListener('input', render);
+  $('#wc-clear', root).addEventListener('click', () => {
+    input.value = '';
+    render();
+    input.focus();
+  });
+  render();
+</script>

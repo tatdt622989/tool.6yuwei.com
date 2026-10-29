@@ -1,0 +1,181 @@
+---
+import { COMMON_ENTITIES } from './logic';
+const invisible = new Set([' ', ' ', ' ', ' ', '­']);
+---
+
+<div class="tool" data-tool="html-entities">
+  <div class="row">
+    <div class="seg" role="radiogroup" aria-label="轉換方向">
+      <label><input type="radio" name="he-mode" value="encode" checked /><span>編碼（跳脫）</span></label>
+      <label><input type="radio" name="he-mode" value="decode" /><span>解碼（還原）</span></label>
+    </div>
+  </div>
+
+  <div class="he-opts" id="he-opts">
+    <div class="field">
+      <span class="label">要轉換的字元</span>
+      <div class="row">
+        <div class="seg" role="radiogroup" aria-label="要轉換的字元">
+          <label><input type="radio" name="he-scope" value="minimal" checked /><span>僅特殊字元</span></label>
+          <label><input type="radio" name="he-scope" value="nonascii" /><span>含所有非 ASCII</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">表示方式</span>
+      <div class="row">
+        <div class="seg" role="radiogroup" aria-label="表示方式">
+          <label><input type="radio" name="he-style" value="named" checked /><span>具名優先</span></label>
+          <label><input type="radio" name="he-style" value="decimal" /><span>十進位 &amp;#NN;</span></label>
+          <label><input type="radio" name="he-style" value="hex" /><span>十六進位 &amp;#xNN;</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="he-input" id="he-input-label">原始文字或 HTML</label>
+    <textarea id="he-input" class="mono" rows="7" spellcheck="false" autocomplete="off"></textarea>
+  </div>
+  <div class="field">
+    <label for="he-output">結果</label>
+    <textarea id="he-output" class="mono" rows="7" readonly spellcheck="false"></textarea>
+    <span class="hint" id="he-meta"></span>
+  </div>
+  <div class="row">
+    <button class="btn primary" type="button" data-copy="#he-output">複製結果</button>
+    <button class="btn" type="button" id="he-swap">用結果反向轉換</button>
+    <button class="btn ghost" type="button" id="he-clear">清除</button>
+  </div>
+
+  <details class="he-ref">
+    <summary>常用 HTML 實體對照表（{COMMON_ENTITIES.length} 個）</summary>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>字元</th><th>具名實體</th><th>十進位</th><th>說明</th></tr>
+        </thead>
+        <tbody>
+          {
+            COMMON_ENTITIES.map((e) => (
+              <tr>
+                <td class="he-char">{invisible.has(e.char) ? '（空白）' : e.char}</td>
+                <td><code>{`&${e.name};`}</code></td>
+                <td><code>{`&#${e.char.codePointAt(0)};`}</code></td>
+                <td>{e.description}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </details>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import { decodeEntities, encodeEntities, type EncodeScope, type EncodeStyle } from './logic';
+
+  type Mode = 'encode' | 'decode';
+  interface Prefs {
+    mode: Mode;
+    scope: EncodeScope;
+    style: EncodeStyle;
+  }
+
+  const root = $('[data-tool="html-entities"]');
+  const input = $<HTMLTextAreaElement>('#he-input', root);
+  const output = $<HTMLTextAreaElement>('#he-output', root);
+  const inputLabel = $('#he-input-label', root);
+  const meta = $('#he-meta', root);
+  const opts = $('#he-opts', root);
+  const radios = (name: string) => $$<HTMLInputElement>(`input[name="${name}"]`, root);
+  const groups = { mode: radios('he-mode'), scope: radios('he-scope'), style: radios('he-style') };
+
+  // The browser knows every HTML5 named entity; parsing inside a <textarea> never creates elements.
+  const scratch = document.createElement('textarea');
+  const resolveName = (name: string) => {
+    scratch.innerHTML = `&${name};`;
+    const value = scratch.value;
+    return value === `&${name};` ? undefined : value;
+  };
+
+  const pick = (list: HTMLInputElement[]) => list.find((r) => r.checked)?.value;
+  const readPrefs = (): Prefs => ({
+    mode: (pick(groups.mode) ?? 'encode') as Mode,
+    scope: (pick(groups.scope) ?? 'minimal') as EncodeScope,
+    style: (pick(groups.style) ?? 'named') as EncodeStyle,
+  });
+  const setRadio = (list: HTMLInputElement[], value: string) => list.forEach((r) => (r.checked = r.value === value));
+
+  function render() {
+    const prefs = readPrefs();
+    savePref('html-entities', prefs);
+    const encode = prefs.mode === 'encode';
+    opts.hidden = !encode;
+    inputLabel.textContent = encode ? '原始文字或 HTML' : '含有實體的 HTML';
+    input.placeholder = encode ? '例如：<p class="note">AT&T © 2026</p>' : '例如：&lt;p&gt;AT&amp;T &copy; 2026&lt;/p&gt;';
+    if (input.value === '') {
+      output.value = '';
+      meta.textContent = '';
+      return;
+    }
+    if (encode) {
+      output.value = encodeEntities(input.value, prefs.scope, prefs.style);
+    } else {
+      const { text, count } = decodeEntities(input.value, resolveName);
+      output.value = text;
+      meta.textContent = `已還原 ${formatInteger(count)} 個實體`;
+      return;
+    }
+    meta.textContent = `${formatInteger([...input.value].length)} 個字元 → ${formatInteger([...output.value].length)} 個字元`;
+  }
+
+  const saved = loadPref<Prefs>('html-entities', { mode: 'encode', scope: 'minimal', style: 'named' });
+  setRadio(groups.mode, saved.mode);
+  setRadio(groups.scope, saved.scope);
+  setRadio(groups.style, saved.style);
+
+  input.addEventListener('input', render);
+  [...groups.mode, ...groups.scope, ...groups.style].forEach((r) => r.addEventListener('change', render));
+  $('#he-swap', root).addEventListener('click', () => {
+    if (!output.value) return;
+    input.value = output.value;
+    setRadio(groups.mode, readPrefs().mode === 'encode' ? 'decode' : 'encode');
+    render();
+  });
+  $('#he-clear', root).addEventListener('click', () => {
+    input.value = '';
+    render();
+    input.focus();
+  });
+  render();
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .he-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+  }
+  .he-ref {
+    display: grid;
+    gap: 12px;
+  }
+  .he-ref summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .he-char {
+    font-size: 18px;
+    text-align: center !important;
+  }
+  .he-ref td:last-child {
+    white-space: normal;
+  }
+</style>

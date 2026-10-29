@@ -1,0 +1,198 @@
+<div class="tool" data-tool="discount-calculator">
+  <div class="seg" role="radiogroup" aria-label="折扣類型">
+    <label><input type="radio" name="dc-mode" value="zhe" checked /><span>打折</span></label>
+    <label><input type="radio" name="dc-mode" value="off" /><span>% off</span></label>
+    <label><input type="radio" name="dc-mode" value="threshold" /><span>滿額折</span></label>
+    <label><input type="radio" name="dc-mode" value="bundle" /><span>買 N 送 M</span></label>
+    <label><input type="radio" name="dc-mode" value="second" /><span>第二件折扣</span></label>
+  </div>
+
+  <div class="grid-3 dc-panel" data-panel="zhe">
+    <div class="field">
+      <label for="dc-zhe-price">原價（元）</label>
+      <input id="dc-zhe-price" data-k="zhePrice" type="text" inputmode="decimal" autocomplete="off" value="1280" />
+    </div>
+    <div class="field">
+      <label for="dc-zhe">折數</label>
+      <input id="dc-zhe" data-k="zhe" type="text" inputmode="decimal" autocomplete="off" value="8" />
+      <span class="hint">8 折填 8，85 折填 85</span>
+    </div>
+    <div class="field">
+      <label for="dc-zhe2">再打折（選填）</label>
+      <input id="dc-zhe2" data-k="zhe2" type="text" inputmode="decimal" autocomplete="off" value="" placeholder="例如 9" />
+      <span class="hint">折上折，例如會員再 9 折</span>
+    </div>
+  </div>
+
+  <div class="grid-2 dc-panel" data-panel="off" hidden>
+    <div class="field">
+      <label for="dc-off-price">原價（元）</label>
+      <input id="dc-off-price" data-k="offPrice" type="text" inputmode="decimal" autocomplete="off" value="1280" />
+    </div>
+    <div class="field">
+      <label for="dc-off">折扣（% off）</label>
+      <input id="dc-off" data-k="off" type="text" inputmode="decimal" autocomplete="off" value="20" />
+      <span class="hint">20% off 等於打 8 折</span>
+    </div>
+  </div>
+
+  <div class="dc-panel dc-stack" data-panel="threshold" hidden>
+    <div class="grid-3">
+      <div class="field">
+        <label for="dc-th-total">消費金額（元）</label>
+        <input id="dc-th-total" data-k="thTotal" type="text" inputmode="decimal" autocomplete="off" value="2350" />
+      </div>
+      <div class="field">
+        <label for="dc-th-limit">每滿（元）</label>
+        <input id="dc-th-limit" data-k="thLimit" type="text" inputmode="decimal" autocomplete="off" value="1000" />
+      </div>
+      <div class="field">
+        <label for="dc-th-off">折抵（元）</label>
+        <input id="dc-th-off" data-k="thOff" type="text" inputmode="decimal" autocomplete="off" value="100" />
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="dc-th-repeat" checked /> 可累計（每滿一次折一次）</label>
+  </div>
+
+  <div class="grid-3 dc-panel" data-panel="bundle" hidden>
+    <div class="field">
+      <label for="dc-bd-price">單價（元）</label>
+      <input id="dc-bd-price" data-k="bdPrice" type="text" inputmode="decimal" autocomplete="off" value="90" />
+    </div>
+    <div class="field">
+      <label for="dc-bd-buy">買幾件</label>
+      <input id="dc-bd-buy" data-k="bdBuy" type="text" inputmode="numeric" autocomplete="off" value="2" />
+    </div>
+    <div class="field">
+      <label for="dc-bd-free">送幾件</label>
+      <input id="dc-bd-free" data-k="bdFree" type="text" inputmode="numeric" autocomplete="off" value="1" />
+    </div>
+  </div>
+
+  <div class="grid-2 dc-panel" data-panel="second" hidden>
+    <div class="field">
+      <label for="dc-sc-price">單價（元）</label>
+      <input id="dc-sc-price" data-k="scPrice" type="text" inputmode="decimal" autocomplete="off" value="500" />
+    </div>
+    <div class="field">
+      <label for="dc-sc-zhe">第二件折數</label>
+      <input id="dc-sc-zhe" data-k="scZhe" type="text" inputmode="decimal" autocomplete="off" value="6" />
+      <span class="hint">第二件半價填 5</span>
+    </div>
+  </div>
+
+  <div class="result" aria-live="polite">
+    <div class="result-value" id="dc-main">—</div>
+    <div class="result-label" id="dc-main-label">折後價</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-value" id="dc-saved">—</span><span class="stat-label">省下金額</span></div>
+    <div class="stat"><span class="stat-value" id="dc-zhe-out">—</span><span class="stat-label">等同折數</span></div>
+    <div class="stat"><span class="stat-value" id="dc-extra">—</span><span class="stat-label" id="dc-extra-label">相當於</span></div>
+  </div>
+
+  <p class="hint" id="dc-note"></p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatNumber, parseNumber } from '../../lib/format';
+  import {
+    applyPercentOff,
+    applyThreshold,
+    applyZhe,
+    buyNGetM,
+    factorToPercentOff,
+    factorToZhe,
+    secondItem,
+  } from './logic';
+
+  type Mode = 'zhe' | 'off' | 'threshold' | 'bundle' | 'second';
+
+  const root = $('[data-tool="discount-calculator"]');
+  const modes = $$<HTMLInputElement>('input[name="dc-mode"]', root);
+  const panels = $$<HTMLElement>('[data-panel]', root);
+  const inputs = $$<HTMLInputElement>('input[data-k]', root);
+  const repeat = $<HTMLInputElement>('#dc-th-repeat', root);
+  const main = $('#dc-main', root);
+  const mainLabel = $('#dc-main-label', root);
+  const saved = $('#dc-saved', root);
+  const zheOut = $('#dc-zhe-out', root);
+  const extra = $('#dc-extra', root);
+  const extraLabel = $('#dc-extra-label', root);
+  const note = $('#dc-note', root);
+
+  const val = (k: string) => parseNumber(inputs.find((i) => i.dataset.k === k)!.value);
+  const money = (v: number) => (Number.isFinite(v) ? `${formatNumber(v, 2)} 元` : '—');
+  const pct = (factor: number) => (Number.isFinite(factor) ? `${formatNumber(factorToPercentOff(factor), 1)}% off` : '—');
+
+  interface Prefs {
+    mode: Mode;
+    repeat: boolean;
+    values: Record<string, string>;
+  }
+  const prefs = loadPref<Prefs>('discount-calculator', { mode: 'zhe', repeat: true, values: {} });
+  for (const m of modes) m.checked = m.value === prefs.mode;
+  repeat.checked = prefs.repeat;
+  for (const input of inputs) {
+    const v = prefs.values?.[input.dataset.k!];
+    if (typeof v === 'string') input.value = v;
+  }
+
+  function show(final: number, label: string, savedAmount: number, factor: number, extraValue: string, extraText: string, hint = '') {
+    const ok = Number.isFinite(final);
+    main.textContent = ok ? money(final) : '—';
+    mainLabel.textContent = label;
+    saved.textContent = ok ? money(savedAmount) : '—';
+    zheOut.textContent = ok ? factorToZhe(factor) : '—';
+    extra.textContent = ok ? extraValue : '—';
+    extraLabel.textContent = extraText;
+    note.textContent = ok ? hint : '請輸入有效的數字。折數請填 1 到 99 之間，例如 8 或 85。';
+  }
+
+  function render() {
+    const mode = (modes.find((m) => m.checked)?.value ?? 'zhe') as Mode;
+    for (const panel of panels) panel.hidden = panel.dataset.panel !== mode;
+    const values: Record<string, string> = {};
+    for (const input of inputs) values[input.dataset.k!] = input.value;
+    savePref('discount-calculator', { mode, repeat: repeat.checked, values });
+
+    if (mode === 'zhe') {
+      const second = inputs.find((i) => i.dataset.k === 'zhe2')!.value.trim();
+      const r = second ? applyZhe(val('zhePrice'), val('zhe'), val('zhe2')) : applyZhe(val('zhePrice'), val('zhe'));
+      show(r.final, '折後價', r.saved, r.factor, pct(r.factor), '相當於', second ? '折上折是相乘，不是相加：8 折再 9 折＝0.8 × 0.9＝72 折。' : '');
+    } else if (mode === 'off') {
+      const r = applyPercentOff(val('offPrice'), val('off'));
+      show(r.final, '折後價', r.saved, r.factor, pct(r.factor), '相當於');
+    } else if (mode === 'threshold') {
+      const r = applyThreshold(val('thTotal'), val('thLimit'), val('thOff'), repeat.checked);
+      const hint = Number.isFinite(r.toNext)
+        ? `再消費 ${money(r.toNext)} 可${r.times > 0 ? '再' : ''}折抵 ${money(val('thOff'))}。`
+        : '';
+      show(r.final, '實付金額', r.saved, r.factor, Number.isFinite(r.times) ? `${r.times} 次` : '—', '折抵次數', hint);
+    } else if (mode === 'bundle') {
+      const r = buyNGetM(val('bdPrice'), val('bdBuy'), val('bdFree'));
+      const original = r.items * val('bdPrice');
+      show(r.paid, `拿到 ${Number.isFinite(r.items) ? r.items : '—'} 件共付`, original - r.paid, r.factor, money(r.perItem), '平均每件');
+    } else {
+      const r = secondItem(val('scPrice'), val('scZhe'));
+      show(r.paid, '兩件共付', val('scPrice') * 2 - r.paid, r.factor, money(r.perItem), '平均每件', '只買一件時沒有折扣，要買兩件才划算。');
+    }
+  }
+
+  inputs.forEach((input) => input.addEventListener('input', render));
+  modes.forEach((m) => m.addEventListener('change', render));
+  repeat.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  .dc-panel[hidden] {
+    display: none;
+  }
+  .dc-stack {
+    display: grid;
+    gap: 12px;
+  }
+</style>

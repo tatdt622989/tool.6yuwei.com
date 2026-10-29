@@ -1,0 +1,134 @@
+<div class="tool" data-tool="lorem-ipsum">
+  <div class="li-controls">
+    <div class="field">
+      <span class="label">語言</span>
+      <div class="seg" role="radiogroup" aria-label="語言">
+        <label><input type="radio" name="li-lang" value="zh" checked /><span>中文假文</span></label>
+        <label><input type="radio" name="li-lang" value="la" /><span>Lorem ipsum</span></label>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">產生方式</span>
+      <div class="seg" role="radiogroup" aria-label="產生方式">
+        <label><input type="radio" name="li-unit" value="paragraphs" checked /><span>段落</span></label>
+        <label><input type="radio" name="li-unit" value="sentences" /><span>句子</span></label>
+        <label data-la-only><input type="radio" name="li-unit" value="words" /><span>單字</span></label>
+        <label><input type="radio" name="li-unit" value="chars" /><span>字數</span></label>
+      </div>
+    </div>
+    <div class="field li-count">
+      <label for="li-count" id="li-count-label">段落數</label>
+      <input type="number" id="li-count" min="1" max="50" step="1" value="3" inputmode="numeric" />
+    </div>
+  </div>
+
+  <div class="row">
+    <label class="check" data-la-only><input type="checkbox" id="li-classic" checked /> 以 Lorem ipsum dolor sit amet 開頭</label>
+    <label class="check"><input type="checkbox" id="li-html" /> 加上 &lt;p&gt; 標籤</label>
+  </div>
+
+  <div class="field">
+    <label for="li-output">產生結果</label>
+    <textarea id="li-output" rows="12" readonly></textarea>
+    <span class="hint" id="li-info" aria-live="polite"></span>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" type="button" data-copy="#li-output">複製文字</button>
+    <button class="btn" type="button" id="li-regen">重新產生</button>
+  </div>
+</div>
+
+<script>
+  import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import { LIMITS, UNITS, clampCount, generateLorem, visibleLength, type LoremLang, type LoremUnit } from './logic';
+
+  const root = $('[data-tool="lorem-ipsum"]');
+  const langRadios = $$<HTMLInputElement>('input[name="li-lang"]', root);
+  const unitRadios = $$<HTMLInputElement>('input[name="li-unit"]', root);
+  const count = $<HTMLInputElement>('#li-count', root);
+  const countLabel = $('#li-count-label', root);
+  const classic = $<HTMLInputElement>('#li-classic', root);
+  const html = $<HTMLInputElement>('#li-html', root);
+  const output = $<HTMLTextAreaElement>('#li-output', root);
+  const info = $('#li-info', root);
+  const laOnly = $$<HTMLElement>('[data-la-only]', root);
+
+  const COUNT_LABEL: Record<LoremUnit, string> = { paragraphs: '段落數', sentences: '句數', words: '單字數', chars: '字數（含標點）' };
+  const DEFAULT_COUNTS: Record<LoremUnit, number> = { paragraphs: 3, sentences: 5, words: 50, chars: 200 };
+
+  interface Prefs {
+    lang: LoremLang;
+    unit: LoremUnit;
+    counts: Record<LoremUnit, number>;
+    classicStart: boolean;
+    html: boolean;
+  }
+
+  const saved = loadPref<Partial<Prefs>>('lorem-ipsum', {});
+  const counts: Record<LoremUnit, number> = { ...DEFAULT_COUNTS, ...saved.counts };
+  const pick = <T extends string>(radios: HTMLInputElement[], fallback: T) => (radios.find((r) => r.checked)?.value ?? fallback) as T;
+
+  for (const r of langRadios) r.checked = r.value === (saved.lang === 'la' ? 'la' : 'zh');
+  if (saved.unit && saved.unit in DEFAULT_COUNTS) for (const r of unitRadios) r.checked = r.value === saved.unit;
+  classic.checked = saved.classicStart !== false;
+  html.checked = Boolean(saved.html);
+
+  function syncControls(): { lang: LoremLang; unit: LoremUnit } {
+    const lang = pick<LoremLang>(langRadios, 'zh');
+    for (const el of laOnly) el.hidden = lang !== 'la';
+    let unit = pick<LoremUnit>(unitRadios, 'paragraphs');
+    if (!UNITS[lang].includes(unit)) {
+      unit = 'paragraphs';
+      for (const r of unitRadios) r.checked = r.value === unit;
+    }
+    countLabel.textContent = lang === 'la' && unit === 'chars' ? '字元數上限' : COUNT_LABEL[unit];
+    count.max = String(LIMITS[unit]);
+    return { lang, unit };
+  }
+
+  function render() {
+    const { lang, unit } = syncControls();
+    const n = clampCount(unit, Number(count.value));
+    counts[unit] = n;
+    savePref('lorem-ipsum', { lang, unit, counts, classicStart: classic.checked, html: html.checked } satisfies Prefs);
+    output.value = generateLorem({ lang, unit, count: n, classicStart: classic.checked, html: html.checked });
+    const plain = html.checked ? output.value.replace(/<\/?p>/g, '') : output.value;
+    const words = lang === 'la' ? `、${formatInteger(plain.split(/\s+/).filter(Boolean).length)} 個單字` : '';
+    info.textContent = `共 ${formatInteger(visibleLength(plain))} 個字元${words}`;
+  }
+
+  function onUnitOrLangChange() {
+    const { unit } = syncControls();
+    count.value = String(counts[unit]);
+    render();
+  }
+
+  count.value = String(counts[syncControls().unit]);
+  for (const r of [...langRadios, ...unitRadios]) r.addEventListener('change', onUnitOrLangChange);
+  count.addEventListener('input', debounce(render, 200));
+  count.addEventListener('change', () => {
+    count.value = String(clampCount(syncControls().unit, Number(count.value)));
+    render();
+  });
+  classic.addEventListener('change', render);
+  html.addEventListener('change', render);
+  $('#li-regen', root).addEventListener('click', render);
+  render();
+</script>
+
+<style>
+  .li-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    align-items: flex-end;
+  }
+  .li-count input {
+    width: 140px;
+  }
+  label[hidden] {
+    display: none;
+  }
+</style>

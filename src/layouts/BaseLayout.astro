@@ -1,0 +1,141 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import SearchDialog from '../components/SearchDialog.astro';
+import { absoluteUrl, ads, analytics, site } from '../config/site';
+
+interface Props {
+  /** Page title without the site suffix. Omit on the home page. */
+  title?: string;
+  description: string;
+  /** Path used for canonical + og:url; defaults to the current path. */
+  path?: string;
+  ogImage?: string;
+  ogType?: 'website' | 'article';
+  jsonLd?: (Record<string, unknown> | null)[];
+  noindex?: boolean;
+  activeCategory?: string;
+}
+
+const {
+  title,
+  description,
+  path = Astro.url.pathname,
+  ogImage = site.ogImage,
+  ogType = 'website',
+  jsonLd = [],
+  noindex = false,
+  activeCategory,
+} = Astro.props;
+
+const fullTitle = title ? `${title}｜${site.name}` : `${site.name}｜${site.tagline}`;
+const canonical = absoluteUrl(path);
+const image = absoluteUrl(ogImage);
+const structured = jsonLd.filter(Boolean);
+---
+
+<!doctype html>
+<html lang={site.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content={site.ogLocale} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+
+    {site.gscVerification && <meta name="google-site-verification" content={site.gscVerification} />}
+    {structured.map((data) => <script type="application/ld+json" set:html={JSON.stringify(data)} />)}
+
+    {
+      ads.client && (
+        <>
+          <meta name="google-adsense-account" content={ads.client} />
+          <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ads.client}`}
+            crossorigin="anonymous"
+          />
+        </>
+      )
+    }
+    {
+      analytics.gaId && (
+        <>
+          <script async src={`https://www.googletagmanager.com/gtag/js?id=${analytics.gaId}`} />
+          <script is:inline define:vars={{ gaId: analytics.gaId }}>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() {
+              dataLayer.push(arguments);
+            }
+            gtag('js', new Date());
+            gtag('config', gaId);
+          </script>
+        </>
+      )
+    }
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到主要內容</a>
+    <SiteHeader activeCategory={activeCategory} />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+    <SearchDialog />
+
+    {
+      ads.client && (
+        <script is:inline>
+          document.querySelectorAll('ins.adsbygoogle:not([data-adsbygoogle-status])').forEach(function () {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+          });
+        </script>
+      )
+    }
+    <script>
+      import { installCopyButtons } from '../lib/client';
+      import { setupInstallPrompt } from '../lib/pwa';
+      installCopyButtons();
+      setupInstallPrompt();
+    </script>
+  </body>
+</html>
+
+<style>
+  .skip {
+    position: absolute;
+    left: -9999px;
+  }
+  .skip:focus {
+    left: 16px;
+    top: 8px;
+    z-index: 100;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+  }
+</style>

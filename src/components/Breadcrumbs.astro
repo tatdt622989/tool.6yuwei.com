@@ -1,0 +1,42 @@
+---
+interface Props {
+  items: { name: string; path: string }[];
+}
+const { items } = Astro.props;
+---
+
+<nav class="crumbs" aria-label="麵包屑">
+  <ol>
+    {
+      items.map((item, i) => (
+        <li>
+          {i < items.length - 1 ? <a href={item.path}>{item.name}</a> : <span aria-current="page">{item.name}</span>}
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+
+<style>
+  ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  li:not(:last-child)::after {
+    content: '/';
+    margin-left: 6px;
+    color: var(--border-strong);
+  }
+  a {
+    color: var(--muted);
+  }
+  a:hover {
+    color: var(--text);
+  }
+</style>

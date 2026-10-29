@@ -1,0 +1,183 @@
+---
+import { ACTIVITY_LEVELS } from './logic';
+---
+
+<div class="tool" data-tool="tdee-calculator">
+  <div class="field">
+    <span class="label">性別</span>
+    <div class="seg" role="radiogroup" aria-label="性別">
+      <label><input type="radio" name="td-sex" value="male" checked /><span>男性</span></label>
+      <label><input type="radio" name="td-sex" value="female" /><span>女性</span></label>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="td-age">年齡（歲）</label>
+      <input id="td-age" type="text" inputmode="numeric" autocomplete="off" value="30" />
+    </div>
+    <div class="field">
+      <label for="td-height">身高（公分）</label>
+      <input id="td-height" type="text" inputmode="decimal" autocomplete="off" value="175" />
+    </div>
+    <div class="field">
+      <label for="td-weight">體重（公斤）</label>
+      <input id="td-weight" type="text" inputmode="decimal" autocomplete="off" value="70" />
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="td-activity">活動量</label>
+    <select id="td-activity">
+      {
+        ACTIVITY_LEVELS.map((a) => (
+          <option value={a.id} selected={a.id === 'moderate'}>
+            {`${a.label}（${a.hint}）× ${a.factor}`}
+          </option>
+        ))
+      }
+    </select>
+  </div>
+
+  <div class="notice error" id="td-error" hidden></div>
+
+  <div id="td-output">
+    <div class="result" aria-live="polite">
+      <div class="result-value"><span id="td-tdee">—</span> <span class="td-unit">大卡／天</span></div>
+      <div class="result-label">每日總熱量消耗 TDEE（Mifflin-St Jeor 公式）</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="td-bmr">—</span><span class="stat-label">基礎代謝率 BMR（Mifflin-St Jeor）</span></div>
+      <div class="stat"><span class="stat-value" id="td-bmr-hb">—</span><span class="stat-label">BMR（Harris-Benedict 修訂版）</span></div>
+      <div class="stat"><span class="stat-value" id="td-tdee-hb">—</span><span class="stat-label">TDEE（Harris-Benedict 修訂版）</span></div>
+    </div>
+
+    <div class="field">
+      <span class="label">不同目標的每日熱量與三大營養素建議</span>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>目標</th>
+              <th class="num">每日熱量</th>
+              <th class="num">蛋白質</th>
+              <th class="num">脂肪</th>
+              <th class="num">碳水化合物</th>
+            </tr>
+          </thead>
+          <tbody id="td-goals"></tbody>
+        </table>
+      </div>
+      <span class="hint" id="td-goal-hint"></span>
+    </div>
+  </div>
+
+  <p class="notice">
+    結果僅供參考，請諮詢醫師或營養師。公式估算的是一般成人的平均值，懷孕、哺乳、未成年、慢性病或正在服藥者，熱量需求應由專業人員評估。所有數字只在你的瀏覽器中計算，不會上傳。
+  </p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { calcTdee, TDEE_RULES, validateBody, type ActivityId, type BodyInput, type Sex } from './logic';
+
+  const root = $('[data-tool="tdee-calculator"]');
+  const sexes = $$<HTMLInputElement>('input[name="td-sex"]', root);
+  const age = $<HTMLInputElement>('#td-age', root);
+  const height = $<HTMLInputElement>('#td-height', root);
+  const weight = $<HTMLInputElement>('#td-weight', root);
+  const activity = $<HTMLSelectElement>('#td-activity', root);
+  const error = $('#td-error', root);
+  const output = $('#td-output', root);
+  const goals = $('#td-goals', root);
+
+  interface Prefs {
+    sex: Sex;
+    age: string;
+    height: string;
+    weight: string;
+    activity: ActivityId;
+  }
+
+  const saved = loadPref<Prefs>('tdee-calculator', { sex: 'male', age: '30', height: '175', weight: '70', activity: 'moderate' });
+  for (const s of sexes) s.checked = s.value === saved.sex;
+  age.value = saved.age;
+  height.value = saved.height;
+  weight.value = saved.weight;
+  activity.value = saved.activity;
+  if (!activity.value) activity.value = 'moderate';
+
+  const kcal = (v: number) => formatInteger(v);
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+
+  function render() {
+    const sex: Sex = sexes.find((s) => s.checked)?.value === 'female' ? 'female' : 'male';
+    const input: BodyInput = {
+      sex,
+      age: parseNumber(age.value),
+      heightCm: parseNumber(height.value),
+      weightKg: parseNumber(weight.value),
+    };
+    const act = activity.value as ActivityId;
+    savePref('tdee-calculator', { sex, age: age.value, height: height.value, weight: weight.value, activity: act } satisfies Prefs);
+
+    const problem = validateBody(input);
+    const r = problem ? null : calcTdee(input, act);
+    if (!r) {
+      error.textContent = problem ?? '無法計算，請檢查輸入。';
+      error.hidden = false;
+      output.hidden = true;
+      return;
+    }
+    error.hidden = true;
+    output.hidden = false;
+
+    set('#td-tdee', kcal(r.tdee));
+    set('#td-bmr', `${kcal(r.bmr)} 大卡`);
+    set('#td-bmr-hb', `${kcal(r.bmrHarris)} 大卡`);
+    set('#td-tdee-hb', `${kcal(r.tdeeHarris)} 大卡`);
+
+    goals.innerHTML = r.goals
+      .map((g) => {
+        const delta = Math.round(g.delta);
+        const note = delta === 0 ? '' : `<span class="td-delta">${delta > 0 ? '+' : '−'}${formatInteger(Math.abs(delta))}</span>`;
+        const perKg = TDEE_RULES.proteinPerKg[g.id];
+        return `<tr><td><strong>${g.label}</strong></td><td class="num">${kcal(g.kcal)} 大卡${note}</td><td class="num">${formatInteger(g.proteinG)} g<span class="td-sub">${formatNumber(perKg, 1)} g/kg</span></td><td class="num">${formatInteger(g.fatG)} g</td><td class="num">${formatInteger(g.carbG)} g</td></tr>`;
+      })
+      .join('');
+
+    const cut = r.goals[0];
+    set(
+      '#td-goal-hint',
+      cut.floored
+        ? `減脂熱量已調整為 ${kcal(cut.kcal)} 大卡：TDEE 減 500 會低於基礎代謝率或${sex === 'female' ? '女性 1,200' : '男性 1,500'} 大卡的安全下限，建議改以增加活動量製造熱量赤字。`
+        : '減脂為 TDEE − 500 大卡（約每週減 0.5 公斤），增肌為 TDEE + 300 大卡；脂肪約占總熱量 25%，其餘熱量分配給碳水化合物。',
+    );
+  }
+
+  [age, height, weight].forEach((el) => el.addEventListener('input', render));
+  activity.addEventListener('change', render);
+  sexes.forEach((s) => s.addEventListener('change', render));
+  render();
+</script>
+
+<style>
+  #td-output {
+    display: grid;
+    gap: 16px;
+  }
+  .td-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  #td-goals :global(.td-delta),
+  #td-goals :global(.td-sub) {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+</style>
