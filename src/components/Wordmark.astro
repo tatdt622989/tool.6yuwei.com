@@ -1,16 +1,19 @@
 ---
-// Text-only brand: 「隨手」 plus a descriptor so the name explains itself.
-import { site } from '../config/site';
+// Text-only brand: 「隨手」 plus a descriptor so the name explains itself. Text comes from brands in config/site.ts.
+import { getBrand } from '../config/site';
+import { DEFAULT_LOCALE, type Locale } from '../i18n/locales';
 
 interface Props {
   size?: 'md' | 'lg';
+  locale?: Locale;
 }
-const { size = 'md' } = Astro.props;
+const { size = 'md', locale = DEFAULT_LOCALE } = Astro.props;
+const brand = getBrand(locale);
 ---
 
-<span class:list={['wordmark', size]}>
-  <span class="name">{site.name}</span>
-  <span class="desc">線上工具</span>
+<span class:list={['wordmark', size, `wordmark--${locale}`]}>
+  <span class="name">{brand.mark}</span>
+  <span class="desc">{brand.markDesc}</span>
 </span>
 
 <style>
@@ -46,5 +49,12 @@ const { size = 'md' } = Astro.props;
   }
   .lg .name {
     font-size: 26px;
+  }
+  /* Latin wordmark: tighter tracking reads better than the CJK spacing. */
+  .wordmark--en .name {
+    letter-spacing: -0.01em;
+  }
+  .wordmark--en .desc {
+    letter-spacing: 0.04em;
   }
 </style>

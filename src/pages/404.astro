@@ -1,29 +1,5 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import ToolCard from '../components/ToolCard.astro';
-import { tools } from '../tools/registry';
-const popular = tools.slice(0, 6);
+import NotFoundView from '../views/NotFoundView.astro';
 ---
 
-<BaseLayout title="找不到頁面" description="你要找的頁面不存在。" noindex>
-  <div class="container page">
-    <h1>找不到這個頁面</h1>
-    <p>網址可能打錯了，或工具已經搬家。試試回到<a href="/">首頁</a>搜尋，或看看熱門工具：</p>
-    <div class="grid">{popular.map((tool) => <ToolCard tool={tool} />)}</div>
-  </div>
-</BaseLayout>
-
-<style>
-  .page {
-    padding-top: 48px;
-  }
-  p {
-    color: var(--text-2);
-  }
-  .grid {
-    display: grid;
-    gap: 14px;
-    margin-top: 20px;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  }
-</style>
+<NotFoundView locale="zh-TW" />

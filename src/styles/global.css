@@ -33,6 +33,19 @@
   --content: 1200px;
 }
 
+/* Japanese pages: Japanese glyph forms first (PingFang TC / Noto Sans TC would render kanji in Chinese shapes). */
+:root:lang(ja) {
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
+    'Yu Gothic', YuGothic, Meiryo, 'Noto Sans JP', 'Segoe UI', Roboto, sans-serif;
+  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+    'Yu Gothic UI', 'Yu Gothic', YuGothic, Meiryo, 'Noto Sans JP', sans-serif;
+}
+/* Inline Japanese on other pages (e.g. 「日本語」 in the language menu). */
+[lang|='ja']:not(:root) {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Yu Gothic',
+    YuGothic, Meiryo, 'Noto Sans JP', sans-serif;
+}
+
 /* ---------- Base ---------- */
 [hidden] {
   display: none !important;

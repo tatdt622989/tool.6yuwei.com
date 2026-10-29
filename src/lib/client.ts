@@ -28,8 +28,13 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Briefly swap a button's label to confirm an action. */
-export function flashButton(button: HTMLElement, label = '已複製', ms = 1400): void {
+/** Localized "Copied" label; BaseLayout writes it to <html data-copied>. */
+function copiedLabel(): string {
+  return document.documentElement.dataset.copied || '已複製';
+}
+
+/** Briefly swap a button's label to confirm an action. Default label is the page locale's "Copied". */
+export function flashButton(button: HTMLElement, label = copiedLabel(), ms = 1400): void {
   const original = button.dataset.label ?? button.textContent ?? '';
   button.dataset.label = original;
   button.textContent = label;

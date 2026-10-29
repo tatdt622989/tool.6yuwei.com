@@ -1,33 +1,44 @@
 ---
 import Wordmark from './Wordmark.astro';
-import { categories } from '../config/categories';
-import { site } from '../config/site';
+import { getBrand, site } from '../config/site';
+import { DEFAULT_LOCALE, localePath, type Locale } from '../i18n/locales';
+import { getUi } from '../i18n/ui';
+import { categoryPath, populatedCategories } from '../tools/registry';
+
+interface Props {
+  locale?: Locale;
+}
+const { locale = DEFAULT_LOCALE } = Astro.props;
+const s = getUi(locale).footer;
+const brand = getBrand(locale);
+const sentenceEnd = locale === 'en' ? '. ' : '。';
 const year = new Date().getFullYear();
+const link = (path: string) => localePath(locale, path);
 ---
 
 <footer class="site-footer">
   <div class="container">
     <div class="cols">
       <div class="about">
-        <Wordmark size="lg" />
-        <p>{site.tagline}。所有工具都在你的瀏覽器裡執行，免安裝、免註冊，資料不會上傳。</p>
+        <Wordmark size="lg" locale={locale} />
+        <p>{brand.tagline}{sentenceEnd}{s.about}</p>
       </div>
-      <nav aria-label="分類">
-        <h2>分類</h2>
+      <nav aria-label={s.categories}>
+        <h2>{s.categories}</h2>
         <ul class="two">
-          {categories.map((c) => <li><a href={`/category/${c.id}/`}>{c.name}</a></li>)}
-          <li><a href="/convert/">常用單位換算</a></li>
+          {populatedCategories(locale).map((c) => <li><a href={categoryPath(c.id, locale)}>{c.name}</a></li>)}
+          {s.conversions && <li><a href="/convert/">{s.conversions}</a></li>}
         </ul>
       </nav>
-      <nav aria-label="關於">
-        <h2>關於</h2>
+      <nav aria-label={s.aboutHeading}>
+        <h2>{s.aboutHeading}</h2>
         <ul>
-          <li><a href="/app/">安裝成 App</a></li>
-          <li><a href="/about/">關於隨手</a></li>
-          <li><a href="/contact/">聯絡我們</a></li>
-          <li><a href="/privacy/">隱私權政策</a></li>
-          <li><a href="/terms/">使用條款</a></li>
-          <li><a href={site.blogUrl} rel="noopener">6yuwei 部落格</a></li>
+          <li><a href={link('/app/')}>{s.app}</a></li>
+          <li><a href={link('/about/')}>{s.aboutSite}</a></li>
+          <li><a href={link('/contact/')}>{s.contact}</a></li>
+          <li><a href={link('/privacy/')}>{s.privacy}</a></li>
+          <li><a href={link('/terms/')}>{s.terms}</a></li>
+          <li><a href={site.blogUrl} rel="noopener" hreflang={locale === 'zh-TW' ? undefined : 'zh-TW'}>{s.blog}</a></li>
         </ul>
       </nav>
     </div>

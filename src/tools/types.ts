@@ -1,4 +1,5 @@
 import type { CategoryId } from '../config/categories';
+import type { Locale } from '../i18n/locales';
 
 export interface ToolSection {
   heading: string;
@@ -6,14 +7,18 @@ export interface ToolSection {
   body: string[];
 }
 
+/**
+ * One locale's metadata for a tool. meta.ts = zh-TW, meta.en.ts = en, meta.ja.ts = ja.
+ * All files of a tool share the same slug (the folder name) and category.
+ */
 export interface ToolMeta {
-  /** Must equal the folder name under src/tools/. Becomes the URL: /<slug>/ */
+  /** Must equal the folder name under src/tools/. Becomes the URL: /<slug>/, /en/<slug>/, /ja/<slug>/ */
   slug: string;
   /** Short display name, e.g. 「字數統計」. Used in H1, cards, breadcrumbs. */
   name: string;
   /** <title> text without the site suffix. Lead with the main search keyword. */
   seoTitle: string;
-  /** Meta description, 70–160 CJK characters, keyword-rich and natural. */
+  /** Meta description, keyword-rich and natural. zh 70–160 字, en ~140–160 chars, ja ~80–120 字. */
   description: string;
   category: CategoryId;
   /** Lucide icon name (PascalCase), e.g. 'Calculator'. See https://lucide.dev/icons */
@@ -40,4 +45,9 @@ export interface ToolMeta {
 
 export function defineTool(meta: ToolMeta): ToolMeta {
   return meta;
+}
+
+/** A ToolMeta as served by the registry: tagged with the locale it belongs to. */
+export interface LocalizedTool extends ToolMeta {
+  locale: Locale;
 }

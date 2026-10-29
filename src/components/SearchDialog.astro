@@ -1,17 +1,29 @@
 ---
 // Site-wide tool search in a modal dialog. Opened by any [data-open-search] element, "/" or Cmd/Ctrl+K.
+// The index covers only the tools of the page's locale.
 import { getCategory } from '../config/categories';
-import { toolPath, tools } from '../tools/registry';
+import { DEFAULT_LOCALE, type Locale } from '../i18n/locales';
+import { getUi } from '../i18n/ui';
+import { toolPath, toolsFor } from '../tools/registry';
 
-const index = tools.map((t) => ({
-  n: t.name,
-  c: getCategory(t.category).name,
-  u: toolPath(t.slug),
-  s: [t.name, t.seoTitle, ...t.keywords, getCategory(t.category).name].join(' ').toLowerCase(),
-}));
+interface Props {
+  locale?: Locale;
+}
+const { locale = DEFAULT_LOCALE } = Astro.props;
+const s = getUi(locale).search;
+
+const index = toolsFor(locale).map((t) => {
+  const category = getCategory(t.category, locale).name;
+  return {
+    n: t.name,
+    c: category,
+    u: toolPath(t.slug, locale),
+    s: [t.name, t.seoTitle, ...t.keywords, category].join(' ').toLowerCase(),
+  };
+});
 ---
 
-<dialog class="search-dialog" aria-label="搜尋工具">
+<dialog class="search-dialog" aria-label={s.aria}>
   <div class="panel">
     <div class="field-row">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -19,15 +31,15 @@ const index = tools.map((t) => ({
       </svg>
       <input
         type="search"
-        placeholder="搜尋工具，例如：薪資、民國年、PDF"
+        placeholder={s.placeholder}
         autocomplete="off"
-        aria-label="搜尋工具"
+        aria-label={s.aria}
         aria-controls="search-results"
       />
-      <button type="button" class="close" aria-label="關閉">Esc</button>
+      <button type="button" class="close" aria-label={s.close}>Esc</button>
     </div>
     <ul id="search-results" class="results" role="listbox"></ul>
-    <p class="none" hidden>找不到符合的工具</p>
+    <p class="none" hidden>{s.noResults}</p>
   </div>
   <script type="application/json" id="search-index" set:html={JSON.stringify(index)} />
 </dialog>

@@ -2,19 +2,20 @@
 import Icon from './Icon.astro';
 import { getCategory } from '../config/categories';
 import { toolPath } from '../tools/registry';
-import type { ToolMeta } from '../tools/types';
+import type { LocalizedTool } from '../tools/types';
 
 interface Props {
-  tool: ToolMeta;
+  /** Registry entry; its `locale` decides the link and category name. */
+  tool: LocalizedTool;
   compact?: boolean;
 }
 
 const { tool, compact = false } = Astro.props;
-const category = getCategory(tool.category);
+const category = getCategory(tool.category, tool.locale);
 const searchText = [tool.name, tool.seoTitle, tool.description, ...tool.keywords, category.name].join(' ').toLowerCase();
 ---
 
-<a class:list={['card', { compact }]} href={toolPath(tool.slug)} data-search={searchText}>
+<a class:list={['card', { compact }]} href={toolPath(tool.slug, tool.locale)} data-search={searchText}>
   <Icon name={tool.icon} size={compact ? 18 : 22} class="icon" />
   <span class="body">
     <span class="name">{tool.name}</span>

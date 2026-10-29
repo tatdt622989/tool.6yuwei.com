@@ -1,34 +1,44 @@
-import { absoluteUrl, site } from '../config/site';
+import { absoluteUrl, getBrand, site } from '../config/site';
 import type { Category } from '../config/categories';
-import type { ToolMeta } from '../tools/types';
+import { DEFAULT_LOCALE, LOCALE_INFO, localeHome, type Locale } from '../i18n/locales';
+import type { LocalizedTool, ToolMeta } from '../tools/types';
 import { toolPath } from '../tools/registry';
 
 type JsonLd = Record<string, unknown>;
 
-const publisher = {
-  '@type': 'Organization',
-  name: site.name,
-  url: site.url,
-  logo: absoluteUrl('/icon-512.png'),
-};
+function publisher(locale: Locale) {
+  return {
+    '@type': 'Organization',
+    name: getBrand(locale).name,
+    url: site.url,
+    logo: absoluteUrl('/icon-512.png'),
+  };
+}
 
-export function websiteJsonLd(): JsonLd {
+/** WebSite + SearchAction for a locale's home page (/?q=, /en/?q=, /ja/?q=). */
+export function websiteJsonLd(locale: Locale = DEFAULT_LOCALE): JsonLd {
+  const brand = getBrand(locale);
+  const home = absoluteUrl(localeHome(locale));
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: site.name,
-    url: site.url,
-    inLanguage: site.lang,
-    description: site.description,
-    publisher,
+    name: brand.name,
+    url: locale === DEFAULT_LOCALE ? site.url : home,
+    inLanguage: LOCALE_INFO[locale].htmlLang,
+    description: brand.description,
+    publisher: publisher(locale),
     potentialAction: {
       '@type': 'SearchAction',
-      target: { '@type': 'EntryPoint', urlTemplate: `${site.url}/?q={search_term_string}` },
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${locale === DEFAULT_LOCALE ? site.url + '/' : home}?q={search_term_string}`,
+      },
       'query-input': 'required name=search_term_string',
     },
   };
 }
 
+/** Names are already localized by the caller; paths are site paths. */
 export function breadcrumbJsonLd(items: { name: string; path: string }[]): JsonLd {
   return {
     '@context': 'https://schema.org',
@@ -42,24 +52,25 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]): JsonL
   };
 }
 
-export function toolJsonLd(tool: ToolMeta, category: Category): JsonLd {
+export function toolJsonLd(tool: LocalizedTool, category: Category): JsonLd {
+  const { locale } = tool;
   return {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
     name: tool.name,
     headline: tool.seoTitle,
     description: tool.description,
-    url: absoluteUrl(toolPath(tool.slug)),
+    url: absoluteUrl(toolPath(tool.slug, locale)),
     applicationCategory: category.id === 'dev' ? 'DeveloperApplication' : 'UtilitiesApplication',
     applicationSubCategory: category.name,
     operatingSystem: 'Any',
     browserRequirements: 'Requires JavaScript. Works in modern browsers.',
-    inLanguage: site.lang,
+    inLanguage: LOCALE_INFO[locale].htmlLang,
     isAccessibleForFree: true,
     keywords: tool.keywords.join(', '),
     dateModified: tool.updated,
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'TWD' },
-    publisher,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: LOCALE_INFO[locale].currency },
+    publisher: publisher(locale),
   };
 }
 
@@ -76,7 +87,7 @@ export function faqJsonLd(faq: ToolMeta['faq']): JsonLd | null {
   };
 }
 
-export function itemListJsonLd(name: string, list: ToolMeta[]): JsonLd {
+export function itemListJsonLd(name: string, list: readonly LocalizedTool[]): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -84,7 +95,7 @@ export function itemListJsonLd(name: string, list: ToolMeta[]): JsonLd {
     itemListElement: list.map((tool, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: absoluteUrl(toolPath(tool.slug)),
+      url: absoluteUrl(toolPath(tool.slug, tool.locale)),
       name: tool.name,
     })),
   };

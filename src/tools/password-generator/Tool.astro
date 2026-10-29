@@ -1,8 +1,17 @@
-<div class="tool" data-tool="password-generator">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="password-generator" {...i18nAttrs(locale, s.client)}>
   <div class="pw-out">
-    <input id="pw-value" class="mono" type="text" readonly aria-label="產生的密碼" />
-    <button class="btn primary" type="button" data-copy="#pw-value">複製</button>
-    <button class="btn" type="button" id="pw-regen">重新產生</button>
+    <input id="pw-value" class="mono" type="text" readonly aria-label={s.outputAria} />
+    <button class="btn primary" type="button" data-copy="#pw-value">{s.copy}</button>
+    <button class="btn" type="button" id="pw-regen">{s.regenerate}</button>
   </div>
 
   <div class="meter" aria-live="polite">
@@ -11,24 +20,24 @@
   </div>
 
   <div class="field">
-    <label for="pw-length">長度：<output id="pw-length-out">16</output> 個字元</label>
+    <label for="pw-length">{s.lengthBefore}<output id="pw-length-out">16</output>{s.lengthAfter}</label>
     <input id="pw-length" type="range" min="4" max="64" value="16" />
   </div>
 
   <fieldset class="opts">
-    <legend class="visually-hidden">字元類型</legend>
-    <label class="check"><input type="checkbox" name="upper" checked /> 大寫字母 A–Z</label>
-    <label class="check"><input type="checkbox" name="lower" checked /> 小寫字母 a–z</label>
-    <label class="check"><input type="checkbox" name="digits" checked /> 數字 0–9</label>
-    <label class="check"><input type="checkbox" name="symbols" checked /> 符號 !@#$%</label>
-    <label class="check"><input type="checkbox" name="excludeAmbiguous" /> 排除易混淆字元（0 O l 1 I）</label>
+    <legend class="visually-hidden">{s.setsLegend}</legend>
+    <label class="check"><input type="checkbox" name="upper" checked /> {s.upper}</label>
+    <label class="check"><input type="checkbox" name="lower" checked /> {s.lower}</label>
+    <label class="check"><input type="checkbox" name="digits" checked /> {s.digits}</label>
+    <label class="check"><input type="checkbox" name="symbols" checked /> {s.symbols}</label>
+    <label class="check"><input type="checkbox" name="excludeAmbiguous" /> {s.excludeAmbiguous}</label>
   </fieldset>
 
   <div class="field">
-    <span class="label">一次產生多組</span>
+    <span class="label">{s.batchLabel}</span>
     <div class="row">
-      <button class="btn small" type="button" id="pw-batch">產生 10 組</button>
-      <button class="btn small ghost" type="button" data-copy="#pw-list">複製全部</button>
+      <button class="btn small" type="button" id="pw-batch">{s.batch}</button>
+      <button class="btn small ghost" type="button" data-copy="#pw-list">{s.copyAll}</button>
     </div>
     <div class="output" id="pw-list" hidden></div>
   </div>
@@ -36,9 +45,13 @@
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { entropyBits, generatePassword, strengthOf, STRENGTH_LABEL, type PasswordOptions } from './logic';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { entropyBits, generatePassword, strengthOf, type PasswordOptions } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="password-generator"]');
+  const { s } = readI18n<Strings['client']>(root);
   const out = $<HTMLInputElement>('#pw-value', root);
   const length = $<HTMLInputElement>('#pw-length', root);
   const lengthOut = $('#pw-length-out', root);
@@ -78,7 +91,9 @@
     const level = strengthOf(bits);
     bar.style.width = `${opts.length && out.value ? levels[level] : 0}%`;
     bar.dataset.level = level;
-    strengthText.textContent = out.value ? `強度：${STRENGTH_LABEL[level]}（約 ${Math.round(bits)} 位元熵）` : '請至少勾選一種字元類型';
+    strengthText.textContent = out.value
+      ? t(s.strength, { label: s.strengthLabels[level], bits: Math.round(bits) })
+      : s.noSets;
   }
 
   applyOptions(loadPref('password-generator', defaults));
@@ -113,11 +128,12 @@
   }
   .meter {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 8px 12px;
   }
   .meter-track {
-    flex: 1;
+    flex: 1 1 120px;
     height: 6px;
     border-radius: 3px;
     background: var(--surface-2);

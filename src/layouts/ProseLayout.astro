@@ -2,22 +2,38 @@
 import BaseLayout from './BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import { breadcrumbJsonLd } from '../lib/seo';
+import { allLocales, type Alternates } from '../i18n/alternates';
+import { DEFAULT_LOCALE, localeHome, localePath, type Locale } from '../i18n/locales';
+import { getUi } from '../i18n/ui';
 
 interface Props {
   title: string;
   description: string;
+  /** Locale-independent base path, e.g. '/about/'. The page is served at localePath(locale, path). */
   path: string;
+  locale?: Locale;
+  /** Defaults to every locale (about / contact / privacy / terms exist in all of them). */
+  alternates?: Alternates;
 }
-const { title, description, path } = Astro.props;
+const { title, description, path: basePath, locale = DEFAULT_LOCALE } = Astro.props;
+const alternates = Astro.props.alternates ?? allLocales(basePath);
+const path = localePath(locale, basePath);
 const crumbs = [
-  { name: '首頁', path: '/' },
+  { name: getUi(locale).homeCrumb, path: localeHome(locale) },
   { name: title, path },
 ];
 ---
 
-<BaseLayout title={title} description={description} path={path} jsonLd={[breadcrumbJsonLd(crumbs)]}>
+<BaseLayout
+  locale={locale}
+  alternates={alternates}
+  title={title}
+  description={description}
+  path={path}
+  jsonLd={[breadcrumbJsonLd(crumbs)]}
+>
   <div class="container page">
-    <Breadcrumbs items={crumbs} />
+    <Breadcrumbs items={crumbs} locale={locale} />
     <article class="doc">
       <h1>{title}</h1>
       <slot />

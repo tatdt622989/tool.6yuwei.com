@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { classifyBmi, computeBmi, healthyWeightRange, roundBmi, scalePercent, weightGap } from './logic';
+import {
+  classifyBmi,
+  computeBmi,
+  feetInchesToCm,
+  healthyWeightRange,
+  kgToLb,
+  lbToKg,
+  roundBmi,
+  scalePercent,
+  scaleSegments,
+  scaleTicks,
+  weightAtBmi,
+  weightGap,
+} from './logic';
 
 describe('computeBmi', () => {
   it('computes weight / height²', () => {
@@ -84,5 +97,69 @@ describe('scalePercent', () => {
     expect(scalePercent(10)).toBe(0);
     expect(scalePercent(60)).toBe(100);
     expect(scalePercent(Number.NaN)).toBe(0);
+  });
+});
+
+describe('classifyBmi (日本肥満学会, ja)', () => {
+  it.each([
+    [18.4, 'under'],
+    [18.5, 'normal'],
+    [24.9, 'normal'],
+    [25, 'obese1'],
+    [29.9, 'obese1'],
+    [30, 'obese2'],
+    [35, 'obese3'],
+    [39.9, 'obese3'],
+    [40, 'obese4'],
+  ])('BMI %s is %s', (bmi, level) => {
+    expect(classifyBmi(bmi, 'jp')?.level).toBe(level);
+  });
+
+  it('uses 18.5–25 as the normal range and BMI 22 as 標準体重', () => {
+    const r = healthyWeightRange(165, 'jp')!;
+    expect(r.max).toBeCloseTo(25 * 1.65 ** 2, 6);
+    expect(weightAtBmi(165, 22)).toBeCloseTo(59.895, 3);
+    expect(weightGap(165, 70, 'jp')).toBeCloseTo(25 * 1.65 ** 2 - 70, 6);
+  });
+});
+
+describe('classifyBmi (WHO, en)', () => {
+  it.each([
+    [18.4, 'under'],
+    [24.9, 'normal'],
+    [25, 'over'],
+    [29.9, 'over'],
+    [30, 'obese1'],
+    [35, 'obese2'],
+    [40, 'obese3'],
+  ])('BMI %s is %s', (bmi, level) => {
+    expect(classifyBmi(bmi, 'who')?.level).toBe(level);
+  });
+});
+
+describe('US customary units', () => {
+  it('converts feet/inches and pounds', () => {
+    expect(feetInchesToCm(5, 9)).toBeCloseTo(175.26, 2);
+    expect(feetInchesToCm(6, Number.NaN)).toBeCloseTo(182.88, 2);
+    expect(feetInchesToCm(Number.NaN, Number.NaN)).toBeNaN();
+    expect(lbToKg(160)).toBeCloseTo(72.575, 3);
+    expect(kgToLb(lbToKg(123))).toBeCloseTo(123, 9);
+  });
+
+  it('matches the 703 × lb / in² formula', () => {
+    const bmi = computeBmi(feetInchesToCm(5, 9), lbToKg(160));
+    expect(bmi).toBeCloseTo((703 * 160) / 69 ** 2, 1);
+  });
+});
+
+describe('scale per standard', () => {
+  it('keeps the Taiwan scale unchanged', () => {
+    expect(scaleTicks('tw').map((t) => t.value)).toEqual([18.5, 24, 27, 30, 35]);
+    expect(scaleSegments('tw').map((s) => s.level)).toEqual(['under', 'normal', 'over', 'obese1', 'obese2', 'obese3']);
+  });
+
+  it('drops bands that start at the top of the scale', () => {
+    expect(scaleSegments('jp').map((s) => s.level)).not.toContain('obese4');
+    expect(scaleTicks('who').map((t) => t.value)).toEqual([18.5, 25, 30, 35]);
   });
 });

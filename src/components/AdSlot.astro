@@ -1,5 +1,7 @@
 ---
 import { ads, type AdSlotName } from '../config/site';
+import { splitLocale } from '../i18n/locales';
+import { getUi } from '../i18n/ui';
 
 interface Props {
   slot: AdSlotName;
@@ -12,12 +14,14 @@ const live = Boolean(ads.client && slotId);
 const placeholder = !live && ads.showPlaceholders;
 const inArticle = slot === 'inArticle';
 const vertical = slot === 'sidebar';
+// Ad slots are identical in every locale; only the visible label is translated.
+const label = getUi(splitLocale(Astro.url.pathname).locale).adLabel;
 ---
 
 {
   live && (
-    <aside class:list={['ad', `ad--${slot}`, className]} aria-label="廣告">
-      <span class="ad-label">廣告</span>
+    <aside class:list={['ad', `ad--${slot}`, className]} aria-label={label}>
+      <span class="ad-label">{label}</span>
       {inArticle ? (
         <ins
           class="adsbygoogle"
