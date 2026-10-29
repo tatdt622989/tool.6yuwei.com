@@ -48,7 +48,6 @@ export interface Strings {
     autoNote: string;
     unreadable: string;
     /** {n} */
-    skippedHeic: PluralForms;
     skippedOther: PluralForms;
     making: string;
     /** {n} {total} */
@@ -66,7 +65,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: '圖片不會上傳。',
     privacyText: 'JPG 轉 PDF 全程在你的瀏覽器中完成，證件、收據、作業掃描檔都不會傳到任何伺服器。',
     dropTitle: '點擊選擇圖片，或拖曳到這裡',
-    dropHint: '支援 JPG、PNG、WebP 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上截圖',
+    dropHint: '支援 JPG、PNG、WebP、iPhone HEIC 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上截圖',
     sizeLabel: '紙張大小',
     sizeFit: '符合圖片',
     orientLabel: '方向',
@@ -99,8 +98,7 @@ export default defineToolI18n<Strings>({
       paperA4: 'A4（210 × 297 mm）',
       paperLetter: 'Letter（8.5 × 11 吋）',
       autoNote: '橫的圖片會自動使用橫向頁面。',
-      unreadable: '無法讀取這張圖片，可能是瀏覽器不支援此格式（例如 HEIC）或檔案已損毀。',
-      skippedHeic: { other: '已略過 {n} 個檔案。iPhone 的 HEIC 照片請先用「HEIC 轉 JPG」工具轉檔，再加入這裡。' },
+      unreadable: '無法讀取這張圖片，可能是瀏覽器不支援此格式或檔案已損毀。',
       skippedOther: { other: '已略過 {n} 個不是圖片的檔案。要合併 PDF 請使用「PDF 合併」。' },
       making: '產生中…',
       makingProgress: '產生中…（{n}/{total}）',
@@ -114,7 +112,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: 'Your images never leave your device. ',
     privacyText: 'The PDF is built right in your browser, so IDs, receipts and scanned homework are never uploaded to a server.',
     dropTitle: 'Click to choose images, or drop them here',
-    dropHint: 'JPG, PNG, WebP and more. Select several at once, or paste a screenshot with Ctrl/Cmd + V',
+    dropHint: 'JPG, PNG, WebP, iPhone HEIC and more. Select several at once, or paste a screenshot with Ctrl/Cmd + V',
     sizeLabel: 'Page size',
     sizeFit: 'Fit image',
     orientLabel: 'Orientation',
@@ -148,11 +146,7 @@ export default defineToolI18n<Strings>({
       paperA4: 'A4 (210 × 297 mm)',
       paperLetter: 'US Letter (8.5 × 11 in)',
       autoNote: 'Landscape images get a landscape page automatically.',
-      unreadable: 'This image can’t be read. Your browser may not support the format (HEIC, for example), or the file is damaged.',
-      skippedHeic: {
-        one: 'Skipped {n} file. Convert iPhone HEIC photos with the HEIC to JPG tool first, then add them here.',
-        other: 'Skipped {n} files. Convert iPhone HEIC photos with the HEIC to JPG tool first, then add them here.',
-      },
+      unreadable: 'This image can’t be read. Your browser may not support the format, or the file is damaged.',
       skippedOther: {
         one: 'Skipped {n} file that isn’t an image. To combine PDFs, use Merge PDF.',
         other: 'Skipped {n} files that aren’t images. To combine PDFs, use Merge PDF.',
@@ -169,7 +163,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: '画像はアップロードされません。',
     privacyText: 'JPG から PDF への変換はすべてブラウザ内で行われます。本人確認書類や領収書、提出物のスキャン画像もサーバーには送信されません。',
     dropTitle: 'クリックして画像を選択、またはここにドロップ',
-    dropHint: 'JPG・PNG・WebP などに対応。複数をまとめて選べ、Ctrl/Cmd + V でスクリーンショットの貼り付けもできます',
+    dropHint: 'JPG・PNG・WebP・iPhone の HEIC などに対応。複数をまとめて選べ、Ctrl/Cmd + V でスクリーンショットの貼り付けもできます',
     sizeLabel: '用紙サイズ',
     sizeFit: '画像に合わせる',
     orientLabel: '向き',
@@ -203,8 +197,7 @@ export default defineToolI18n<Strings>({
       paperA4: 'A4（210 × 297 mm）',
       paperLetter: 'レター（8.5 × 11 インチ）',
       autoNote: '横長の画像は自動的に横向きのページになります。',
-      unreadable: 'この画像を読み込めません。ブラウザが対応していない形式（HEIC など）か、ファイルが破損している可能性があります。',
-      skippedHeic: { other: '{n} 件のファイルをスキップしました。iPhone の HEIC 写真は「HEIC JPG 変換」で JPG にしてから追加してください。' },
+      unreadable: 'この画像を読み込めません。ブラウザが対応していない形式か、ファイルが破損している可能性があります。',
       skippedOther: { other: '画像ではないファイル {n} 件をスキップしました。PDF 同士をまとめるには「PDF 結合」をお使いください。' },
       making: '作成中…',
       makingProgress: '作成中…（{n}/{total}）',

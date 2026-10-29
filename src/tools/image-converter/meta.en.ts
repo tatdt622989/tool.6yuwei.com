@@ -78,7 +78,7 @@ export default defineTool({
     },
     {
       q: 'Can I convert HEIC photos from my iPhone here?',
-      a: 'Only in Safari, which can decode HEIC natively. In Chrome, Edge or Firefox, use the HEIC to JPG converter on this site instead.',
+      a: 'Yes. Add HEIC or HEIF photos as they are and convert them to JPG, PNG or WebP in Chrome, Edge, Firefox or Safari. The conversion runs on your device, so the photos are never uploaded.',
     },
     {
       q: 'Are my images uploaded to a server?',

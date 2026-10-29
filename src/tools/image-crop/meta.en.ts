@@ -68,8 +68,8 @@ export default defineTool({
       a: 'Lock the aspect ratio you need and crop here, then resize the result to the exact pixel size with the image resizer.',
     },
     {
-      q: 'Why is my iPhone photo not opening?',
-      a: 'iPhone photos are often HEIC, which most browsers other than Safari can’t open. Convert them with the HEIC to JPG tool first, then crop.',
+      q: 'Can I crop HEIC photos from my iPhone?',
+      a: 'Yes. Choose the HEIC photo as it is. If your browser can’t open HEIC, the tool converts it to JPG on your device first, so nothing is uploaded.',
     },
     {
       q: 'Will the cropped image keep its EXIF data?',

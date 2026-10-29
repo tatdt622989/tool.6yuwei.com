@@ -52,6 +52,7 @@ const s = pickStrings(i18n, locale);
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { prepareImage } from '../../lib/heic';
   import { formatBytes, formatNumber, t } from '../../i18n/format';
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
@@ -197,7 +198,7 @@ const s = pickStrings(i18n, locale);
   // ---------- Conversion ----------
   async function convert(item: Item, prefs: Prefs): Promise<Result> {
     const spec = FORMATS[prefs.format];
-    const image = await decode(item.file);
+    const image = await decode(await prepareImage(item.file));
     try {
       if (!image.width || !image.height) throw new Error('size');
       const flattened = !spec.alpha && probeTransparency(image.source);

@@ -83,7 +83,7 @@ export default defineTool({
     },
     {
       q: 'iPhone 的 HEIC 照片可以裁切嗎？',
-      a: 'Safari 可以直接讀取 HEIC；其他瀏覽器若無法開啟，請先用「HEIC 轉 JPG」工具轉檔後再裁切。',
+      a: '可以。直接選取 HEIC 照片即可，瀏覽器不支援時會自動在你的裝置上轉成 JPG 再裁切，照片不會上傳。',
     },
   ],
   related: ['image-resizer', 'image-compressor', 'image-converter', 'heic-to-jpg', 'image-to-pdf'],

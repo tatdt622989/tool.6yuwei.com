@@ -9,7 +9,7 @@ const s = pickStrings(i18n, locale);
 
 <div class="tool" data-tool="image-resizer" {...i18nAttrs(locale, s.client)}>
   <label class="dropzone" id="rs-drop" tabindex="0">
-    <input type="file" id="rs-file" accept="image/*" multiple hidden />
+    <input type="file" id="rs-file" accept="image/*,.heic,.heif" multiple hidden />
     <strong>{s.dropTitle}</strong>
     <span class="hint">{s.dropHint}</span>
   </label>
@@ -108,6 +108,7 @@ const s = pickStrings(i18n, locale);
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
   import { formatBytes, t } from '../../i18n/format';
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
@@ -324,14 +325,15 @@ const s = pickStrings(i18n, locale);
 
   // ---------- Resize ----------
   async function resize(item: Item, p: Prefs): Promise<Result | null> {
-    const image = await decode(item.file);
+    const src = await prepareImage(item.file);
+    const image = await decode(src);
     try {
       item.srcWidth = image.width;
       item.srcHeight = image.height;
       const layout = computeLayout(image.width, image.height, specOf(p));
       if (!layout) return null;
       if (exceedsLimit(layout)) throw new RangeError('too-large');
-      const type = resolveOutputType(item.file.type, p.format);
+      const type = resolveOutputType(src.type, p.format);
       const transparentOk = type !== 'image/jpeg';
       let background: string | null = null;
       if (!transparentOk) background = hasPadding(layout) ? p.pad : '#ffffff';
@@ -446,7 +448,7 @@ const s = pickStrings(i18n, locale);
   function addFiles(files: Iterable<File>) {
     const accepted: Item[] = [];
     for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
+      if (!file.type.startsWith('image/') && !isHeic(file.type, file.name)) continue;
       const item: Item = { file, row: el('li', 'rs-item') };
       drawRow(item);
       list.append(item.row);

@@ -51,7 +51,7 @@ export default defineTool({
       heading: 'Common uses',
       body: [
         'Turn photos of signed forms, receipts or homework into a single PDF for a school portal, an expense report, an insurance claim or a rental application. Many of these sites accept only one PDF per upload, so combine the pages here first.',
-        'iPhone photos saved as HEIC can’t be read by most browsers. Convert them with the HEIC to JPG tool, then add them here. If the PDF is too big for an upload limit, shrink the photos first with the image compressor or resizer.',
+        'iPhone photos saved as HEIC can be added as they are; they are converted to JPG on your device. If the PDF is too big for an upload limit, shrink the photos first with the image compressor or resizer.',
       ],
     },
   ],

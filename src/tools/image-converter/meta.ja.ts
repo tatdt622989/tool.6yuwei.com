@@ -71,7 +71,7 @@ export default defineTool({
     },
     {
       q: 'iPhone の HEIC 写真も変換できますか？',
-      a: 'HEIC を読み込めるのは Safari だけです。Chrome・Edge・Firefox をお使いの場合は、このサイトの「HEIC JPG 変換」をご利用ください。',
+      a: 'できます。HEIC・HEIF の写真をそのまま追加すれば、Chrome・Edge・Firefox でも JPG・PNG・WebP に変換できます。変換はすべて端末内で行われ、写真がアップロードされることはありません。',
     },
     {
       q: '画像はサーバーにアップロードされますか？',

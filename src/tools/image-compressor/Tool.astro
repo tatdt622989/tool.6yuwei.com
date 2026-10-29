@@ -9,7 +9,7 @@ const s = pickStrings(i18n, locale);
 
 <div class="tool" data-tool="image-compressor" {...i18nAttrs(locale, s.client)}>
   <label class="dropzone" id="ic-drop" tabindex="0">
-    <input type="file" id="ic-file" accept="image/jpeg,image/png,image/webp" multiple hidden />
+    <input type="file" id="ic-file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple hidden />
     <strong>{s.dropTitle}</strong>
     <span class="hint">{s.dropHint}</span>
   </label>
@@ -55,6 +55,7 @@ const s = pickStrings(i18n, locale);
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
   import { formatBytes, formatInteger, formatNumber, t } from '../../i18n/format';
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
@@ -216,15 +217,17 @@ const s = pickStrings(i18n, locale);
 
   // ---------- Compression ----------
   async function compress(item: Item, prefs: Prefs): Promise<Result> {
-    const type = resolveOutputType(item.file.type, prefs.format);
-    const image = await decode(item.file);
+    const src = await prepareImage(item.file);
+    const type = resolveOutputType(src.type, prefs.format);
+    const image = await decode(src);
     try {
       const limit = prefs.maxWidth.trim() === '' ? null : Number(prefs.maxWidth);
       const size = fitToMaxWidth(image.width, image.height, limit);
       const resized = size.width !== image.width;
       const canvas = render(image.source, image.width, image.height, size.width, size.height, needsOpaqueBackground(type));
       const blob = await toBlob(canvas, type, qualityApplies(type) ? prefs.quality / 100 : undefined);
-      if (shouldKeepOriginal(item.file.size, blob.size, resized)) {
+      // A HEIC original is not what people want back, even when the JPEG is larger.
+      if (src === item.file && shouldKeepOriginal(item.file.size, blob.size, resized)) {
         return {
           blob: item.file,
           url: URL.createObjectURL(item.file),
@@ -349,7 +352,7 @@ const s = pickStrings(i18n, locale);
     const accepted: Item[] = [];
     let skipped = 0;
     for (const file of files) {
-      if (!isSupportedInput(file.type)) {
+      if (!isSupportedInput(file.type) && !isHeic(file.type, file.name)) {
         skipped++;
         continue;
       }

@@ -94,11 +94,16 @@ const manifest = localePath(locale, '/manifest.webmanifest');
         <>
           <meta name="google-adsense-account" content={ads.client} />
           <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ads.client}`}
-            crossorigin="anonymous"
-          />
+          {/* Only the production host loads ads, so local dev and preview servers don't inflate AdSense page views. */}
+          <script is:inline define:vars={{ client: ads.client, host: new URL(site.url).hostname }}>
+            if (location.hostname === host) {
+              var s = document.createElement('script');
+              s.async = true;
+              s.crossOrigin = 'anonymous';
+              s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + client;
+              document.head.appendChild(s);
+            }
+          </script>
         </>
       )
     }

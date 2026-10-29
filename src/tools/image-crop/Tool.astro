@@ -14,7 +14,7 @@ const s = pickStrings(i18n, locale);
   </p>
 
   <label class="dropzone cr-drop" id="cr-drop" tabindex="0">
-    <input type="file" id="cr-file" accept="image/*" hidden />
+    <input type="file" id="cr-file" accept="image/*,.heic,.heif" hidden />
     <strong>{s.dropTitle}</strong>
     <span class="hint">{s.dropHint}</span>
   </label>
@@ -83,6 +83,7 @@ const s = pickStrings(i18n, locale);
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
   import {
@@ -256,13 +257,14 @@ const s = pickStrings(i18n, locale);
   }
 
   async function loadFile(file: File) {
-    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(file.name)) {
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name) && !isHeic(file.type, file.name)) {
       showError(str.notImage);
       return;
     }
     try {
-      const decoded = await decode(file);
-      setSource({ ...decoded, name: file.name || 'image.png', type: file.type });
+      const ready = await prepareImage(file);
+      const decoded = await decode(ready);
+      setSource({ ...decoded, name: file.name || 'image.png', type: ready.type });
     } catch {
       showError(str.readError);
     }

@@ -19,9 +19,9 @@ const PACKAGES: { name: string; extraFiles?: string[]; note?: string }[] = [
     note: 'Includes CMap files and standard fonts (Foxit and Liberation fonts under the licenses below).',
   },
   {
-    name: 'heic2any',
+    name: 'heic-to',
     note:
-      'heic2any bundles libheif (https://github.com/strukturag/libheif), which is licensed under the GNU LGPL-3.0: https://www.gnu.org/licenses/lgpl-3.0.txt. The complete source of this site, including how libheif is used, is available at ' +
+      'heic-to bundles libheif (https://github.com/strukturag/libheif) and libde265, licensed under the GNU LGPL-3.0: https://www.gnu.org/licenses/lgpl-3.0.txt. The complete source of this site, including how libheif is used, is available at ' +
       site.repoUrl +
       '.',
   },

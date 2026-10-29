@@ -40,7 +40,7 @@ export default defineTool({
     {
       heading: '轉檔過程與隱私',
       body: [
-        '本工具使用瀏覽器內建的圖片解碼器與 Canvas 重新編碼，所有處理都在你的裝置上進行，不需要上傳，也不需要安裝軟體。因此能讀取的格式取決於你的瀏覽器，例如 Safari 能讀取 iPhone 拍攝的 HEIC 照片，Chrome 則通常不行；GIF 動畫只會轉換第一個畫格。轉檔時照片的 EXIF 資訊（包括 GPS 位置）也會一併移除。',
+        '本工具使用瀏覽器內建的圖片解碼器與 Canvas 重新編碼，所有處理都在你的裝置上進行，不需要上傳，也不需要安裝軟體。iPhone 拍攝的 HEIC 照片也能直接加入，瀏覽器無法讀取時會自動改用內建的 HEIC 解碼器；GIF 動畫只會轉換第一個畫格。轉檔時照片的 EXIF 資訊（包括 GPS 位置）也會一併移除。',
       ],
     },
   ],
@@ -55,7 +55,7 @@ export default defineTool({
     },
     {
       q: '可以把 iPhone 的 HEIC 照片轉成 JPG 嗎？',
-      a: '在 Safari 上通常可以，因為 Safari 能讀取 HEIC。Chrome 與 Edge 多半無法解碼 HEIC，會顯示無法讀取；這時可在 iPhone 的「設定 > 相機 > 格式」改成「最相容」，之後拍的照片就會是 JPG。',
+      a: '可以。直接把 HEIC 或 HEIF 照片拖進來，Chrome、Edge、Safari 都能轉成 JPG、PNG 或 WebP，轉換全程在你的裝置上進行，照片不會上傳。',
     },
     {
       q: '轉檔會降低畫質嗎？',

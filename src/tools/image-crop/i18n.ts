@@ -38,7 +38,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: '圖片不會上傳',
     privacyText: '：裁切完全在你的瀏覽器中進行，圖片不會離開你的裝置。',
     dropTitle: '點擊選擇圖片，或拖曳到這裡',
-    dropHint: '支援 JPG、PNG、WebP 等格式，也可以按 Ctrl/Cmd + V 貼上截圖。下方先以範例圖片示範。',
+    dropHint: '支援 JPG、PNG、WebP、iPhone HEIC 等格式，也可以按 Ctrl/Cmd + V 貼上截圖。下方先以範例圖片示範。',
     aspectLabel: '裁切比例',
     aspects: [
       { value: 'free', label: '自由' },
@@ -63,7 +63,7 @@ export default defineToolI18n<Strings>({
     download: '裁切並下載',
     client: {
       notImage: '這不是圖片檔，請選擇 JPG、PNG 或 WebP 等格式的圖片。',
-      readError: '無法讀取這張圖片，可能是瀏覽器不支援此格式（例如 HEIC 請先用「HEIC 轉 JPG」轉檔）或檔案已損毀。',
+      readError: '無法讀取這張圖片，可能是瀏覽器不支援此格式或檔案已損毀。',
       exportError: '無法輸出圖片，裁切範圍可能超過瀏覽器的畫布上限（手機約 1600 萬像素），請縮小裁切範圍後再試。',
       sampleText: '範例圖片 1200 × 800',
       sampleFont: '600 32px -apple-system, "PingFang TC", "Noto Sans TC", sans-serif',
@@ -73,7 +73,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: 'Your image is not uploaded.',
     privacyText: ' Cropping happens entirely in your browser, so the picture never leaves your device.',
     dropTitle: 'Click to choose an image, or drop it here',
-    dropHint: 'JPG, PNG, WebP and more. You can also paste a screenshot with Ctrl/Cmd + V. A sample image is loaded below to try it out.',
+    dropHint: 'JPG, PNG, WebP, iPhone HEIC and more. You can also paste a screenshot with Ctrl/Cmd + V. A sample image is loaded below to try it out.',
     aspectLabel: 'Aspect ratio',
     aspects: [
       { value: 'free', label: 'Free' },
@@ -99,7 +99,7 @@ export default defineToolI18n<Strings>({
     download: 'Crop and download',
     client: {
       notImage: 'That file isn’t an image. Choose a JPG, PNG or WebP image.',
-      readError: 'Couldn’t read this image. Your browser may not support the format (convert HEIC with the HEIC to JPG tool first) or the file is damaged.',
+      readError: 'Couldn’t read this image. Your browser may not support the format or the file is damaged.',
       exportError: 'Couldn’t export the image. The crop may exceed your browser’s canvas limit (about 16 megapixels on phones); try a smaller area.',
       sampleText: 'Sample image 1200 × 800',
       sampleFont: '600 32px -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -109,7 +109,7 @@ export default defineToolI18n<Strings>({
     privacyStrong: '画像はアップロードされません',
     privacyText: '：トリミングはすべてブラウザ内で行われ、画像が端末の外に出ることはありません。',
     dropTitle: 'クリックして画像を選択、またはここにドロップ',
-    dropHint: 'JPG・PNG・WebP などに対応。Ctrl/Cmd + V でスクリーンショットを貼り付けることもできます。下ではサンプル画像で試せます。',
+    dropHint: 'JPG・PNG・WebP・iPhone の HEIC などに対応。Ctrl/Cmd + V でスクリーンショットを貼り付けることもできます。下ではサンプル画像で試せます。',
     aspectLabel: '縦横比',
     aspects: [
       { value: 'free', label: '自由' },
@@ -135,7 +135,7 @@ export default defineToolI18n<Strings>({
     download: 'トリミングしてダウンロード',
     client: {
       notImage: '画像ファイルではありません。JPG・PNG・WebP などの画像を選んでください。',
-      readError: 'この画像を読み込めませんでした。ブラウザが対応していない形式（HEIC は先に「HEIC JPG 変換」で変換してください）か、ファイルが破損している可能性があります。',
+      readError: 'この画像を読み込めませんでした。ブラウザが対応していない形式か、ファイルが破損している可能性があります。',
       exportError: '画像を書き出せませんでした。トリミング範囲がブラウザの上限（スマートフォンでは約 1600 万画素）を超えている可能性があります。範囲を小さくしてお試しください。',
       sampleText: 'サンプル画像 1200 × 800',
       sampleFont: '600 32px -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif',

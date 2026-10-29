@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encoderQuality, firstBlob, isHeic, outputFilename, outputMime, sizeChangePercent } from './logic';
+import { encoderQuality, isHeic, outputFilename, outputMime, sizeChangePercent } from './logic';
 
 describe('isHeic', () => {
   it('accepts HEIC / HEIF MIME types', () => {
@@ -54,12 +54,3 @@ describe('sizeChangePercent', () => {
   });
 });
 
-describe('firstBlob', () => {
-  it('unwraps arrays', () => {
-    const a = new Blob(['a']);
-    const b = new Blob(['b']);
-    expect(firstBlob(a)).toBe(a);
-    expect(firstBlob([a, b])).toBe(a);
-    expect(() => firstBlob([])).toThrow();
-  });
-});

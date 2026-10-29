@@ -49,7 +49,7 @@ export interface Strings {
 export default defineToolI18n<Strings>({
   'zh-TW': {
     dropTitle: '點擊選擇圖片，或拖曳到這裡',
-    dropHint: '支援 JPG、PNG、WebP 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上',
+    dropHint: '支援 JPG、PNG、WebP、iPhone HEIC 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上',
     modeLabel: '調整方式',
     modeSize: '指定尺寸',
     modePercent: '百分比',
@@ -87,7 +87,7 @@ export default defineToolI18n<Strings>({
   },
   en: {
     dropTitle: 'Click to choose images, or drop them here',
-    dropHint: 'JPG, PNG, WebP and more. Select several at once, or paste with Ctrl/Cmd + V',
+    dropHint: 'JPG, PNG, WebP, iPhone HEIC and more. Select several at once, or paste with Ctrl/Cmd + V',
     modeLabel: 'Resize by',
     modeSize: 'Pixels',
     modePercent: 'Percentage',
@@ -144,7 +144,7 @@ export default defineToolI18n<Strings>({
   },
   ja: {
     dropTitle: 'クリックして画像を選択、またはここにドロップ',
-    dropHint: 'JPG・PNG・WebP などに対応。複数枚まとめて選べ、Ctrl/Cmd + V で貼り付けもできます',
+    dropHint: 'JPG・PNG・WebP・iPhone の HEIC などに対応。複数枚まとめて選べ、Ctrl/Cmd + V で貼り付けもできます',
     modeLabel: '変更方法',
     modeSize: 'ピクセル指定',
     modePercent: 'パーセント',

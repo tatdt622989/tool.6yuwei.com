@@ -1,15 +1,8 @@
 export type HeicOutput = 'jpeg' | 'png';
 
-const HEIC_TYPES = ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];
-const HEIC_EXT = /\.(heic|heif|hif)$/i;
+export { isHeic } from '../../lib/heic';
 
-/** Windows and some Android browsers report HEIC with an empty or generic MIME type, so the extension counts too. */
-export function isHeic(type: string, name: string): boolean {
-  if (HEIC_TYPES.includes(type.toLowerCase())) return true;
-  return HEIC_EXT.test(name);
-}
-
-export function outputMime(format: HeicOutput): string {
+export function outputMime(format: HeicOutput): 'image/png' | 'image/jpeg' {
   return format === 'png' ? 'image/png' : 'image/jpeg';
 }
 
@@ -33,9 +26,3 @@ export function sizeChangePercent(before: number, after: number): number {
   return (after / before - 1) * 100;
 }
 
-/** heic2any returns one Blob, or an array when the file holds several images (burst / Live Photo); keep the first. */
-export function firstBlob(result: Blob | Blob[]): Blob {
-  const blob = Array.isArray(result) ? result[0] : result;
-  if (!blob) throw new Error('empty');
-  return blob;
-}

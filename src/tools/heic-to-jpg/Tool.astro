@@ -58,7 +58,8 @@ const s = pickStrings(i18n, locale);
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
   import { createZip } from '../pdf-split/zip';
-  import { encoderQuality, firstBlob, isHeic, outputFilename, outputMime, type HeicOutput } from './logic';
+  import { loadHeicDecoder } from '../../lib/heic';
+  import { encoderQuality, isHeic, outputFilename, outputMime, type HeicOutput } from './logic';
 
   interface Result {
     blob: Blob;
@@ -78,7 +79,6 @@ const s = pickStrings(i18n, locale);
     format: HeicOutput;
     quality: number;
   }
-  type Heic2Any = (options: { blob: Blob; toType?: string; quality?: number }) => Promise<Blob | Blob[]>;
 
   const root = $('[data-tool="heic-to-jpg"]');
   const { locale, s } = readI18n<Strings['client']>(root);
@@ -99,13 +99,6 @@ const s = pickStrings(i18n, locale);
   let generation = 0;
   /** null = not tried yet; false once the browser has failed to decode HEIC natively. */
   let nativeWorks: boolean | null = null;
-  let heic2anyPromise: Promise<Heic2Any> | null = null;
-
-  function loadHeic2any(): Promise<Heic2Any> {
-    heic2anyPromise ??= import('heic2any').then((m) => m.default as unknown as Heic2Any);
-    heic2anyPromise.catch(() => (heic2anyPromise = null));
-    return heic2anyPromise;
-  }
 
   function readPrefs(): Prefs {
     const format = (formatRadios.find((r) => r.checked)?.value ?? 'jpeg') as HeicOutput;
@@ -191,10 +184,8 @@ const s = pickStrings(i18n, locale);
     if (!out) {
       item.status = s.loadingDecoder;
       drawRow(item);
-      const heic2any = await loadHeic2any();
-      const blob = firstBlob(
-        await heic2any({ blob: item.file, toType: outputMime(prefs.format), quality: encoderQuality(prefs.format, prefs.quality) }),
-      );
+      const heicTo = await loadHeicDecoder();
+      const blob = await heicTo({ blob: item.file, type: outputMime(prefs.format), quality: encoderQuality(prefs.format, prefs.quality) });
       out = { blob, ...(await blobSize(blob)) };
     }
     return {

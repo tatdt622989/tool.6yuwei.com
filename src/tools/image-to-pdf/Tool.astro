@@ -15,7 +15,7 @@ const paper = s.client.defaultSize;
   </p>
 
   <label class="dropzone" id="ip-drop" tabindex="0">
-    <input type="file" id="ip-file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif" multiple hidden />
+    <input type="file" id="ip-file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif,image/heic,image/heif,.heic,.heif" multiple hidden />
     <strong>{s.dropTitle}</strong>
     <span class="hint">{s.dropHint}</span>
   </label>
@@ -73,6 +73,7 @@ const paper = s.client.defaultSize;
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { isHeic, prepareImage } from '../../lib/heic';
   import { formatBytes, formatInteger, plural, t } from '../../i18n/format';
   import { readI18n } from '../../i18n/client';
   import type { Strings } from './i18n';
@@ -257,11 +258,12 @@ const paper = s.client.defaultSize;
   }
 
   async function addFiles(files: File[]) {
-    const images = files.filter((f) => isImageFile(f.type, f.name));
-    const skipped = files.length - images.length;
-    const heic = files.some((f) => /\.(heic|heif)$/i.test(f.name) || /hei[cf]/.test(f.type));
-    showNote(skipped ? plural(locale, skipped, heic ? s.skippedHeic : s.skippedOther) : '');
+    const picked = files.filter((f) => isImageFile(f.type, f.name) || isHeic(f.type, f.name));
+    const skipped = files.length - picked.length;
+    showNote(skipped ? plural(locale, skipped, s.skippedOther) : '');
     done.hidden = true;
+    // A failed HEIC conversion keeps the original file, which then shows as unreadable.
+    const images = await Promise.all(picked.map((f) => prepareImage(f).catch(() => f)));
     const added = images.map((file) => ({ id: nextId++, file, url: URL.createObjectURL(file), row: el('li', 'ip-item') }) as Item);
     for (const item of added) drawRow(item);
     items.push(...added);
