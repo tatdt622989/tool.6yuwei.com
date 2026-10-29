@@ -47,6 +47,74 @@ export function constellationOf(month: number, day: number): string {
   return day <= cutoff ? before : after;
 }
 
+export const SIGN_IDS = [
+  'capricorn',
+  'aquarius',
+  'pisces',
+  'aries',
+  'taurus',
+  'gemini',
+  'cancer',
+  'leo',
+  'virgo',
+  'libra',
+  'scorpio',
+  'sagittarius',
+] as const;
+export type SignId = (typeof SIGN_IDS)[number];
+
+/** Locale-neutral id of the sign, same date ranges as constellationOf (localized names live in i18n.ts). */
+export function signOf(month: number, day: number): SignId {
+  const cutoff = SIGNS[month - 1][0];
+  return SIGN_IDS[(month - 1 + (day <= cutoff ? 0 : 1)) % 12];
+}
+
+// ---- Japan: 干支 and 和暦 (ja) ----
+
+const JIKKAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
+const JIKKAN_KANA = ['きのえ', 'きのと', 'ひのえ', 'ひのと', 'つちのえ', 'つちのと', 'かのえ', 'かのと', 'みずのえ', 'みずのと'] as const;
+const JUNISHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
+const JUNISHI_KANA = ['ね', 'うし', 'とら', 'う', 'たつ', 'み', 'うま', 'ひつじ', 'さる', 'とり', 'いぬ', 'い'] as const;
+
+const mod = (n: number, m: number) => ((n % m) + m) % m;
+
+/**
+ * 干支 of a Gregorian year as used in Japan (switches on 1 January; 1984 = 甲子).
+ * Returns the 十二支 (「午」), its reading, and the full 六十干支 (「庚午」「かのえうま」).
+ */
+export function kanshiOf(year: number): { shi: string; shiKana: string; kanshi: string; kanshiKana: string } {
+  const k = mod(year - 1984, 10);
+  const s = mod(year - 1984, 12);
+  return {
+    shi: JUNISHI[s],
+    shiKana: JUNISHI_KANA[s],
+    kanshi: `${JIKKAN[k]}${JUNISHI[s]}`,
+    kanshiKana: `${JIKKAN_KANA[k]}${JUNISHI_KANA[s]}`,
+  };
+}
+
+/** Japanese eras since the Gregorian calendar was adopted (明治 6 年 = 1873). Newest first. */
+const ERAS: { name: string; start: YMD; offset: number }[] = [
+  { name: '令和', start: { y: 2019, m: 5, d: 1 }, offset: 2018 },
+  { name: '平成', start: { y: 1989, m: 1, d: 8 }, offset: 1988 },
+  { name: '昭和', start: { y: 1926, m: 12, d: 25 }, offset: 1925 },
+  { name: '大正', start: { y: 1912, m: 7, d: 30 }, offset: 1911 },
+  { name: '明治', start: { y: 1873, m: 1, d: 1 }, offset: 1867 },
+];
+
+/** 和暦 of a date: 1990-06-15 → { era: '平成', year: 2 }. null before 1873 (pre-Gregorian Japan). */
+export function warekiOf(date: YMD): { era: string; year: number } | null {
+  const era = ERAS.find((e) => compareYMD(date, e.start) >= 0);
+  return era ? { era: era.name, year: date.y - era.offset } : null;
+}
+
+/** 「平成2年6月15日」, 「令和元年5月1日」; falls back to 「1850年1月1日」 before 1873. */
+export function warekiLabel(date: YMD): string {
+  const w = warekiOf(date);
+  const head = w ? `${w.era}${w.year === 1 ? '元' : w.year}年` : `${date.y}年`;
+  return `${head}${date.m}月${date.d}日`;
+}
+
 /**
  * The birthday in a given year. A 2/29 birthday falls on 3/1 in common years,
  * matching how 民法 counts a full year (the period ends on 2/28, the new age starts 3/1).
@@ -76,6 +144,10 @@ export interface AgeResult {
   nextAge: number;
   zodiac: string;
   constellation: string;
+  /** Locale-neutral sign id (see signOf). */
+  sign: SignId;
+  /** Age in whole months (years × 12 + months). */
+  totalMonths: number;
 }
 
 /** Returns null when the birth date is after the reference date. */
@@ -95,5 +167,7 @@ export function calcAge(birth: YMD, on: YMD): AgeResult | null {
     nextAge: next.y - birth.y,
     zodiac: zodiacOf(birth.y),
     constellation: constellationOf(birth.m, birth.d),
+    sign: signOf(birth.m, birth.d),
+    totalMonths: span.years * 12 + span.months,
   };
 }

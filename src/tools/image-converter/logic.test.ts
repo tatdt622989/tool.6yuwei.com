@@ -15,6 +15,8 @@ describe('formatLabel', () => {
     expect(formatLabel('image/svg+xml')).toBe('SVG');
     expect(formatLabel('', 'photo.heic')).toBe('HEIC');
     expect(formatLabel('')).toBe('未知');
+    expect(formatLabel('', '', 'Unknown')).toBe('Unknown');
+    expect(formatLabel('', 'scan.TIF', 'Unknown')).toBe('TIF');
   });
 });
 

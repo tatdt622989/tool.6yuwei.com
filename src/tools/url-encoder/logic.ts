@@ -1,6 +1,12 @@
 export type EncodeMode = 'component' | 'uri';
 
-export type TextResult = { ok: true; value: string } | { ok: false; error: string };
+/** Why encoding/decoding failed. `error` is the zh-TW message; other locales map `code`. */
+export type TextErrorCode = 'lone-surrogate' | 'bad-percent' | 'bad-utf8';
+
+export type TextResult =
+  | { ok: true; value: string }
+  /** For 'bad-percent': `position` is 1-based and `snippet` is the offending %XX text. */
+  | { ok: false; code: TextErrorCode; error: string; position?: number; snippet?: string };
 
 /**
  * component: encodeURIComponent — for a single query value or path segment.
@@ -12,7 +18,7 @@ export function encodeUrl(text: string, mode: EncodeMode, plusForSpace = false):
     const encoded = mode === 'component' ? encodeURIComponent(text) : encodeURI(text);
     return { ok: true, value: plusForSpace ? encoded.replace(/%20/g, '+') : encoded };
   } catch {
-    return { ok: false, error: '文字中含有不成對的 UTF-16 代理字元，無法編碼。' };
+    return { ok: false, code: 'lone-surrogate', error: '文字中含有不成對的 UTF-16 代理字元，無法編碼。' };
   }
 }
 
@@ -24,9 +30,15 @@ export function decodeUrl(text: string, plusAsSpace = false): TextResult {
     const bad = /%(?![0-9a-fA-F]{2})/.exec(source);
     if (bad) {
       const snippet = source.slice(bad.index, bad.index + 3);
-      return { ok: false, error: `第 ${bad.index + 1} 個字元「${snippet}」不是有效的百分比編碼，% 後面必須接兩位十六進位數字。` };
+      return {
+        ok: false,
+        code: 'bad-percent',
+        error: `第 ${bad.index + 1} 個字元「${snippet}」不是有效的百分比編碼，% 後面必須接兩位十六進位數字。`,
+        position: bad.index + 1,
+        snippet,
+      };
     }
-    return { ok: false, error: '百分比編碼的位元組不是有效的 UTF-8 序列，可能被截斷或原本使用 Big5 等其他編碼。' };
+    return { ok: false, code: 'bad-utf8', error: '百分比編碼的位元組不是有效的 UTF-8 序列，可能被截斷或原本使用 Big5 等其他編碼。' };
   }
 }
 
@@ -57,17 +69,17 @@ export interface UrlParts {
 
 const DEFAULT_PORTS: Record<string, string> = { 'http:': '80', 'https:': '443', 'ws:': '80', 'wss:': '443', 'ftp:': '21' };
 
-export type ParseResult = { ok: true; url: UrlParts } | { ok: false; error: string };
+export type ParseResult = { ok: true; url: UrlParts } | { ok: false; code: 'empty' | 'invalid'; error: string };
 
 export function parseUrl(input: string): ParseResult {
   const text = input.trim();
-  if (text === '') return { ok: false, error: '請輸入網址' };
+  if (text === '') return { ok: false, code: 'empty', error: '請輸入網址' };
   const hasScheme = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(text) && !/^[^:/]+:\d+(?:[/?#]|$)/.test(text);
   let url: URL;
   try {
     url = new URL(hasScheme ? text : `https://${text}`);
   } catch {
-    return { ok: false, error: '無法解析這個網址，請確認格式，例如 https://example.com/path?q=1' };
+    return { ok: false, code: 'invalid', error: '無法解析這個網址，請確認格式，例如 https://example.com/path?q=1' };
   }
   return {
     ok: true,

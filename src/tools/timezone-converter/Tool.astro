@@ -1,14 +1,23 @@
-<div class="tool" data-tool="timezone-converter">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="timezone-converter" {...i18nAttrs(locale, s.client)}>
   <div class="grid-2">
     <div class="field">
-      <label for="tz-source">來源時區</label>
+      <label for="tz-source">{s.sourceLabel}</label>
       <select id="tz-source"></select>
     </div>
     <div class="field">
-      <label for="tz-when">來源時區的日期與時間</label>
+      <label for="tz-when">{s.whenLabel}</label>
       <div class="tz-when">
         <input id="tz-when" type="datetime-local" step="60" />
-        <button class="btn" type="button" id="tz-now">現在</button>
+        <button class="btn" type="button" id="tz-now">{s.now}</button>
       </div>
     </div>
   </div>
@@ -16,23 +25,26 @@
   <p class="hint" id="tz-utc" aria-live="polite"></p>
   <div class="notice" id="tz-status" hidden></div>
 
-  <ul class="tz-list" id="tz-list" aria-label="各時區時間"></ul>
+  <ul class="tz-list" id="tz-list" aria-label={s.listAria}></ul>
 
   <div class="field">
-    <label for="tz-add">加入其他時區</label>
+    <label for="tz-add">{s.addLabel}</label>
     <div class="tz-add">
       <select id="tz-add"></select>
-      <button class="btn primary" type="button" id="tz-add-btn">加入</button>
-      <button class="btn ghost" type="button" id="tz-reset">恢復預設</button>
+      <button class="btn primary" type="button" id="tz-add-btn">{s.add}</button>
+      <button class="btn ghost" type="button" id="tz-reset">{s.reset}</button>
     </div>
-    <span class="hint">時區清單會記在這個瀏覽器，下次開啟時自動帶入。</span>
+    <span class="hint">{s.hint}</span>
   </div>
 </div>
 
 <script>
   import { $, loadPref, savePref } from '../../lib/client';
-  import { formatNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
   import {
+    buildDefaultZones,
     dayShift,
     DEFAULT_ZONES,
     formatOffset,
@@ -49,8 +61,10 @@
     zoneLabel,
     type ZonedTime,
   } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="timezone-converter"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const sourceSel = $<HTMLSelectElement>('#tz-source', root);
   const whenInput = $<HTMLInputElement>('#tz-when', root);
   const list = $('#tz-list', root);
@@ -63,29 +77,55 @@
     zones: string[];
   }
 
-  const WEEKDAY = ['日', '一', '二', '三', '四', '五', '六'];
   const pad = (n: number) => String(n).padStart(2, '0');
   const allZones = listTimeZones();
+  const intl = LOCALE_INFO[locale].intl;
+  const labels = s.preset?.labels ?? ZONE_LABELS;
+  const label = (zone: string) => zoneLabel(zone, labels);
 
-  const prefs = loadPref<Prefs>('timezone-converter', { source: 'Asia/Taipei', zones: [...DEFAULT_ZONES] });
-  let source = isValidTimeZone(prefs.source) ? prefs.source : 'Asia/Taipei';
-  let zones = normalizeZones(prefs.zones);
+  let userZone: string | undefined;
+  try {
+    userZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    userZone = undefined;
+  }
+  const preset = s.preset;
+  const defaultZones = preset ? buildDefaultZones(preset.zones, userZone, preset.userZone) : [...DEFAULT_ZONES];
+  const defaultSource =
+    preset?.source === 'user' ? (userZone && isValidTimeZone(userZone) ? userZone : defaultZones[0]) : (preset?.source ?? 'Asia/Taipei');
+  // zh keeps its original storage key; other locales keep their own list.
+  const prefKey = locale === 'zh-TW' ? 'timezone-converter' : `timezone-converter:${locale}`;
+
+  const prefs = loadPref<Prefs>(prefKey, { source: defaultSource, zones: defaultZones });
+  let source = isValidTimeZone(prefs.source) ? prefs.source : defaultSource;
+  let zones = normalizeZones(prefs.zones, 24, defaultZones);
 
   function fillZoneSelect(select: HTMLSelectElement, selected?: string) {
     const common = document.createElement('optgroup');
-    common.label = '常用城市';
+    common.label = s.commonGroup;
     const seen = new Set<string>();
-    for (const zone of Object.keys(ZONE_LABELS)) {
-      const label = ZONE_LABELS[zone];
-      if (seen.has(label) || !allZones.includes(zone)) continue;
-      seen.add(label);
-      common.append(new Option(`${label}（${zone}）`, zone));
+    for (const zone of Object.keys(labels)) {
+      const name = labels[zone];
+      if (seen.has(name) || !allZones.includes(zone)) continue;
+      seen.add(name);
+      common.append(new Option(t(s.commonOption, { label: name, zone }), zone));
     }
     const rest = document.createElement('optgroup');
-    rest.label = '所有時區';
+    rest.label = s.allGroup;
     for (const zone of allZones) rest.append(new Option(zone.replace(/_/g, ' '), zone));
     select.replaceChildren(common, rest);
     if (selected) select.value = selected;
+  }
+
+  /** Wall clock text: 24-hour "14:30", or the locale's 12-hour form ("2:30 PM") where that is the habit. */
+  function clockText(instant: number, zone: string, z: ZonedTime): string {
+    if (!s.hour12) return `${pad(z.hour)}:${pad(z.minute)}`;
+    return new Intl.DateTimeFormat(intl, { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
+  }
+
+  function dateText(instant: number, zone: string, z: ZonedTime): string {
+    if (s.weekdays && s.dateTpl) return t(s.dateTpl, { m: z.month, d: z.day, w: s.weekdays[z.weekday] });
+    return new Intl.DateTimeFormat(intl, { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' }).format(instant);
   }
 
   function setNow() {
@@ -94,44 +134,44 @@
   }
 
   function persist() {
-    savePref('timezone-converter', { source, zones } satisfies Prefs);
+    savePref(prefKey, { source, zones } satisfies Prefs);
   }
 
   function formatDiff(hours: number): string {
-    if (hours === 0) return '與來源同時間';
-    return `${hours > 0 ? '快' : '慢'} ${formatNumber(Math.abs(hours), 2)} 小時`;
+    if (hours === 0) return s.same;
+    return plural(locale, Math.abs(hours), hours > 0 ? s.ahead : s.behind);
   }
 
   function card(zone: string, instant: number, base: ZonedTime): HTMLLIElement {
-    const t = instantToZoned(instant, zone);
-    const shift = dayShift(base, t);
+    const z = instantToZoned(instant, zone);
+    const shift = dayShift(base, z);
     const li = document.createElement('li');
     li.className = 'tz-card';
     if (zone === source) li.dataset.source = '';
-    if (t.hour < 7 || t.hour >= 22) li.dataset.night = '';
+    if (z.hour < 7 || z.hour >= 22) li.dataset.night = '';
 
     const info = document.createElement('div');
     info.className = 'tz-info';
     const name = document.createElement('div');
     name.className = 'tz-name';
-    name.textContent = zoneLabel(zone);
+    name.textContent = label(zone);
     const meta = document.createElement('div');
     meta.className = 'tz-meta';
-    meta.textContent = [zone, formatOffset(t.offset), isDST(instant, zone) ? '夏令時間' : ''].filter(Boolean).join(' · ');
+    meta.textContent = [zone, formatOffset(z.offset), isDST(instant, zone) ? s.dst : ''].filter(Boolean).join(' · ');
     info.append(name, meta);
 
     const time = document.createElement('div');
     time.className = 'tz-time';
     const clock = document.createElement('div');
     clock.className = 'tz-clock';
-    clock.textContent = `${pad(t.hour)}:${pad(t.minute)}`;
+    clock.textContent = clockText(instant, zone, z);
     const date = document.createElement('div');
     date.className = 'tz-date';
     const tags = [
-      `${t.month}/${t.day}（${WEEKDAY[t.weekday]}）`,
-      shift < 0 ? '前一天' : shift > 0 ? '隔天' : '',
-      li.dataset.night === undefined ? '' : '夜間',
-      zone === source ? '來源' : formatDiff(hourDifference(instant, source, zone)),
+      dateText(instant, zone, z),
+      shift < 0 ? s.prevDay : shift > 0 ? s.nextDay : '',
+      li.dataset.night === undefined ? '' : s.night,
+      zone === source ? s.sourceTag : formatDiff(hourDifference(instant, source, zone)),
     ];
     date.textContent = tags.filter(Boolean).join(' · ');
     time.append(clock, date);
@@ -142,16 +182,16 @@
       const use = document.createElement('button');
       use.type = 'button';
       use.className = 'btn small ghost';
-      use.textContent = '設為來源';
+      use.textContent = s.useAsSource;
       use.dataset.use = zone;
       actions.append(use);
     }
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'btn small ghost';
-    remove.textContent = '移除';
+    remove.textContent = s.remove;
     remove.dataset.remove = zone;
-    remove.setAttribute('aria-label', `移除${zoneLabel(zone)}`);
+    remove.setAttribute('aria-label', t(s.removeAria, { label: label(zone) }));
     actions.append(remove);
 
     li.append(info, time, actions);
@@ -162,7 +202,7 @@
     persist();
     const wall = parseWallTime(whenInput.value);
     if (!wall) {
-      utcLine.textContent = '請選擇日期與時間';
+      utcLine.textContent = s.pickDate;
       status.hidden = true;
       list.replaceChildren();
       return;
@@ -170,17 +210,18 @@
     const { instant, status: kind } = zonedToInstant(wall, source);
     const base = instantToZoned(instant, source);
     const u = new Date(instant);
-    utcLine.textContent = `${zoneLabel(source)} ${formatOffset(base.offset)}，對應 UTC 時間 ${u.getUTCFullYear()}-${pad(u.getUTCMonth() + 1)}-${pad(u.getUTCDate())} ${pad(u.getUTCHours())}:${pad(u.getUTCMinutes())}`;
+    utcLine.textContent = t(s.utcLine, {
+      label: label(source),
+      offset: formatOffset(base.offset),
+      utc: `${u.getUTCFullYear()}-${pad(u.getUTCMonth() + 1)}-${pad(u.getUTCDate())} ${pad(u.getUTCHours())}:${pad(u.getUTCMinutes())}`,
+    });
     status.hidden = kind === 'ok';
-    status.textContent =
-      kind === 'gap'
-        ? `這個時間因夏令時間開始而不存在，已順延為 ${pad(base.hour)}:${pad(base.minute)}。`
-        : '這個時間因夏令時間結束會出現兩次，以下以第一次（夏令時間）計算。';
+    status.textContent = kind === 'gap' ? t(s.gap, { time: clockText(instant, source, base) }) : s.ambiguous;
     list.replaceChildren(...zones.map((zone) => card(zone, instant, base)));
     if (zones.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'notice';
-      empty.textContent = '目前沒有要比較的時區，請從下方加入。';
+      empty.textContent = s.empty;
       list.append(empty);
     }
   }
@@ -204,7 +245,7 @@
     render();
   });
   $('#tz-reset', root).addEventListener('click', () => {
-    zones = [...DEFAULT_ZONES];
+    zones = [...defaultZones];
     render();
   });
   list.addEventListener('click', (event) => {

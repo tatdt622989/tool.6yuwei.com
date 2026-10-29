@@ -8,7 +8,13 @@ export interface DecodedJwt {
   payloadJson: string;
 }
 
-export type DecodeResult = { ok: true; jwt: DecodedJwt } | { ok: false; error: string };
+/** Why a token could not be decoded; `error` is the zh-TW message. */
+export type DecodeErrorCode = 'empty' | 'jwe' | 'segments' | 'header' | 'payload';
+
+export type DecodeResult =
+  | { ok: true; jwt: DecodedJwt }
+  /** `segments` is set for 'segments' (the number of dot-separated parts found). */
+  | { ok: false; code: DecodeErrorCode; error: string; segments?: number };
 
 export function base64UrlToBytes(segment: string): Uint8Array | null {
   const b64 = segment.replace(/-/g, '+').replace(/_/g, '/');
@@ -44,10 +50,17 @@ function segmentText(segment: string): string | null {
 
 export function decodeJwt(input: string): DecodeResult {
   const token = input.trim().replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
-  if (token === '') return { ok: false, error: '請貼上 JWT' };
+  if (token === '') return { ok: false, code: 'empty', error: '請貼上 JWT' };
   const parts = token.split('.');
-  if (parts.length === 5) return { ok: false, error: '這是 5 段式的加密 JWT（JWE），內容已加密，需要金鑰才能解開。' };
-  if (parts.length !== 3) return { ok: false, error: `JWT 應由三段以「.」分隔的字串組成，目前有 ${parts.length} 段。` };
+  if (parts.length === 5) return { ok: false, code: 'jwe', error: '這是 5 段式的加密 JWT（JWE），內容已加密，需要金鑰才能解開。' };
+  if (parts.length !== 3) {
+    return {
+      ok: false,
+      code: 'segments',
+      error: `JWT 應由三段以「.」分隔的字串組成，目前有 ${parts.length} 段。`,
+      segments: parts.length,
+    };
+  }
 
   const [h, p, signature] = parts;
   const headerText = segmentText(h);
@@ -58,11 +71,11 @@ export function decodeJwt(input: string): DecodeResult {
     header = null;
   }
   if (header === null || typeof header !== 'object' || Array.isArray(header)) {
-    return { ok: false, error: '第一段標頭（Header）不是有效的 Base64URL 編碼 JSON 物件。' };
+    return { ok: false, code: 'header', error: '第一段標頭（Header）不是有效的 Base64URL 編碼 JSON 物件。' };
   }
 
   const payloadText = segmentText(p);
-  if (payloadText === null) return { ok: false, error: '第二段酬載（Payload）不是有效的 Base64URL 編碼。' };
+  if (payloadText === null) return { ok: false, code: 'payload', error: '第二段酬載（Payload）不是有效的 Base64URL 編碼。' };
   let payload: unknown = payloadText;
   let payloadIsJson = false;
   try {
@@ -125,24 +138,35 @@ export function timeClaimValue(payload: unknown, name: string): number | undefin
   return numericClaim(payload, name);
 }
 
-const UNITS: [number, string][] = [
-  [86400, '天'],
-  [3600, '小時'],
-  [60, '分'],
-  [1, '秒'],
+export type DurationUnit = 'day' | 'hour' | 'minute' | 'second';
+
+const UNITS: [number, DurationUnit][] = [
+  [86400, 'day'],
+  [3600, 'hour'],
+  [60, 'minute'],
+  [1, 'second'],
 ];
 
-/** "2 天 3 小時", "5 分 10 秒": the largest unit plus the next one when non-zero. */
-export function formatDuration(seconds: number): string {
+const ZH_UNIT: Record<DurationUnit, string> = { day: '天', hour: '小時', minute: '分', second: '秒' };
+
+/** The largest unit plus the next one when non-zero: 2 d 3 h → [{2,'day'},{3,'hour'}]; 0 → [{0,'second'}]. */
+export function durationParts(seconds: number): { n: number; unit: DurationUnit }[] {
   const s = Math.round(Math.abs(seconds));
-  if (s === 0) return '0 秒';
+  if (s === 0) return [{ n: 0, unit: 'second' }];
   const i = UNITS.findIndex(([size]) => s >= size);
-  const [size, label] = UNITS[i];
-  const parts = [`${Math.floor(s / size)} ${label}`];
+  const [size, unit] = UNITS[i];
+  const parts = [{ n: Math.floor(s / size), unit }];
   const next = UNITS[i + 1];
   if (next) {
     const rest = Math.floor((s % size) / next[0]);
-    if (rest > 0) parts.push(`${rest} ${next[1]}`);
+    if (rest > 0) parts.push({ n: rest, unit: next[1] });
   }
-  return parts.join(' ');
+  return parts;
+}
+
+/** "2 天 3 小時", "5 分 10 秒" (zh-TW). Other languages format durationParts() themselves. */
+export function formatDuration(seconds: number): string {
+  return durationParts(seconds)
+    .map(({ n, unit }) => `${n} ${ZH_UNIT[unit]}`)
+    .join(' ');
 }

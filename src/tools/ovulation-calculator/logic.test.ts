@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cycleAt, dayKind, monthGrid, monthsCovered, predictCycles, todayStatus, validateCycleInput, type CycleInput } from './logic';
+import { cycleAt, cycleInputError, dayKind, monthGrid, monthsCovered, predictCycles, todayStatus, validateCycleInput, type CycleInput } from './logic';
 
 const today = { y: 2026, m: 10, d: 29 };
 const input: CycleInput = { lastStart: { y: 2026, m: 10, d: 20 }, cycle: 28, period: 5, count: 3 };
@@ -37,6 +37,15 @@ describe('predictCycles', () => {
     expect(predictCycles({ ...input, cycle: 15 }, today)).toEqual([]);
     expect(validateCycleInput({ ...input, period: 12 }, today)).toMatch(/經期/);
     expect(validateCycleInput({ ...input, lastStart: { y: 2026, m: 11, d: 1 } }, today)).toMatch(/晚於今天/);
+  });
+
+  it('returns locale-neutral error codes', () => {
+    expect(cycleInputError({ ...input, cycle: 15 }, today)).toBe('cycle');
+    expect(cycleInputError({ ...input, cycle: 28.5 }, today)).toBe('cycle');
+    expect(cycleInputError({ ...input, period: 12 }, today)).toBe('period');
+    expect(cycleInputError({ ...input, lastStart: { y: 2026, m: 11, d: 1 } }, today)).toBe('future');
+    expect(cycleInputError(input, today)).toBeNull();
+    expect(validateCycleInput({ ...input, cycle: 50 }, today)).toBe('月經週期請輸入 21 到 45 的整數天數。');
   });
 });
 

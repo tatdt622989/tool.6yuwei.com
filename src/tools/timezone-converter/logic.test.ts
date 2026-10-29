@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import i18n from './i18n';
 import {
+  buildDefaultZones,
   dayShift,
   DEFAULT_ZONES,
   formatOffset,
@@ -150,5 +152,51 @@ describe('zone lists', () => {
   it('labels zones in Chinese with a readable fallback', () => {
     expect(zoneLabel('Asia/Taipei')).toBe('台北');
     expect(zoneLabel('America/Argentina/Buenos_Aires')).toBe('Buenos Aires');
+  });
+
+  it('normalises with a locale fallback list', () => {
+    expect(normalizeZones(undefined, 24, ['Asia/Tokyo', 'Europe/London'])).toEqual(['Asia/Tokyo', 'Europe/London']);
+  });
+
+  it('labels zones with a locale label map', () => {
+    const en = i18n.en!.client.preset!.labels;
+    const ja = i18n.ja!.client.preset!.labels;
+    expect(zoneLabel('America/New_York', en)).toBe('New York (Eastern)');
+    expect(zoneLabel('Asia/Tokyo', ja)).toBe('東京');
+    expect(zoneLabel('America/Argentina/Buenos_Aires', ja)).toBe('Buenos Aires');
+  });
+});
+
+describe('buildDefaultZones', () => {
+  const en = ['America/Los_Angeles', 'America/New_York', 'Europe/London', 'Asia/Tokyo'];
+
+  it('puts the viewer zone first (en) without duplicates', () => {
+    expect(buildDefaultZones(en, 'America/Chicago', 'first')).toEqual(['America/Chicago', ...en]);
+    expect(buildDefaultZones(en, 'America/New_York', 'first')).toEqual([
+      'America/New_York',
+      'America/Los_Angeles',
+      'Europe/London',
+      'Asia/Tokyo',
+    ]);
+  });
+
+  it('appends the viewer zone last (ja) only when missing', () => {
+    const ja = ['Asia/Tokyo', 'America/New_York'];
+    expect(buildDefaultZones(ja, 'Asia/Tokyo', 'last')).toEqual(ja);
+    expect(buildDefaultZones(ja, 'Europe/Berlin', 'last')).toEqual([...ja, 'Europe/Berlin']);
+  });
+
+  it('ignores missing or invalid viewer zones and invalid presets', () => {
+    expect(buildDefaultZones(en, undefined, 'first')).toEqual(en);
+    expect(buildDefaultZones(en, 'Mars/Olympus', 'first')).toEqual(en);
+    expect(buildDefaultZones(['Asia/Tokyo', 'bad/zone', 'Asia/Tokyo'], 'Europe/Paris')).toEqual(['Asia/Tokyo']);
+  });
+
+  it('every locale preset zone is valid', () => {
+    for (const dict of [i18n.en!, i18n.ja!]) {
+      const preset = dict.client.preset!;
+      for (const z of preset.zones) expect(isValidTimeZone(z), z).toBe(true);
+      for (const z of preset.zones) expect(preset.labels[z], z).toBeTruthy();
+    }
   });
 });

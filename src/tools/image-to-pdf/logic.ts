@@ -41,6 +41,14 @@ export interface LayoutOptions {
 }
 
 /**
+ * Starting options for a market: A4 for zh-TW / ja (ISO paper), US Letter for en.
+ * Saved preferences override this.
+ */
+export function defaultLayout(size: Exclude<PageSizeId, 'fit'> = 'a4'): LayoutOptions {
+  return { size, orientation: 'auto', margin: 'small' };
+}
+
+/**
  * Lays out one image (given in its upright, displayed pixel size) on a page.
  * Fixed paper sizes scale the image to fit inside the margins, keep its aspect
  * ratio and centre it. "fit" makes the page exactly the image size plus margins.

@@ -1,48 +1,61 @@
-<div class="tool" data-tool="uuid-generator">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="uuid-generator" {...i18nAttrs(locale, s.client)}>
   <div class="row uu-controls">
-    <div class="seg" role="radiogroup" aria-label="UUID 版本">
-      <label><input type="radio" name="uu-version" value="v4" checked /><span>v4 隨機</span></label>
-      <label><input type="radio" name="uu-version" value="v7" /><span>v7 時間排序</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.versionAria}>
+      <label><input type="radio" name="uu-version" value="v4" checked /><span>{s.v4}</span></label>
+      <label><input type="radio" name="uu-version" value="v7" /><span>{s.v7}</span></label>
     </div>
     <label class="uu-count">
-      <span>數量</span>
+      <span>{s.count}</span>
       <input id="uu-count" type="number" min="1" max="100" step="1" value="5" inputmode="numeric" />
     </label>
   </div>
 
   <div class="row">
-    <label class="check"><input type="checkbox" id="uu-upper" /> 大寫</label>
-    <label class="check"><input type="checkbox" id="uu-nohyphen" /> 移除連字號</label>
+    <label class="check"><input type="checkbox" id="uu-upper" /> {s.uppercase}</label>
+    <label class="check"><input type="checkbox" id="uu-nohyphen" /> {s.noHyphens}</label>
   </div>
 
   <div class="field">
-    <label for="uu-output">產生結果</label>
+    <label for="uu-output">{s.outputLabel}</label>
     <textarea id="uu-output" class="mono" rows="6" readonly spellcheck="false"></textarea>
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" id="uu-generate">重新產生</button>
-    <button class="btn" type="button" data-copy="#uu-output">複製全部</button>
-    <button class="btn ghost" type="button" id="uu-download">下載 .txt</button>
+    <button class="btn primary" type="button" id="uu-generate">{s.generate}</button>
+    <button class="btn" type="button" data-copy="#uu-output">{s.copyAll}</button>
+    <button class="btn ghost" type="button" id="uu-download">{s.download}</button>
   </div>
 
   <hr class="uu-sep" />
 
   <div class="field">
-    <label for="uu-parse">解析 UUID</label>
-    <input id="uu-parse" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder="貼上一個 UUID 查看版本與時間" />
+    <label for="uu-parse">{s.parseLabel}</label>
+    <input id="uu-parse" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder={s.parsePlaceholder} />
   </div>
   <div id="uu-parse-error" class="notice error" hidden></div>
   <div class="stats" id="uu-info" hidden>
-    <div class="stat"><span class="stat-value" id="uu-info-version"></span><span class="stat-label">版本</span></div>
-    <div class="stat"><span class="stat-value" id="uu-info-variant"></span><span class="stat-label">變體（Variant）</span></div>
-    <div class="stat" id="uu-info-time-wrap"><span class="stat-value" id="uu-info-time"></span><span class="stat-label">內含的建立時間（本地時間）</span></div>
+    <div class="stat"><span class="stat-value" id="uu-info-version"></span><span class="stat-label">{s.versionStat}</span></div>
+    <div class="stat"><span class="stat-value" id="uu-info-variant"></span><span class="stat-label">{s.variantStat}</span></div>
+    <div class="stat" id="uu-info-time-wrap"><span class="stat-value" id="uu-info-time"></span><span class="stat-label">{s.timeStat}</span></div>
   </div>
 </div>
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { LOCALE_INFO } from '../../i18n/locales';
   import { clampCount, createV7Generator, formatUuid, parseUuid, uuidV4, type UuidVersion } from './logic';
+  import type { Strings } from './i18n';
 
   interface Prefs {
     version: UuidVersion;
@@ -52,6 +65,7 @@
   }
 
   const root = $('[data-tool="uuid-generator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const output = $<HTMLTextAreaElement>('#uu-output', root);
   const count = $<HTMLInputElement>('#uu-count', root);
   const upper = $<HTMLInputElement>('#uu-upper', root);
@@ -108,7 +122,7 @@
   const parseError = $('#uu-parse-error', root);
   const info = $('#uu-info', root);
   const timeWrap = $('#uu-info-time-wrap', root);
-  const dateFmt = new Intl.DateTimeFormat('zh-TW', { dateStyle: 'medium', timeStyle: 'medium' });
+  const dateFmt = new Intl.DateTimeFormat(LOCALE_INFO[locale].intl, { dateStyle: 'medium', timeStyle: 'medium' });
 
   parseInput.addEventListener('input', () => {
     parseError.hidden = true;
@@ -116,17 +130,24 @@
     if (parseInput.value.trim() === '') return;
     const result = parseUuid(parseInput.value);
     if (!result.ok) {
-      parseError.textContent = result.error;
+      parseError.textContent = s.invalid;
       parseError.hidden = false;
       return;
     }
-    const { label, variant, timestamp } = result.info;
-    $('#uu-info-version', root).textContent = label;
-    $('#uu-info-variant', root).textContent = variant;
+    const { version, variantKind, timestamp } = result.info;
+    $('#uu-info-version', root).textContent =
+      variantKind === 'none'
+        ? version === 0
+          ? s.nil
+          : s.max
+        : (s.versions[version] ?? t(s.unknownVersion, { v: version }));
+    $('#uu-info-variant', root).textContent = s.variants[variantKind];
     timeWrap.hidden = timestamp === undefined;
     if (timestamp !== undefined) {
       const ms = timestamp % 1000;
-      $('#uu-info-time', root).textContent = `${dateFmt.format(new Date(timestamp))}.${String(ms).padStart(3, '0')}`;
+      $('#uu-info-time', root).textContent = s.timeOptions
+        ? new Intl.DateTimeFormat(LOCALE_INFO[locale].intl, s.timeOptions).format(new Date(timestamp))
+        : `${dateFmt.format(new Date(timestamp))}.${String(ms).padStart(3, '0')}`;
     }
     info.hidden = false;
   });

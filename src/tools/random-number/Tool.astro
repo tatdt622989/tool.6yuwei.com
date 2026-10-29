@@ -1,89 +1,94 @@
-<div class="tool" data-tool="random-number">
-  <div class="seg" role="radiogroup" aria-label="模式">
-    <label><input type="radio" name="rn-mode" value="number" checked /><span>亂數</span></label>
-    <label><input type="radio" name="rn-mode" value="dice" /><span>擲骰子</span></label>
-    <label><input type="radio" name="rn-mode" value="coin" /><span>擲硬幣</span></label>
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const dec = s.decimalOptions;
+/** Label text before an inline <select>, with the same surrounding whitespace the markup had before i18n. */
+const inline = (text: string) => `\n${text}\n`;
+---
+
+<div class="tool" data-tool="random-number" {...i18nAttrs(locale, s.client)}>
+  <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+    <label><input type="radio" name="rn-mode" value="number" checked /><span>{s.modes.number}</span></label>
+    <label><input type="radio" name="rn-mode" value="dice" /><span>{s.modes.dice}</span></label>
+    <label><input type="radio" name="rn-mode" value="coin" /><span>{s.modes.coin}</span></label>
   </div>
 
   <form class="rn-panel" data-panel="number" id="rn-number-form">
     <div class="grid-4">
       <div class="field">
-        <label for="rn-min">最小值</label>
+        <label for="rn-min">{s.min}</label>
         <input id="rn-min" type="text" inputmode="decimal" value="1" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="rn-max">最大值</label>
+        <label for="rn-max">{s.max}</label>
         <input id="rn-max" type="text" inputmode="decimal" value="100" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="rn-count">數量</label>
+        <label for="rn-count">{s.count}</label>
         <input id="rn-count" type="number" min="1" max="10000" step="1" value="1" inputmode="numeric" />
       </div>
       <div class="field">
-        <label for="rn-decimals">小數位數</label>
+        <label for="rn-decimals">{s.decimals}</label>
         <select id="rn-decimals">
-          <option value="0">整數</option>
-          <option value="1">1 位</option>
-          <option value="2">2 位</option>
-          <option value="3">3 位</option>
-          <option value="4">4 位</option>
-          <option value="5">5 位</option>
-          <option value="6">6 位</option>
+          <option value="0">{dec[0]}</option>
+          <option value="1">{dec[1]}</option>
+          <option value="2">{dec[2]}</option>
+          <option value="3">{dec[3]}</option>
+          <option value="4">{dec[4]}</option>
+          <option value="5">{dec[5]}</option>
+          <option value="6">{dec[6]}</option>
         </select>
       </div>
     </div>
     <div class="row rn-options">
-      <label class="check"><input id="rn-unique" type="checkbox" /> 不重複</label>
-      <label class="rn-inline" for="rn-sort">
-        排序
-        <select id="rn-sort">
-          <option value="none">不排序</option>
-          <option value="asc">由小到大</option>
-          <option value="desc">由大到小</option>
+      <label class="check"><input id="rn-unique" type="checkbox" /> {s.unique}</label>
+      <label class="rn-inline" for="rn-sort">{inline(s.sort)}<select id="rn-sort">
+          <option value="none">{s.sortNone}</option>
+          <option value="asc">{s.sortAsc}</option>
+          <option value="desc">{s.sortDesc}</option>
         </select>
       </label>
-      <label class="rn-inline" for="rn-sep">
-        分隔
-        <select id="rn-sep">
-          <option value="newline">換行</option>
-          <option value="comma">逗號</option>
-          <option value="space">空白</option>
+      <label class="rn-inline" for="rn-sep">{inline(s.separator)}<select id="rn-sep">
+          <option value="newline">{s.sepNewline}</option>
+          <option value="comma">{s.sepComma}</option>
+          <option value="space">{s.sepSpace}</option>
         </select>
       </label>
     </div>
     <div class="row">
-      <span class="hint">快速設定：</span>
-      <button class="btn small" type="button" data-preset="1,10,1,0">1–10</button>
-      <button class="btn small" type="button" data-preset="1,100,1,0">1–100</button>
-      <button class="btn small" type="button" data-preset="1,49,6,1">大樂透 6 碼</button>
-      <button class="btn small" type="button" data-preset="0,1,1,0,2">0–1（2 位小數）</button>
+      <span class="hint">{s.presetsLabel}</span>
+      {s.presets.map((p, i) => <Fragment>{i > 0 && ' '}<button class="btn small" type="button" data-preset={p.preset} data-bonus={p.bonus} data-bonus-label={p.bonusLabel}>{p.label}</button></Fragment>)}
     </div>
     <div class="row">
-      <button class="btn primary" type="submit">產生亂數</button>
+      <button class="btn primary" type="submit">{s.generate}</button>
     </div>
   </form>
 
   <form class="rn-panel" data-panel="dice" id="rn-dice-form" hidden>
     <div class="row">
       <div class="field rn-num">
-        <label for="rn-dice-count">骰子數量</label>
+        <label for="rn-dice-count">{s.diceCount}</label>
         <input id="rn-dice-count" type="number" min="1" max="10" step="1" value="2" inputmode="numeric" />
       </div>
     </div>
     <div class="row">
-      <button class="btn primary" type="submit">擲骰子</button>
+      <button class="btn primary" type="submit">{s.rollDice}</button>
     </div>
   </form>
 
   <form class="rn-panel" data-panel="coin" id="rn-coin-form" hidden>
     <div class="row">
       <div class="field rn-num">
-        <label for="rn-coin-count">擲幾次</label>
+        <label for="rn-coin-count">{s.coinCount}</label>
         <input id="rn-coin-count" type="number" min="1" max="1000" step="1" value="1" inputmode="numeric" />
       </div>
     </div>
     <div class="row">
-      <button class="btn primary" type="submit">擲硬幣</button>
+      <button class="btn primary" type="submit">{s.flipCoin}</button>
     </div>
   </form>
 
@@ -92,14 +97,17 @@
   <div class="rn-result" id="rn-result" aria-live="polite"></div>
 
   <div class="row">
-    <button class="btn" type="button" id="rn-copy" disabled>複製結果</button>
+    <button class="btn" type="button" id="rn-copy" disabled>{s.copy}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
   import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
-  import { COIN_LABEL, dicePips, flipCoins, formatValue, generateNumbers, rollDice, type SortOrder } from './logic';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import { dicePips, flipCoins, formatValue, generateNumbers, parsePreset, rollDice, type Preset, type SortOrder } from './logic';
+  import type { Strings } from './i18n';
 
   type Mode = 'number' | 'dice' | 'coin';
   type Separator = 'newline' | 'comma' | 'space';
@@ -132,6 +140,7 @@
   const SEPARATOR: Record<Separator, string> = { newline: '\n', comma: ', ', space: ' ' };
 
   const root = $('[data-tool="random-number"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const minInput = $<HTMLInputElement>('#rn-min', root);
   const maxInput = $<HTMLInputElement>('#rn-max', root);
   const countInput = $<HTMLInputElement>('#rn-count', root);
@@ -147,6 +156,10 @@
   const panels = $$<HTMLElement>('[data-panel]', root);
 
   let lastValues: string[] = [];
+  /** Lottery second-zone line shown under the list ('' when none); copied after the main numbers. */
+  let bonusText = '';
+  /** Second zone of the active lottery preset (e.g. the Powerball); cleared when the user edits the range. */
+  let bonus: { spec: Preset; label: string } | null = null;
 
   const mode = () => $<HTMLInputElement>('input[name="rn-mode"]:checked', root).value as Mode;
   const intValue = (input: HTMLInputElement, fallback: number) => {
@@ -196,8 +209,9 @@
     return node;
   }
 
-  function finish(values: string[]) {
+  function finish(values: string[], extra = '') {
     lastValues = values;
+    bonusText = extra;
     copyBtn.disabled = values.length === 0;
     // Restart the reveal animation (disabled by CSS under prefers-reduced-motion).
     result.classList.remove('is-new');
@@ -217,7 +231,14 @@
       sort: p.sort,
     });
     if (!outcome.ok) {
-      showError(outcome.error);
+      const vars = outcome.vars;
+      showError(
+        t(s.errors[outcome.code], {
+          max: formatInteger(vars.max ?? 0, locale),
+          size: formatInteger(vars.size ?? 0, locale),
+          count: formatInteger(vars.count ?? 0, locale),
+        }),
+      );
       result.replaceChildren();
       finish([]);
       return;
@@ -232,10 +253,10 @@
       const sum = nums.reduce((a, b) => a + b, 0);
       const stats = el('div', 'stats');
       for (const [label, value] of [
-        ['個數', formatInteger(nums.length)],
-        ['最小', formatNumber(Math.min(...nums), p.decimals)],
-        ['最大', formatNumber(Math.max(...nums), p.decimals)],
-        ['平均', formatNumber(sum / nums.length, Math.max(2, p.decimals))],
+        [s.statCount, formatInteger(nums.length, locale)],
+        [s.statMin, formatNumber(Math.min(...nums), p.decimals, locale)],
+        [s.statMax, formatNumber(Math.max(...nums), p.decimals, locale)],
+        [s.statMean, formatNumber(sum / nums.length, Math.max(2, p.decimals), locale)],
       ]) {
         const stat = el('div', 'stat');
         stat.append(el('span', 'stat-value', value), el('span', 'stat-label', label));
@@ -243,7 +264,15 @@
       }
       result.replaceChildren(out, stats);
     }
-    finish(values);
+    let extraText = '';
+    if (bonus && s.bonus) {
+      const extra = generateNumbers({ ...bonus.spec, sort: 'asc' });
+      if (extra.ok) {
+        extraText = t(s.bonus, { label: bonus.label, n: extra.values.join(', ') });
+        result.querySelector('.rn-list, .rn-big')?.after(el('p', 'rn-bonus', extraText));
+      }
+    }
+    finish(values, extraText);
   }
 
   function runDice() {
@@ -255,7 +284,7 @@
     for (const face of roll.values) {
       const die = el('div', 'rn-die');
       die.setAttribute('role', 'img');
-      die.setAttribute('aria-label', `${face} 點`);
+      die.setAttribute('aria-label', t(s.dieFace, { n: face }));
       const pips = new Set(dicePips(face));
       for (let i = 0; i < 9; i++) die.append(el('span', pips.has(i) ? 'rn-pip' : ''));
       row.append(die);
@@ -263,7 +292,7 @@
     const summary = el(
       'p',
       'rn-summary',
-      roll.values.length > 1 ? `${roll.values.join(' + ')} = ${roll.sum}` : `${roll.sum} 點`,
+      roll.values.length > 1 ? `${roll.values.join(' + ')} = ${roll.sum}` : t(s.singleDie, { n: roll.sum }),
     );
     result.replaceChildren(row, summary);
     finish(roll.values.map(String));
@@ -274,24 +303,24 @@
     savePref('random-number', p);
     showError('');
     const flips = flipCoins(p.coins);
-    const labels = flips.values.map((v) => COIN_LABEL[v]);
+    const labels = flips.values.map((v) => s.coin[v]);
     if (labels.length === 1) {
       const coin = el('div', `rn-coin is-${flips.values[0]}`, labels[0]);
       result.replaceChildren(coin);
     } else {
       const stats = el('div', 'stats');
       for (const [label, n] of [
-        ['正面', flips.heads],
-        ['反面', flips.tails],
+        [s.coin.heads, flips.heads],
+        [s.coin.tails, flips.tails],
       ] as const) {
         const stat = el('div', 'stat');
         stat.append(
-          el('span', 'stat-value', `${formatInteger(n)} 次`),
-          el('span', 'stat-label', `${label}（${formatNumber((n / labels.length) * 100, 1)}%）`),
+          el('span', 'stat-value', t(s.times, { n: formatInteger(n, locale) })),
+          el('span', 'stat-label', t(s.share, { label, pct: formatNumber((n / labels.length) * 100, 1, locale) })),
         );
         stats.append(stat);
       }
-      result.replaceChildren(stats, el('div', 'output rn-list', labels.join('、')));
+      result.replaceChildren(stats, el('div', 'output rn-list', labels.join(s.listSep)));
     }
     finish(labels);
   }
@@ -314,6 +343,7 @@
     });
   }
   for (const radio of $$<HTMLInputElement>('input[name="rn-mode"]', root)) radio.addEventListener('change', switchMode);
+  for (const input of [minInput, maxInput, countInput, decimals, unique]) input.addEventListener('input', () => (bonus = null));
   sep.addEventListener('change', () => {
     const list = result.querySelector('.rn-list');
     if (list && mode() === 'number') list.textContent = lastValues.join(SEPARATOR[sep.value as Separator]);
@@ -321,20 +351,24 @@
   });
   for (const button of $$<HTMLButtonElement>('[data-preset]', root)) {
     button.addEventListener('click', () => {
-      const [min, max, count, uniq, dec = '0'] = button.dataset.preset!.split(',');
-      minInput.value = min;
-      maxInput.value = max;
-      countInput.value = count;
-      unique.checked = uniq === '1';
-      decimals.value = dec;
-      if (uniq === '1') sort.value = 'asc';
+      const preset = parsePreset(button.dataset.preset ?? '');
+      if (!preset) return;
+      minInput.value = String(preset.min);
+      maxInput.value = String(preset.max);
+      countInput.value = String(preset.count);
+      unique.checked = preset.unique;
+      decimals.value = String(preset.decimals);
+      if (preset.unique) sort.value = 'asc';
+      const extra = parsePreset(button.dataset.bonus ?? '');
+      bonus = extra ? { spec: extra, label: button.dataset.bonusLabel ?? '' } : null;
       runNumbers();
     });
   }
   copyBtn.addEventListener('click', async () => {
     if (lastValues.length === 0) return;
-    const separator = mode() === 'number' ? SEPARATOR[sep.value as Separator] : mode() === 'coin' ? '、' : ' ';
-    if (await copyText(lastValues.join(separator))) flashButton(copyBtn);
+    const separator = mode() === 'number' ? SEPARATOR[sep.value as Separator] : mode() === 'coin' ? s.listSep : ' ';
+    const text = lastValues.join(separator) + (bonusText ? `${separator}${bonusText}` : '');
+    if (await copyText(text)) flashButton(copyBtn);
   });
 
   switchMode();
@@ -409,6 +443,12 @@
     height: 12px;
     border-radius: 50%;
     background: var(--text);
+  }
+  .rn-result :global(.rn-bonus) {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
   .rn-result :global(.rn-summary) {
     margin: 0;

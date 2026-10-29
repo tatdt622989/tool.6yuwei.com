@@ -3,6 +3,7 @@ import Wordmark from './Wordmark.astro';
 import { getBrand, site } from '../config/site';
 import { DEFAULT_LOCALE, localePath, type Locale } from '../i18n/locales';
 import { getUi } from '../i18n/ui';
+import { t } from '../i18n/format';
 import { categoryPath, populatedCategories } from '../tools/registry';
 
 interface Props {
@@ -14,6 +15,7 @@ const brand = getBrand(locale);
 const sentenceEnd = locale === 'en' ? '. ' : '。';
 const year = new Date().getFullYear();
 const link = (path: string) => localePath(locale, path);
+const os = getUi(locale).openSource;
 ---
 
 <footer class="site-footer">
@@ -38,11 +40,15 @@ const link = (path: string) => localePath(locale, path);
           <li><a href={link('/contact/')}>{s.contact}</a></li>
           <li><a href={link('/privacy/')}>{s.privacy}</a></li>
           <li><a href={link('/terms/')}>{s.terms}</a></li>
+          <li><a href={site.repoUrl} rel="noopener">{os.footerLink}</a></li>
           <li><a href={site.blogUrl} rel="noopener" hreflang={locale === 'zh-TW' ? undefined : 'zh-TW'}>{s.blog}</a></li>
         </ul>
       </nav>
     </div>
-    <div class="legal">© {year} {site.author}</div>
+    <div class="legal">
+      © {year} {site.author} · <a href={`${site.repoUrl}/blob/main/LICENSE`} rel="noopener license">{t(os.legal, { license: site.license })}</a>
+      · <a href="/third-party-licenses.txt">{os.notices}</a>
+    </div>
   </div>
 </footer>
 

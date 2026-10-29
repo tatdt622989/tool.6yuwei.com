@@ -8,6 +8,12 @@ export interface WidthClasses {
   /** ASCII symbols and punctuation, plus ¢ £ ¬ ¯ ¦ ¥ ₩ ↔ their full-width forms. */
   symbols: boolean;
   space: boolean;
+  /**
+   * Katakana (Japanese pages): half-width ｶﾀｶﾅ ↔ full-width カタカナ, including voiced marks
+   * (ｶﾞ ↔ ガ, ﾊﾟ ↔ パ, ｳﾞ ↔ ヴ), the long-vowel mark ｰ ↔ ー and the half-width ｡｢｣､･ ↔ 。「」、・.
+   * Optional and off when omitted, so the Chinese page never touches kana.
+   */
+  kana?: boolean;
 }
 
 export type Direction = 'toHalf' | 'toFull';
@@ -61,6 +67,65 @@ export function toFullwidth(text: string, classes: WidthClasses): ConvertResult 
     return EXTRA_TO_FULL.get(ch) ?? String.fromCharCode(ch.charCodeAt(0) + OFFSET);
   });
   return { text: out, changed };
+}
+
+// ---------- Katakana ----------
+
+/** U+FF61–FF9D (｡ … ﾝ) in order, and their full-width counterparts. */
+const HALF_KANA = '｡｢｣､･ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
+const FULL_KANA = '。「」、・ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン';
+const KANA_TO_FULL = new Map(Array.from(HALF_KANA).map((h, i) => [h, FULL_KANA[i]]));
+const KANA_TO_HALF = new Map(Array.from(FULL_KANA).map((f, i) => [f, HALF_KANA[i]]));
+const HALF_VOICED = 'ﾞ'; // U+FF9E
+const HALF_SEMI_VOICED = 'ﾟ'; // U+FF9F
+const COMBINING_VOICED = '\u3099';
+const COMBINING_SEMI_VOICED = '\u309a';
+
+/** Half-width katakana → full-width, joining a following ﾞ / ﾟ into one character (ｶﾞ → ガ). */
+export function kanaToFullwidth(text: string): ConvertResult {
+  let changed = 0;
+  const out = text.replace(/([\uff61-\uff9d])([ﾞﾟ]?)|[ﾞﾟ]/g, (m, base: string | undefined, mark: string) => {
+    changed++;
+    if (!base) return m === HALF_VOICED ? '゛' : '゜';
+    const full = KANA_TO_FULL.get(base) ?? base;
+    if (!mark) return full;
+    const composed = (full + (mark === HALF_VOICED ? COMBINING_VOICED : COMBINING_SEMI_VOICED)).normalize('NFC');
+    // No precomposed form (e.g. ｱﾞ): keep the base and a spacing mark.
+    return composed.length === 1 ? composed : full + (mark === HALF_VOICED ? '゛' : '゜');
+  });
+  return { text: out, changed };
+}
+
+/** Full-width katakana → half-width (ガ → ｶﾞ). Letters with no half-width form (ヵ, ヶ, ヮ, ヰ, ヱ) are kept. */
+export function kanaToHalfwidth(text: string): ConvertResult {
+  let changed = 0;
+  const out = text.replace(/[\u30a1-\u30fa\u30fc。「」、・゛゜]/g, (ch) => {
+    if (ch === '゛' || ch === '゜') {
+      changed++;
+      return ch === '゛' ? HALF_VOICED : HALF_SEMI_VOICED;
+    }
+    const [base, mark] = Array.from(ch.normalize('NFD'));
+    const half = KANA_TO_HALF.get(base);
+    if (!half) return ch;
+    changed++;
+    if (mark === COMBINING_VOICED) return half + HALF_VOICED;
+    if (mark === COMBINING_SEMI_VOICED) return half + HALF_SEMI_VOICED;
+    return half;
+  });
+  return { text: out, changed };
+}
+
+export interface KanaStats {
+  halfKana: number;
+  fullKatakana: number;
+}
+
+/** Half-width katakana letters (marks excluded) and full-width katakana letters in the text. */
+export function kanaStats(text: string): KanaStats {
+  return {
+    halfKana: text.match(/[\uff66-\uff9d]/g)?.length ?? 0,
+    fullKatakana: text.match(/[\u30a1-\u30fa\u30fc]/g)?.length ?? 0,
+  };
 }
 
 // ---------- Punctuation ----------
@@ -208,6 +273,11 @@ export function convertWidth(text: string, options: ConvertOptions): ConvertResu
     const r = enToZhPunctuation(out);
     out = r.text;
     changed += r.changed;
+  }
+  if (options.classes.kana) {
+    const k = options.direction === 'toHalf' ? kanaToHalfwidth(out) : kanaToFullwidth(out);
+    out = k.text;
+    changed += k.changed;
   }
   const r = options.direction === 'toHalf' ? toHalfwidth(out, options.classes) : toFullwidth(out, options.classes);
   return { text: r.text, changed: changed + r.changed };

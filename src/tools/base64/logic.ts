@@ -9,7 +9,10 @@ export interface EncodeOptions {
 
 export type DecodeResult =
   | { ok: true; text: string; bytes: Uint8Array }
-  | { ok: false; error: string; bytes?: Uint8Array };
+  | { ok: false; reason: DecodeFailure; error: string; bytes?: Uint8Array };
+
+/** Why decoding failed: not Base64 at all, or valid Base64 whose bytes are not UTF-8 text. `error` is the zh message. */
+export type DecodeFailure = 'invalid' | 'not-utf8';
 
 export function bytesToBase64(bytes: Uint8Array, options: EncodeOptions = { urlSafe: false, noPadding: false }): string {
   let out = '';
@@ -60,13 +63,14 @@ export function base64ToBytes(input: string): Uint8Array | null {
 export function decodeText(input: string): DecodeResult {
   const bytes = base64ToBytes(input);
   if (!bytes) {
-    return { ok: false, error: '不是有效的 Base64：只能包含 A–Z、a–z、0–9、+ / 或 - _，結尾最多兩個 =。' };
+    return { ok: false, reason: 'invalid', error: '不是有效的 Base64：只能包含 A–Z、a–z、0–9、+ / 或 - _，結尾最多兩個 =。' };
   }
   try {
     return { ok: true, text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), bytes };
   } catch {
     return {
       ok: false,
+      reason: 'not-utf8',
       error: `解碼後的 ${bytes.length} 位元組不是 UTF-8 文字，可能是圖片或其他二進位檔案。`,
       bytes,
     };

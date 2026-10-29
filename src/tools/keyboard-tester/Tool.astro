@@ -1,19 +1,22 @@
 ---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
 import { buildLayout, Q } from './logic';
 
-const layout = buildLayout(true);
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const layout = buildLayout(true, s.client.layout);
 ---
 
-<div class="tool" data-tool="keyboard-tester">
+<div class="tool" data-tool="keyboard-tester" {...i18nAttrs(locale, s.client)}>
   <div class="row between">
-    <label class="check"><input type="checkbox" id="kb-numpad" checked /> 顯示數字鍵盤</label>
+    <label class="check"><input type="checkbox" id="kb-numpad" checked /> {s.numpad}</label>
     <button class="btn small" type="button" id="kb-reset">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
-      重新測試
-    </button>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>{`\n${s.reset}\n`}</button>
   </div>
 
-  <div class="kb-area" id="kb-area" tabindex="0" role="application" aria-label="鍵盤測試區，聚焦後按下任意按鍵" aria-describedby="kb-prompt-text">
+  <div class="kb-area" id="kb-area" tabindex="0" role="application" aria-label={s.areaAria} aria-describedby="kb-prompt-text">
     <div class="kb-wrap">
       <div class="kb-board" id="kb-board" style={`--cols:${layout.columns};--keys:${layout.columns / Q}`}>
         {
@@ -24,6 +27,7 @@ const layout = buildLayout(true);
               data-block={k.block}
               data-label={k.label}
               data-mac={k.macLabel}
+              data-mac-code={k.macCode}
               data-wide={k.w > Q * 1.5 ? '' : undefined}
               style={`grid-column:${k.x + 1} / span ${k.w};grid-row:${k.y + 1} / span ${k.h}`}
             >
@@ -38,51 +42,53 @@ const layout = buildLayout(true);
     </div>
     <div class="kb-prompt" id="kb-prompt">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"></path></svg>
-      <span id="kb-prompt-text">點一下這裡，然後開始按鍵盤</span>
+      <span id="kb-prompt-text">{s.prompt}</span>
     </div>
   </div>
 
   <div class="stats" aria-live="polite">
-    <div class="stat"><span class="stat-value" id="kb-down">0</span><span class="stat-label">目前按住</span></div>
-    <div class="stat"><span class="stat-value" id="kb-max">0</span><span class="stat-label">最多同時按下</span></div>
-    <div class="stat"><span class="stat-value" id="kb-tested">0 / 0</span><span class="stat-label">已測試按鍵</span></div>
-    <div class="stat"><span class="stat-value" id="kb-presses">0</span><span class="stat-label">按鍵次數</span></div>
+    <div class="stat"><span class="stat-value" id="kb-down">0</span><span class="stat-label">{s.statDown}</span></div>
+    <div class="stat"><span class="stat-value" id="kb-max">0</span><span class="stat-label">{s.statMax}</span></div>
+    <div class="stat"><span class="stat-value" id="kb-tested">0 / 0</span><span class="stat-label">{s.statTested}</span></div>
+    <div class="stat"><span class="stat-value" id="kb-presses">0</span><span class="stat-label">{s.statPresses}</span></div>
   </div>
 
   <div class="kb-last" aria-live="polite">
     <div class="kb-last-item"><span class="stat-label">event.key</span><span class="kb-last-value mono" id="kb-key">—</span></div>
     <div class="kb-last-item"><span class="stat-label">event.code</span><span class="kb-last-value mono" id="kb-code">—</span></div>
     <div class="kb-last-item"><span class="stat-label">keyCode</span><span class="kb-last-value mono" id="kb-keycode">—</span></div>
-    <div class="kb-last-item"><span class="stat-label">位置 location</span><span class="kb-last-value" id="kb-location">—</span></div>
+    <div class="kb-last-item"><span class="stat-label">{s.location}</span><span class="kb-last-value" id="kb-location">—</span></div>
   </div>
 
   <p class="notice" id="kb-hint"></p>
 
   <div class="field" id="kb-held-field">
-    <span class="label">目前按住的按鍵</span>
-    <div class="kb-chips" id="kb-held"><span class="muted">（無）</span></div>
+    <span class="label">{s.heldLabel}</span>
+    <div class="kb-chips" id="kb-held"><span class="muted">{s.client.none}</span></div>
   </div>
 
   <div class="field" id="kb-extra-field" hidden>
-    <span class="label">鍵盤圖以外的按鍵</span>
+    <span class="label">{s.extraLabel}</span>
     <div class="kb-chips" id="kb-extra"></div>
   </div>
 
-  <p class="hint">
-    亮色框為目前按住的按鍵，綠色為已測試過的按鍵。Fn 鍵與部分多媒體鍵由鍵盤硬體或系統處理，瀏覽器收不到，無法顯示是正常現象。所有按鍵資料只在你的瀏覽器中處理。
-  </p>
+  <p class="hint">{`\n${s.footnote}\n`}</p>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatInteger } from '../../lib/format';
-  import { buildLayout, displayKey, KeyTracker, locationLabel, normalizeCode, Q, rolloverHint, shouldPreventDefault } from './logic';
+  import { readI18n } from '../../i18n/client';
+  import { buildLayout, displayKey, keyCode, KeyTracker, locationLabel, normalizeCode, Q, rolloverHint, shouldPreventDefault } from './logic';
+  import type { Strings } from './i18n';
 
   interface Prefs {
     numpad: boolean;
   }
 
   const root = $('[data-tool="keyboard-tester"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const layoutId = s.layout ?? 'ansi';
   const area = $('#kb-area', root);
   const board = $('#kb-board', root);
   const numpadBox = $<HTMLInputElement>('#kb-numpad', root);
@@ -105,6 +111,7 @@ const layout = buildLayout(true);
 
   const keyEls = new Map<string, HTMLElement>();
   for (const el of $$('.kb-key', board)) {
+    if (isMac && el.dataset.macCode) el.dataset.code = el.dataset.macCode;
     keyEls.set(el.dataset.code ?? '', el);
     if (isMac && el.dataset.mac) $('.kb-label', el).textContent = el.dataset.mac;
   }
@@ -114,11 +121,11 @@ const layout = buildLayout(true);
   let visibleCodes: string[] = [];
 
   function applyLayout(numpad: boolean) {
-    const layout = buildLayout(numpad);
+    const layout = buildLayout(numpad, layoutId);
     board.style.setProperty('--cols', String(layout.columns));
     board.style.setProperty('--keys', String(layout.columns / Q));
     board.classList.toggle('no-numpad', !numpad);
-    visibleCodes = layout.keys.map((k) => k.code);
+    visibleCodes = layout.keys.map((k) => keyCode(k, isMac));
   }
 
   function chip(text: string): HTMLElement {
@@ -133,16 +140,16 @@ const layout = buildLayout(true);
       el.classList.toggle('is-down', tracker.down.has(code));
       el.classList.toggle('is-tested', tracker.tested.has(code));
     }
-    downOut.textContent = formatInteger(tracker.down.size);
-    maxOut.textContent = formatInteger(tracker.maxSimultaneous);
+    downOut.textContent = formatInteger(tracker.down.size, locale);
+    maxOut.textContent = formatInteger(tracker.maxSimultaneous, locale);
     testedOut.textContent = `${tracker.testedIn(visibleCodes)} / ${visibleCodes.length}`;
-    pressesOut.textContent = formatInteger(tracker.presses);
-    hint.textContent = rolloverHint(tracker.maxSimultaneous);
+    pressesOut.textContent = formatInteger(tracker.presses, locale);
+    hint.textContent = rolloverHint(tracker.maxSimultaneous, s.rollover);
 
     if (tracker.down.size === 0) {
       const none = document.createElement('span');
       none.className = 'muted';
-      none.textContent = '（無）';
+      none.textContent = s.none;
       held.replaceChildren(none);
     } else {
       held.replaceChildren(...[...tracker.down].map(chip));
@@ -152,10 +159,10 @@ const layout = buildLayout(true);
   }
 
   function showEvent(e: KeyboardEvent, code: string) {
-    keyOut.textContent = displayKey(e.key);
+    keyOut.textContent = displayKey(e.key, s.keys);
     codeOut.textContent = code;
     keyCodeOut.textContent = String(e.keyCode);
-    locationOut.textContent = locationLabel(e.location);
+    locationOut.textContent = locationLabel(e.location, s.locations);
   }
 
   area.addEventListener('keydown', (e) => {

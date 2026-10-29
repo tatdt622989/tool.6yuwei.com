@@ -1,5 +1,6 @@
 // Spin wheel (轉盤抽獎). Pure, DOM-free: parsing, weighted draw, geometry, easing and colors.
 // The winner is drawn first with crypto randomness; the animation is then computed to land on it.
+import type { Locale } from '../../i18n/locales';
 
 /** Fills the array with uniformly random 32-bit integers. Injected for testability. */
 export type RandomSource = (array: Uint32Array) => Uint32Array;
@@ -237,3 +238,61 @@ export const PRESETS: readonly Preset[] = [
   { id: 'truth', name: '真心話大冒險', options: ['真心話', '大冒險', '真心話', '大冒險', '跳過一次', '指定別人'] },
   { id: 'prize', name: '抽獎（權重）', options: ['頭獎*1', '二獎*3', '三獎*6', '參加獎*20', '再接再厲*10'] },
 ];
+
+/** US-oriented starter wheels for /en/. */
+export const PRESETS_EN: readonly Preset[] = [
+  {
+    id: 'lunch',
+    name: 'What should I eat?',
+    options: ['Pizza', 'Tacos', 'Burgers', 'Sushi', 'Salad', 'Chinese takeout', 'Burritos', 'Ramen', 'Sandwiches', 'Thai', 'Pho', 'Fried chicken'],
+  },
+  {
+    id: 'dinner',
+    name: 'What’s for dinner?',
+    options: ['Pasta', 'Tacos', 'Stir-fry', 'Steak', 'Chili', 'Curry', 'Grilled chicken', 'Pizza night', 'Soup', 'Breakfast for dinner', 'Salmon', 'Leftovers'],
+  },
+  { id: 'yesno', name: 'Yes or no', options: ['Yes', 'No'] },
+  { id: 'names', name: 'Wheel of names', options: ['Alex', 'Jordan', 'Taylor', 'Sam', 'Morgan', 'Casey', 'Riley', 'Jamie'] },
+  { id: 'num10', name: 'Numbers 1–10', options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] },
+  {
+    id: 'weekend',
+    name: 'Weekend plans',
+    options: ['Movie night', 'Hiking', 'Board games', 'Beach day', 'Museum', 'Bowling', 'Farmers market', 'Stay in'],
+  },
+  { id: 'truth', name: 'Truth or dare', options: ['Truth', 'Dare', 'Truth', 'Dare', 'Skip', 'Pick someone'] },
+  { id: 'prize', name: 'Prize wheel (weighted)', options: ['Grand prize*1', 'Gift card*3', 'T-shirt*6', 'Sticker*20', 'Try again*10'] },
+];
+
+/** Japan-oriented starter wheels for /ja/. */
+export const PRESETS_JA: readonly Preset[] = [
+  {
+    id: 'lunch',
+    name: '今日のランチ',
+    options: ['ラーメン', 'カレー', '寿司', 'うどん', 'そば', '牛丼', '定食', 'パスタ', 'ハンバーガー', '中華', '天丼', 'コンビニ'],
+  },
+  {
+    id: 'dinner',
+    name: '今日の晩ごはん',
+    options: ['焼肉', '鍋', '唐揚げ', 'ハンバーグ', '餃子', '生姜焼き', 'お好み焼き', '刺身', '天ぷら', 'オムライス', '肉じゃが', '外食'],
+  },
+  { id: 'yesno', name: 'はい・いいえ', options: ['はい', 'いいえ'] },
+  { id: 'names', name: '名前ルーレット', options: ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村'] },
+  { id: 'num10', name: '数字 1–10', options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] },
+  { id: 'penalty', name: '罰ゲーム', options: ['一発ギャグ', 'モノマネ', '変顔で写真', '恥ずかしい話', '全員にジュース', 'セーフ'] },
+  { id: 'prize', name: '景品抽選（重み付き）', options: ['1等*1', '2等*3', '3等*6', '参加賞*20', 'はずれ*10'] },
+];
+
+/** Starter wheels for a locale; zh-TW keeps the original Taiwan presets. */
+export function presetsFor(locale: Locale = 'zh-TW'): readonly Preset[] {
+  if (locale === 'en') return PRESETS_EN;
+  if (locale === 'ja') return PRESETS_JA;
+  return PRESETS;
+}
+
+// Characters that are turned 90° when a label is stacked vertically (縦書き), e.g. the 「ー」 in 「ラーメン」.
+const ROTATE_IN_VERTICAL = /^[ー〜～]$/;
+
+/** True for glyphs drawn sideways in a vertically stacked CJK label. */
+export function rotatesInVertical(ch: string): boolean {
+  return ROTATE_IN_VERTICAL.test(ch);
+}

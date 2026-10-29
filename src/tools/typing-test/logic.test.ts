@@ -5,7 +5,16 @@ import {
   compareTyped,
   EN_SENTENCES,
   formatClock,
+  JA_SENTENCES,
   mergeBest,
+  RANK_THRESHOLDS,
+  romajiGuide,
+  RomajiMatcher,
+  romajiOptions,
+  RomajiSession,
+  sentenceFeed,
+  splitKana,
+  toHiragana,
   rankOf,
   sameChar,
   scoreOf,
@@ -211,5 +220,197 @@ describe('scoring', () => {
     expect(formatClock(59_001)).toBe('1:00');
     expect(formatClock(4_200)).toBe('0:05');
     expect(formatClock(-5)).toBe('0:00');
+  });
+});
+
+// ---------- Japanese romaji input ----------
+
+/** Types a whole string; returns the results of each key. */
+function typeAll(m: RomajiMatcher, keys: string) {
+  return [...keys].map((k) => m.input(k));
+}
+
+function accepts(kana: string, romaji: string): boolean {
+  const m = new RomajiMatcher(kana);
+  const results = typeAll(m, romaji);
+  return !results.includes('miss') && m.done;
+}
+
+describe('splitKana / toHiragana', () => {
+  it('groups contracted sounds and keeps other kana single', () => {
+    expect(splitKana('しゃしん')).toEqual(['しゃ', 'し', 'ん']);
+    expect(splitKana('きょうは')).toEqual(['きょ', 'う', 'は']);
+    expect(splitKana('ふぁみれす')).toEqual(['ふぁ', 'み', 'れ', 'す']);
+    expect(splitKana('いっしょ')).toEqual(['い', 'っ', 'しょ']);
+  });
+
+  it('converts katakana to hiragana and keeps the long-vowel mark', () => {
+    expect(toHiragana('コーヒー')).toBe('こーひー');
+    expect(splitKana('キーボード')).toEqual(['き', 'ー', 'ぼ', 'ー', 'ど']);
+  });
+});
+
+describe('RomajiMatcher: accepted spellings', () => {
+  it.each([
+    ['し', ['shi', 'si', 'ci']],
+    ['ち', ['chi', 'ti']],
+    ['つ', ['tsu', 'tu']],
+    ['ふ', ['fu', 'hu']],
+    ['じ', ['ji', 'zi']],
+    ['か', ['ka', 'ca']],
+    ['しゃ', ['sha', 'sya', 'shixya', 'silya']],
+    ['ちゃ', ['cha', 'tya', 'cya', 'chixya']],
+    ['じょ', ['jo', 'jyo', 'zyo', 'jixyo']],
+    ['きゃ', ['kya', 'kixya']],
+    ['ふぁ', ['fa', 'fuxa', 'hula']],
+    ['てぃ', ['thi', 'texi']],
+    ['を', ['wo']],
+    ['こーひー', ['ko-hi-']],
+  ])('%s', (kana, spellings) => {
+    for (const r of spellings) expect(accepts(kana, r), r).toBe(true);
+  });
+
+  it('accepts a single n before consonants but requires nn before vowels, n and y', () => {
+    expect(accepts('かんたん', 'kantann')).toBe(true);
+    expect(accepts('かんたん', 'kanntann')).toBe(true);
+    expect(accepts('きんようび', 'kinnyoubi')).toBe(true);
+    expect(accepts('きんようび', 'kinyoubi')).toBe(false); // would read as きにょうび
+    expect(accepts('かんい', 'kanni')).toBe(true);
+    expect(accepts('かんい', 'kani')).toBe(false);
+    expect(accepts('こんにちは', 'konnnichiha')).toBe(true);
+    expect(accepts('こんにちは', 'konnichiha')).toBe(false);
+    expect(accepts('でんわ', 'denwa')).toBe(true);
+    expect(accepts('ほん', 'honn')).toBe(true);
+    expect(accepts('ほん', 'hoxn')).toBe(true);
+  });
+
+  it('requires nn for ん at the end of a sentence', () => {
+    const m = new RomajiMatcher('ほん');
+    typeAll(m, 'hon');
+    expect(m.done).toBe(false);
+    expect(m.input('n')).toBe('done');
+  });
+
+  it('accepts っ as a doubled consonant or xtu / ltu / xtsu', () => {
+    for (const r of ['itte', 'ixtute', 'iltute', 'ixtsute', 'iltsute']) expect(accepts('いって', r), r).toBe(true);
+    for (const r of ['matchi', 'macchi', 'matti']) expect(accepts('まっち', r), r).toBe(true);
+    expect(accepts('いっしょ', 'issho')).toBe(true);
+    expect(accepts('いっしょ', 'issyo')).toBe(true);
+    expect(accepts('いっしょ', 'ixtusho')).toBe(true);
+    expect(accepts('しっかり', 'shikkari')).toBe(true);
+  });
+
+  it('does not double vowels or n for っ', () => {
+    expect(romajiOptions(splitKana('っあ'), 0).map((o) => o.romaji)).toEqual(['xtu', 'ltu', 'xtsu', 'ltsu']);
+  });
+
+  it('counts wrong keys as misses without advancing', () => {
+    const m = new RomajiMatcher('すし');
+    expect(m.input('s')).toBe('ok');
+    expect(m.input('a')).toBe('miss');
+    expect(m.typed).toBe('s');
+    expect(m.input('u')).toBe('ok');
+    expect(m.kanaDone).toBe(1);
+    expect(typeAll(m, 'shi')).toEqual(['ok', 'ok', 'done']);
+  });
+
+  it('is case-insensitive', () => {
+    expect(accepts('すし', 'SuShI')).toBe(true);
+  });
+
+  it('shows the preferred spelling and follows the one already started', () => {
+    expect(romajiGuide('しんかんせん')).toBe('shinkansenn');
+    expect(romajiGuide('きんようび')).toBe('kinnyoubi');
+    expect(romajiGuide('いっしょにちゃーはん')).toBe('isshonicha-hann');
+    const m = new RomajiMatcher('しんかんせん');
+    typeAll(m, 'si');
+    expect(m.typed).toBe('si');
+    expect(m.rest()).toBe('nkansenn');
+    const t = new RomajiMatcher('ちゃ');
+    t.input('t');
+    expect(t.rest()).toBe('ya');
+  });
+});
+
+describe('JA_SENTENCES', () => {
+  it('has enough sentences, each fully typable with its guide and only known kana', () => {
+    expect(JA_SENTENCES.length).toBeGreaterThanOrEqual(30);
+    for (const s of JA_SENTENCES) {
+      expect(s.kana, s.text).toMatch(/^[ぁ-んー]+$/);
+      const m = new RomajiMatcher(s.kana);
+      const guide = m.rest();
+      expect(guide, s.kana).toMatch(/^[a-z-]+$/);
+      expect(typeAll(m, guide).includes('miss'), s.kana).toBe(false);
+      expect(m.done, s.kana).toBe(true);
+    }
+  });
+
+  it('has no duplicates', () => {
+    expect(new Set(JA_SENTENCES.map((s) => s.kana)).size).toBe(JA_SENTENCES.length);
+  });
+});
+
+describe('RomajiSession', () => {
+  const fixed = (...kana: string[]) => {
+    let i = 0;
+    return () => ({ text: kana[i % kana.length], kana: kana[i++ % kana.length] });
+  };
+
+  it('starts on the first key and loads the next sentence when one is finished', () => {
+    const s = new RomajiSession(fixed('すし', 'ねこ'), 60_000);
+    expect(s.phase).toBe('idle');
+    expect(s.key('s', 1000)).toBe('ok');
+    expect(s.phase).toBe('running');
+    expect(s.startedAt).toBe(1000);
+    for (const k of 'ushi') s.key(k, 2000);
+    expect(s.completed).toBe(1);
+    expect(s.sentence.kana).toBe('ねこ');
+    expect(s.keys).toBe(5);
+  });
+
+  it('scores keystrokes per minute and accuracy from misses', () => {
+    const s = new RomajiSession(fixed('あいうえお'), 60_000);
+    s.key('a', 0);
+    s.key('x', 0); // miss
+    for (const k of 'iueo') s.key(k, 0);
+    const r = s.finish(30_000);
+    expect(r.lang).toBe('ja');
+    expect(r.correctChars).toBe(5);
+    expect(r.errors).toBe(1);
+    expect(r.speed).toBeCloseTo(10); // 5 keys in 0.5 min
+    expect(r.accuracy).toBeCloseTo((5 / 6) * 100);
+  });
+
+  it('stops at the time limit and ignores keys afterwards', () => {
+    const s = new RomajiSession(fixed('あいうえお'), 30_000);
+    s.key('a', 0);
+    expect(s.isOver(30_000)).toBe(true);
+    s.finish(45_000);
+    expect(s.elapsed(99_000)).toBe(30_000);
+    expect(s.key('i', 46_000)).toBe('ignored');
+    expect(s.keys).toBe(1);
+  });
+
+  it('reports 100% accuracy before any key', () => {
+    expect(new RomajiSession(fixed('あ'), 30_000).result(0).accuracy).toBe(100);
+  });
+});
+
+describe('sentenceFeed', () => {
+  it('cycles through every item before repeating', () => {
+    const next = sentenceFeed([1, 2, 3, 4], seeded(7));
+    const first = [next(), next(), next(), next()];
+    expect([...first].sort()).toEqual([1, 2, 3, 4]);
+    const fifth = next();
+    expect(fifth).not.toBe(first[3]);
+  });
+});
+
+describe('ja ranks', () => {
+  it('uses keystrokes per minute thresholds', () => {
+    expect(RANK_THRESHOLDS.ja.length).toBe(RANK_THRESHOLDS.zh.length);
+    expect(rankOf('ja', 0).level).toBe(0);
+    expect(rankOf('ja', 150).level).toBe(2);
+    expect(rankOf('ja', 400).level).toBe(5);
   });
 });

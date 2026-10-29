@@ -1,48 +1,42 @@
 ---
-const TO_DATE_ROWS = [
-  ['local', '本地時間'],
-  ['utc', 'UTC 時間'],
-  ['iso', 'ISO 8601（UTC）'],
-  ['isolocal', 'ISO 8601（本地）'],
-  ['weekday', '星期'],
-  ['relative', '相對時間'],
-  ['unit', '判斷單位'],
-];
-const TO_TS_ROWS = [
-  ['s', 'Unix 時間戳（秒）'],
-  ['ms', 'Unix 時間戳（毫秒）'],
-  ['iso', 'ISO 8601（UTC）'],
-];
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const TO_DATE_ROWS = s.toDateRows;
+const TO_TS_ROWS = s.toTsRows;
 ---
 
-<div class="tool" data-tool="timestamp-converter">
+<div class="tool" data-tool="timestamp-converter" {...i18nAttrs(locale, s.client)}>
   <section class="ts-now" aria-labelledby="ts-now-title">
-    <h2 class="ts-title" id="ts-now-title">目前 Unix 時間戳</h2>
+    <h2 class="ts-title" id="ts-now-title">{s.nowTitle}</h2>
     <div class="big-display ts-big" id="ts-now-s" aria-live="off">0</div>
-    <p class="ts-sub mono">毫秒：<span id="ts-now-ms">0</span></p>
+    <p class="ts-sub mono">{s.msBefore}<span id="ts-now-ms">0</span></p>
     <p class="hint ts-zone" id="ts-zone"></p>
     <div class="row ts-center">
-      <button class="btn small" type="button" data-copy="#ts-now-s">複製秒</button>
-      <button class="btn small" type="button" data-copy="#ts-now-ms">複製毫秒</button>
-      <button class="btn small ghost" type="button" id="ts-pause" aria-pressed="false">暫停</button>
+      <button class="btn small" type="button" data-copy="#ts-now-s">{s.copySeconds}</button>
+      <button class="btn small" type="button" data-copy="#ts-now-ms">{s.copyMs}</button>
+      <button class="btn small ghost" type="button" id="ts-pause" aria-pressed="false">{s.client.pause}</button>
     </div>
   </section>
 
   <hr class="ts-sep" />
 
-  <h2 class="ts-title">時間戳轉日期</h2>
+  <h2 class="ts-title">{s.toDateTitle}</h2>
   <div class="field">
-    <label for="ts-input">Unix 時間戳</label>
+    <label for="ts-input">{s.tsLabel}</label>
     <div class="row">
-      <input id="ts-input" type="text" class="mono ts-input" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="例如 1761717600" />
-      <button class="btn" type="button" id="ts-input-now">現在</button>
+      <input id="ts-input" type="text" class="mono ts-input" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder={s.tsPlaceholder} />
+      <button class="btn" type="button" id="ts-input-now">{s.now}</button>
     </div>
   </div>
   <div class="row">
-    <div class="seg" role="radiogroup" aria-label="時間戳單位">
-      <label><input type="radio" name="ts-unit" value="auto" checked /><span>自動判斷</span></label>
-      <label><input type="radio" name="ts-unit" value="s" /><span>秒</span></label>
-      <label><input type="radio" name="ts-unit" value="ms" /><span>毫秒</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.unitAria}>
+      <label><input type="radio" name="ts-unit" value="auto" checked /><span>{s.unitAuto}</span></label>
+      <label><input type="radio" name="ts-unit" value="s" /><span>{s.unitS}</span></label>
+      <label><input type="radio" name="ts-unit" value="ms" /><span>{s.unitMs}</span></label>
     </div>
   </div>
   <div id="ts-input-error" class="notice error" role="alert" hidden></div>
@@ -52,7 +46,7 @@ const TO_TS_ROWS = [
         <div class="ts-row">
           <label for={`ts-d-${key}`}>{label}</label>
           <input id={`ts-d-${key}`} type="text" class="mono" readonly />
-          <button class="btn small" type="button" data-copy={`#ts-d-${key}`}>複製</button>
+          <button class="btn small" type="button" data-copy={`#ts-d-${key}`}>{s.copy}</button>
         </div>
       ))
     }
@@ -60,17 +54,17 @@ const TO_TS_ROWS = [
 
   <hr class="ts-sep" />
 
-  <h2 class="ts-title">日期轉時間戳</h2>
+  <h2 class="ts-title">{s.toTsTitle}</h2>
   <div class="field">
-    <label for="ts-date">日期與時間</label>
+    <label for="ts-date">{s.dateLabel}</label>
     <div class="row">
       <input id="ts-date" type="datetime-local" step="1" class="ts-input" />
-      <button class="btn" type="button" id="ts-date-now">現在</button>
+      <button class="btn" type="button" id="ts-date-now">{s.now}</button>
     </div>
   </div>
   <div class="row">
-    <div class="seg" role="radiogroup" aria-label="輸入的時間屬於哪個時區">
-      <label><input type="radio" name="ts-zone" value="local" checked /><span id="ts-zone-local-label">本地時間</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.zoneAria}>
+      <label><input type="radio" name="ts-zone" value="local" checked /><span id="ts-zone-local-label">{s.localTime}</span></label>
       <label><input type="radio" name="ts-zone" value="UTC" /><span>UTC</span></label>
     </div>
   </div>
@@ -81,7 +75,7 @@ const TO_TS_ROWS = [
         <div class="ts-row">
           <label for={`ts-t-${key}`}>{label}</label>
           <input id={`ts-t-${key}`} type="text" class="mono" readonly />
-          <button class="btn small" type="button" data-copy={`#ts-t-${key}`}>複製</button>
+          <button class="btn small" type="button" data-copy={`#ts-t-${key}`}>{s.copy}</button>
         </div>
       ))
     }
@@ -90,19 +84,24 @@ const TO_TS_ROWS = [
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { LOCALE_INFO } from '../../i18n/locales';
   import {
-    UNIT_LABEL,
     formatDateTime,
     formatOffset,
     localTimeZone,
+    longDateTime,
     offsetMinutes,
     parseTimestamp,
     relativeTime,
     toIsoWithOffset,
     wallTimeToMs,
+    wareki,
     weekday,
     type Unit,
   } from './logic';
+  import type { DateRowKey, Strings } from './i18n';
 
   interface Prefs {
     unit: Unit | 'auto';
@@ -110,6 +109,8 @@ const TO_TS_ROWS = [
   }
 
   const root = $('[data-tool="timestamp-converter"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
   const zone = localTimeZone();
 
   // ---- Live clock ----
@@ -118,8 +119,8 @@ const TO_TS_ROWS = [
   const pause = $<HTMLButtonElement>('#ts-pause', root);
   let paused = false;
 
-  $('#ts-zone', root).textContent = `你的時區：${zone}（UTC${formatOffset(offsetMinutes(Date.now(), zone))}）`;
-  $('#ts-zone-local-label', root).textContent = `本地時間（${zone}）`;
+  $('#ts-zone', root).textContent = t(s.yourZone, { zone, offset: formatOffset(offsetMinutes(Date.now(), zone)) });
+  $('#ts-zone-local-label', root).textContent = t(s.localZoneLabel, { zone });
 
   function tick() {
     if (paused || document.hidden) return;
@@ -129,7 +130,7 @@ const TO_TS_ROWS = [
   }
   pause.addEventListener('click', () => {
     paused = !paused;
-    pause.textContent = paused ? '繼續' : '暫停';
+    pause.textContent = paused ? s.resume : s.pause;
     pause.setAttribute('aria-pressed', String(paused));
     tick();
   });
@@ -155,12 +156,12 @@ const TO_TS_ROWS = [
   function renderToDate() {
     savePref('timestamp-converter', readPrefs());
     tsError.hidden = true;
-    const keys = ['local', 'utc', 'iso', 'isolocal', 'weekday', 'relative', 'unit'];
+    const keys = $$<HTMLInputElement>('#ts-to-date input', root).map((el) => el.id.slice('ts-d-'.length) as DateRowKey);
     if (tsInput.value.trim() === '') {
       keys.forEach((k) => (out(k).value = ''));
       return;
     }
-    const result = parseTimestamp(tsInput.value, readPrefs().unit);
+    const result = parseTimestamp(tsInput.value, readPrefs().unit, s.messages);
     if (!result.ok) {
       keys.forEach((k) => (out(k).value = ''));
       tsError.textContent = result.error;
@@ -168,13 +169,24 @@ const TO_TS_ROWS = [
       return;
     }
     const { ms, unit } = result;
-    out('local').value = `${formatDateTime(ms, zone)}（UTC${formatOffset(offsetMinutes(ms, zone))}）`;
-    out('utc').value = formatDateTime(ms, 'UTC');
-    out('iso').value = new Date(ms).toISOString();
-    out('isolocal').value = toIsoWithOffset(ms, zone);
-    out('weekday').value = weekday(ms, zone);
-    out('relative').value = relativeTime(ms, Date.now());
-    out('unit').value = UNIT_LABEL[unit];
+    const value: Record<DateRowKey, () => string> = {
+      local: () => formatDateTime(ms, zone) + t(s.offsetSuffix, { offset: formatOffset(offsetMinutes(ms, zone)) }),
+      utc: () => formatDateTime(ms, 'UTC'),
+      iso: () => new Date(ms).toISOString(),
+      isolocal: () => toIsoWithOffset(ms, zone),
+      weekday: () => weekday(ms, zone, intl),
+      long: () => longDateTime(ms, zone, intl),
+      wareki: () => wareki(ms, zone) ?? s.noWareki ?? '—',
+      relative: () => relativeTime(ms, Date.now(), intl),
+      unit: () => s.unitLabels[unit],
+    };
+    for (const k of keys) {
+      try {
+        out(k).value = value[k]();
+      } catch {
+        out(k).value = '—'; // Intl throws for dates outside its range (e.g. year 275760 with a calendar)
+      }
+    }
   }
 
   function toLocalInputValue(ms: number, timeZone: string): string {
@@ -193,7 +205,7 @@ const TO_TS_ROWS = [
     const ms = wallTimeToMs(dateInput.value, readPrefs().zone === 'UTC' ? 'UTC' : zone);
     if (ms === null) {
       keys.forEach((k) => set(k, ''));
-      dateError.textContent = '日期格式不正確，請使用 YYYY-MM-DD HH:mm:ss。';
+      dateError.textContent = s.dateError;
       dateError.hidden = false;
       return;
     }

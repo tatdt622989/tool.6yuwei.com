@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LATIN_WORDS, ZH_SENTENCES } from './corpus';
+import { JA_SENTENCES, LATIN_WORDS, ZH_SENTENCES } from './corpus';
 import { clampCount, generateLorem, visibleLength, type LoremOptions } from './logic';
 
 const base: LoremOptions = { lang: 'zh', unit: 'paragraphs', count: 3, classicStart: true, html: false };
@@ -57,6 +57,43 @@ describe('Chinese', () => {
   it('ignores the words unit', () => {
     const text = generateLorem({ ...base, unit: 'words', count: 2 }, seeded());
     expect(text.split('\n\n')).toHaveLength(2);
+  });
+});
+
+describe('Japanese', () => {
+  const ja: LoremOptions = { ...base, lang: 'ja' };
+
+  it('has a corpus that follows the same rules', () => {
+    expect(JA_SENTENCES.length).toBeGreaterThanOrEqual(60);
+    expect(new Set(JA_SENTENCES).size).toBe(JA_SENTENCES.length);
+    for (const s of JA_SENTENCES) {
+      expect(s).toMatch(/[。？！]$/);
+      expect(s).not.toMatch(/[A-Za-z0-9「」“”]/);
+      expect(s).not.toMatch(/[\p{P}]{2}/u);
+      expect(s).toMatch(/[\p{Script=Hiragana}]/u);
+    }
+  });
+
+  it('generates Japanese paragraphs and sentences, not Chinese ones', () => {
+    const paragraphs = generateLorem({ ...ja, count: 3 }, seeded());
+    expect(paragraphs.split('\n\n')).toHaveLength(3);
+    expect(paragraphs).toMatch(/\p{Script=Hiragana}/u);
+    const text = generateLorem({ ...ja, unit: 'sentences', count: 5 }, seeded(2));
+    const sentences = text.match(/[^。？！]+[。？！]/g)!;
+    expect(sentences).toHaveLength(5);
+    for (const sentence of sentences) expect(JA_SENTENCES).toContain(sentence);
+  });
+
+  it('produces exactly N characters ending with 。', () => {
+    for (const count of [1, 2, 40, 200, 400, 1000]) {
+      const text = generateLorem({ ...ja, unit: 'chars', count }, seeded(count));
+      expect(Array.from(text)).toHaveLength(count);
+      if (count > 1) expect(text).toMatch(/[^\p{P}]。$/u);
+    }
+  });
+
+  it('ignores the words unit', () => {
+    expect(generateLorem({ ...ja, unit: 'words', count: 2 }, seeded()).split('\n\n')).toHaveLength(2);
   });
 });
 

@@ -1,64 +1,72 @@
 ---
-// Keypad definitions: [label, action, value, extra class, aria-label]
-type Key = { label: string; ins?: string; act?: 'clear' | 'del' | 'eval' | 'recip'; cls?: string; aria?: string; key?: string };
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n, { type KeyAriaId } from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+
+// Keypad definitions: [label, action, value, extra class, aria id]
+type Key = { label: string; ins?: string; act?: 'clear' | 'del' | 'eval' | 'recip'; cls?: string; id?: KeyAriaId; key?: string };
 
 const sciKeys: Key[] = [
-  { label: 'sin', ins: 'sin(' },
-  { label: 'cos', ins: 'cos(' },
-  { label: 'tan', ins: 'tan(' },
-  { label: 'ln', ins: 'ln(' },
-  { label: 'log', ins: 'log(' },
-  { label: 'sin⁻¹', ins: 'sin⁻¹(', aria: '反正弦' },
-  { label: 'cos⁻¹', ins: 'cos⁻¹(', aria: '反餘弦' },
-  { label: 'tan⁻¹', ins: 'tan⁻¹(', aria: '反正切' },
-  { label: 'eˣ', ins: 'e^(', aria: 'e 的 x 次方' },
-  { label: '10ˣ', ins: '10^(', aria: '10 的 x 次方' },
-  { label: 'x²', ins: '²', aria: '平方' },
-  { label: 'xʸ', ins: '^', aria: '次方', key: '^' },
-  { label: '√', ins: '√(', aria: '平方根' },
-  { label: '∛', ins: '∛(', aria: '立方根' },
-  { label: 'x!', ins: '!', aria: '階乘', key: '!' },
-  { label: 'π', ins: 'π', aria: '圓周率' },
-  { label: 'e', ins: 'e', aria: '自然常數 e' },
-  { label: '1/x', act: 'recip', aria: '倒數' },
-  { label: '|x|', ins: 'abs(', aria: '絕對值' },
-  { label: 'Ans', ins: 'Ans', aria: '上一個答案' },
+  { label: 'sin', ins: 'sin(', id: 'sin' },
+  { label: 'cos', ins: 'cos(', id: 'cos' },
+  { label: 'tan', ins: 'tan(', id: 'tan' },
+  { label: 'ln', ins: 'ln(', id: 'ln' },
+  { label: 'log', ins: 'log(', id: 'log' },
+  { label: 'sin⁻¹', ins: 'sin⁻¹(', id: 'asin' },
+  { label: 'cos⁻¹', ins: 'cos⁻¹(', id: 'acos' },
+  { label: 'tan⁻¹', ins: 'tan⁻¹(', id: 'atan' },
+  { label: 'eˣ', ins: 'e^(', id: 'exp' },
+  { label: '10ˣ', ins: '10^(', id: 'pow10' },
+  { label: 'x²', ins: '²', id: 'square' },
+  { label: 'xʸ', ins: '^', id: 'power', key: '^' },
+  { label: '√', ins: '√(', id: 'sqrt' },
+  { label: '∛', ins: '∛(', id: 'cbrt' },
+  { label: 'x!', ins: '!', id: 'factorial', key: '!' },
+  { label: 'π', ins: 'π', id: 'pi' },
+  { label: 'e', ins: 'e', id: 'e' },
+  { label: '1/x', act: 'recip', id: 'recip' },
+  { label: '|x|', ins: 'abs(', id: 'abs' },
+  { label: 'Ans', ins: 'Ans', id: 'ans' },
 ];
 
 const mainKeys: Key[] = [
-  { label: 'AC', act: 'clear', cls: 'fn', aria: '全部清除', key: 'Escape' },
+  { label: 'AC', act: 'clear', cls: 'fn', id: 'clear', key: 'Escape' },
   { label: '(', ins: '(', cls: 'fn', key: '(' },
   { label: ')', ins: ')', cls: 'fn', key: ')' },
-  { label: '÷', ins: '÷', cls: 'op', aria: '除', key: '/' },
+  { label: '÷', ins: '÷', cls: 'op', id: 'divide', key: '/' },
   { label: '7', ins: '7', key: '7' },
   { label: '8', ins: '8', key: '8' },
   { label: '9', ins: '9', key: '9' },
-  { label: '×', ins: '×', cls: 'op', aria: '乘', key: '*' },
+  { label: '×', ins: '×', cls: 'op', id: 'multiply', key: '*' },
   { label: '4', ins: '4', key: '4' },
   { label: '5', ins: '5', key: '5' },
   { label: '6', ins: '6', key: '6' },
-  { label: '−', ins: '−', cls: 'op', aria: '減', key: '-' },
+  { label: '−', ins: '−', cls: 'op', id: 'minus', key: '-' },
   { label: '1', ins: '1', key: '1' },
   { label: '2', ins: '2', key: '2' },
   { label: '3', ins: '3', key: '3' },
-  { label: '+', ins: '+', cls: 'op', aria: '加', key: '+' },
-  { label: '%', ins: '%', cls: 'fn', aria: '百分比', key: '%' },
+  { label: '+', ins: '+', cls: 'op', id: 'plus', key: '+' },
+  { label: '%', ins: '%', cls: 'fn', id: 'percent', key: '%' },
   { label: '0', ins: '0', key: '0' },
-  { label: '.', ins: '.', aria: '小數點', key: '.' },
-  { label: '=', act: 'eval', cls: 'eq', aria: '等於', key: 'Enter' },
+  { label: '.', ins: '.', id: 'dot', key: '.' },
+  { label: '=', act: 'eval', cls: 'eq', id: 'equals', key: 'Enter' },
 ];
+const aria = (k: Key) => (k.id ? s.keyAria[k.id] : undefined);
 ---
 
-<div class="tool" data-tool="calculator">
+<div class="tool" data-tool="calculator" {...i18nAttrs(locale, s.client)}>
   <div class="ca-body" id="ca-body" data-mode="basic">
     <div class="row between">
-      <div class="seg" role="radiogroup" aria-label="計算機模式">
-        <label><input type="radio" name="ca-mode" value="basic" checked /><span>標準</span></label>
-        <label><input type="radio" name="ca-mode" value="sci" /><span>工程（科學）</span></label>
+      <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+        <label><input type="radio" name="ca-mode" value="basic" checked /><span>{s.modeBasic}</span></label>
+        <label><input type="radio" name="ca-mode" value="sci" /><span>{s.modeSci}</span></label>
       </div>
-      <div class="seg ca-angle" role="radiogroup" aria-label="角度單位">
-        <label><input type="radio" name="ca-angle" value="deg" checked /><span>DEG 度</span></label>
-        <label><input type="radio" name="ca-angle" value="rad" /><span>RAD 弳</span></label>
+      <div class="seg ca-angle" role="radiogroup" aria-label={s.angleAria}>
+        <label><input type="radio" name="ca-angle" value="deg" checked /><span>{s.angleDeg}</span></label>
+        <label><input type="radio" name="ca-angle" value="rad" /><span>{s.angleRad}</span></label>
       </div>
     </div>
 
@@ -73,10 +81,10 @@ const mainKeys: Key[] = [
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          aria-label="算式（可直接用鍵盤輸入）"
+          aria-label={s.exprAria}
           value="12×(3+4)÷2"
         />
-        <button class="ca-del" type="button" data-act="del" data-key="Backspace" aria-label="刪除一個字元（Backspace）">
+        <button class="ca-del" type="button" data-act="del" data-key="Backspace" aria-label={s.delAria}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
             ><path d="M9 5h11v14H9l-6-7z M12.5 9.5l5 5 M17.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg
           >
@@ -88,10 +96,10 @@ const mainKeys: Key[] = [
     </div>
 
     <div class="ca-pad">
-      <div class="ca-sci" id="ca-sci" aria-label="科學函數">
+      <div class="ca-sci" id="ca-sci" aria-label={s.sciAria}>
         {
           sciKeys.map((k) => (
-            <button type="button" class="ca-key sci" data-ins={k.ins} data-act={k.act} data-key={k.key} aria-label={k.aria}>
+            <button type="button" class="ca-key sci" data-ins={k.ins} data-act={k.act} data-key={k.key} aria-label={aria(k)}>
               {k.label}
             </button>
           ))
@@ -100,7 +108,7 @@ const mainKeys: Key[] = [
       <div class="ca-main">
         {
           mainKeys.map((k) => (
-            <button type="button" class:list={['ca-key', k.cls]} data-ins={k.ins} data-act={k.act} data-key={k.key} aria-label={k.aria}>
+            <button type="button" class:list={['ca-key', k.cls]} data-ins={k.ins} data-act={k.act} data-key={k.key} aria-label={aria(k)}>
               {k.label}
             </button>
           ))
@@ -109,26 +117,34 @@ const mainKeys: Key[] = [
     </div>
 
     <div class="row">
-      <button class="btn small" type="button" id="ca-copy">複製結果</button>
-      <span class="hint">鍵盤：數字與 + − * / ^ ( ) % !，Enter 計算、Backspace 刪除、Esc 清除</span>
+      <button class="btn small" type="button" id="ca-copy">{s.copy}</button>
+      <span class="hint">{s.keyboardHint}</span>
     </div>
   </div>
 
   <div class="field">
     <div class="row between">
-      <span class="label">計算紀錄（點一下帶回算式）</span>
-      <button class="btn small ghost" type="button" id="ca-clear-history">清除紀錄</button>
+      <span class="label">{s.historyLabel}</span>
+      <button class="btn small ghost" type="button" id="ca-clear-history">{s.clearHistory}</button>
     </div>
     <ol class="ca-history" id="ca-history"></ol>
-    <p class="hint" id="ca-history-empty">按「=」後，算式與結果會記在這裡，只存在你的瀏覽器。</p>
+    <p class="hint" id="ca-history-empty">{s.historyEmpty}</p>
   </div>
 </div>
 
 <script>
   import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
-  import { evaluate, formatResult, groupDigits, pushHistory, type AngleMode, type HistoryEntry } from './logic';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import { evaluate, formatResult, groupDigits, pushHistory, type AngleMode, type EvalResult, type HistoryEntry } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="calculator"]');
+  const { s } = readI18n<Strings['client']>(root);
+  const errorText = (r: Extract<EvalResult, { ok: false }>) => {
+    const template = s.errors?.[r.code];
+    return template ? t(template, r.vars) : r.error;
+  };
   const body = $('#ca-body', root);
   const expr = $<HTMLInputElement>('#ca-expr', root);
   const prev = $('#ca-prev', root);
@@ -235,7 +251,7 @@ const mainKeys: Key[] = [
     if (!text) return;
     const r = evaluate(text, { angle: angle(), ans });
     if (!r.ok) {
-      result.textContent = r.error;
+      result.textContent = errorText(r);
       result.classList.add('is-error');
       return;
     }

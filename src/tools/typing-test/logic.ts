@@ -9,7 +9,8 @@ const defaultRandom: RandomSource = (array) => {
   return array;
 };
 
-export type Lang = 'zh' | 'en';
+/** Test language: Chinese (IME), English, or Japanese (romaji input, ja locale only). */
+export type Lang = 'zh' | 'en' | 'ja';
 export const DURATIONS = [30, 60, 120] as const;
 export type Duration = (typeof DURATIONS)[number];
 
@@ -343,10 +344,11 @@ const RANKS: readonly { min: number; label: string }[] = [
   { min: 5, label: '神速' },
 ];
 
-/** Speed thresholds per level: 字/分 for Chinese, WPM for English. */
+/** Speed thresholds per level: 字/分 for Chinese, WPM for English, keystrokes/min (打鍵/分) for Japanese. */
 export const RANK_THRESHOLDS: Record<Lang, readonly number[]> = {
   zh: [0, 15, 30, 50, 80, 120],
   en: [0, 20, 40, 60, 80, 100],
+  ja: [0, 90, 150, 210, 280, 360],
 };
 
 export function rankOf(lang: Lang, speed: number): { level: number; label: string } {
@@ -381,4 +383,347 @@ export function mergeBest(
 export function formatClock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ---------- Japanese romaji typing (ja locale) ----------
+//
+// Japanese typing tests (e-typing, 寿司打 style) show a sentence in kanji and kana and the typist enters
+// romaji with the IME off. Every common spelling is accepted: し = shi / si / ci, ん = nn (or a single n
+// when the next kana can't be misread), っ = doubled consonant or xtu / ltu, しゃ = sha / sya / sixya…
+// Wrong keys are counted as misses and do not advance, so the score is keystrokes per minute (打鍵/分).
+
+export interface JaSentence {
+  /** What is shown: kanji and kana. */
+  text: string;
+  /** Reading in hiragana (ー for long vowels), no punctuation. This is what gets typed. */
+  kana: string;
+}
+
+export const JA_SENTENCES: readonly JaSentence[] = [
+  { text: '朝の電車は思ったより空いていました', kana: 'あさのでんしゃはおもったよりすいていました' },
+  { text: '駅前の新しいパン屋さんに行ってみた', kana: 'えきまえのあたらしいぱんやさんにいってみた' },
+  { text: '週末は家でゆっくり映画を観る予定です', kana: 'しゅうまつはいえでゆっくりえいがをみるよていです' },
+  { text: '雨の日は図書館で本を読むのが好きです', kana: 'あめのひはとしょかんでほんをよむのがすきです' },
+  { text: '冷たい麦茶を飲むと夏が来たと感じる', kana: 'つめたいむぎちゃをのむとなつがきたとかんじる' },
+  { text: '毎日少しずつ練習すれば必ず上達します', kana: 'まいにちすこしずつれんしゅうすればかならずじょうたつします' },
+  { text: '公園の桜が満開で写真を撮る人が多かった', kana: 'こうえんのさくらがまんかいでしゃしんをとるひとがおおかった' },
+  { text: 'コンビニでおにぎりとお茶を買いました', kana: 'こんびにでおにぎりとおちゃをかいました' },
+  { text: '新幹線の窓から富士山がきれいに見えた', kana: 'しんかんせんのまどからふじさんがきれいにみえた' },
+  { text: 'キーボードを見ないで打てるようになりたい', kana: 'きーぼーどをみないでうてるようになりたい' },
+  { text: '夕飯はカレーにしようと思っています', kana: 'ゆうはんはかれーにしようとおもっています' },
+  { text: '天気がいいので洗濯物がよく乾きそうです', kana: 'てんきがいいのでせんたくものがよくかわきそうです' },
+  { text: '近所の商店街で夏祭りが開かれます', kana: 'きんじょのしょうてんがいでなつまつりがひらかれます' },
+  { text: '寝る前にスマホを見る時間を減らしたい', kana: 'ねるまえにすまほをみるじかんをへらしたい' },
+  { text: '温かいお風呂に入ると疲れが取れます', kana: 'あたたかいおふろにはいるとつかれがとれます' },
+  { text: '来月の旅行に向けて荷物を準備している', kana: 'らいげつのりょこうにむけてにもつをじゅんびしている' },
+  { text: '会議の資料は前日までに共有してください', kana: 'かいぎのしりょうはぜんじつまでにきょうゆうしてください' },
+  { text: '落ち葉を踏む音が秋の訪れを知らせる', kana: 'おちばをふむおとがあきのおとずれをしらせる' },
+  { text: '冬の朝は布団から出るのに勇気がいる', kana: 'ふゆのあさはふとんからでるのにゆうきがいる' },
+  { text: '猫が日なたで気持ちよさそうに眠っている', kana: 'ねこがひなたできもちよさそうにねむっている' },
+  { text: '美術館でゆっくり絵を眺める時間が好きだ', kana: 'びじゅつかんでゆっくりえをながめるじかんがすきだ' },
+  { text: '自転車で川沿いの道を走るのは気持ちいい', kana: 'じてんしゃでかわぞいのみちをはしるのはきもちいい' },
+  { text: '新しいことを始めるのに遅すぎることはない', kana: 'あたらしいことをはじめるのにおそすぎることはない' },
+  { text: '窓を開けると心地よい風が入ってきた', kana: 'まどをあけるとここちよいかぜがはいってきた' },
+  { text: 'お弁当には卵焼きとからあげを入れた', kana: 'おべんとうにはたまごやきとからあげをいれた' },
+  { text: '駅のホームで次の電車を待っています', kana: 'えきのほーむでつぎのでんしゃをまっています' },
+  { text: '友達と久しぶりに電話で話しました', kana: 'ともだちとひさしぶりにでんわではなしました' },
+  { text: '正しい姿勢で座ると肩がこりにくくなる', kana: 'ただしいしせいですわるとかたがこりにくくなる' },
+  { text: '山の上から見る星空は本当にきれいだった', kana: 'やまのうえからみるほしぞらはほんとうにきれいだった' },
+  { text: '朝ごはんをしっかり食べると一日元気に過ごせる', kana: 'あさごはんをしっかりたべるといちにちげんきにすごせる' },
+  { text: '借りた本の返却日は来週の金曜日です', kana: 'かりたほんのへんきゃくびはらいしゅうのきんようびです' },
+  { text: 'ゆっくり深呼吸をすると気持ちが落ち着きます', kana: 'ゆっくりしんこきゅうをするときもちがおちつきます' },
+  { text: 'ファミレスでドリンクバーを頼んだ', kana: 'ふぁみれすでどりんくばーをたのんだ' },
+  { text: '週に三回ジムに通うことにした', kana: 'しゅうにさんかいじむにかようことにした' },
+];
+
+/** Romaji spellings for single kana. The first entry is the one shown in the guide. */
+const KANA_ROMAJI: Record<string, readonly string[]> = {
+  あ: ['a'], い: ['i'], う: ['u', 'wu'], え: ['e'], お: ['o'],
+  か: ['ka', 'ca'], き: ['ki'], く: ['ku', 'cu', 'qu'], け: ['ke'], こ: ['ko', 'co'],
+  さ: ['sa'], し: ['shi', 'si', 'ci'], す: ['su'], せ: ['se', 'ce'], そ: ['so'],
+  た: ['ta'], ち: ['chi', 'ti'], つ: ['tsu', 'tu'], て: ['te'], と: ['to'],
+  な: ['na'], に: ['ni'], ぬ: ['nu'], ね: ['ne'], の: ['no'],
+  は: ['ha'], ひ: ['hi'], ふ: ['fu', 'hu'], へ: ['he'], ほ: ['ho'],
+  ま: ['ma'], み: ['mi'], む: ['mu'], め: ['me'], も: ['mo'],
+  や: ['ya'], ゆ: ['yu'], よ: ['yo'],
+  ら: ['ra'], り: ['ri'], る: ['ru'], れ: ['re'], ろ: ['ro'],
+  わ: ['wa'], ゐ: ['wyi'], ゑ: ['wye'], を: ['wo'],
+  が: ['ga'], ぎ: ['gi'], ぐ: ['gu'], げ: ['ge'], ご: ['go'],
+  ざ: ['za'], じ: ['ji', 'zi'], ず: ['zu'], ぜ: ['ze'], ぞ: ['zo'],
+  だ: ['da'], ぢ: ['di'], づ: ['du'], で: ['de'], ど: ['do'],
+  ば: ['ba'], び: ['bi'], ぶ: ['bu'], べ: ['be'], ぼ: ['bo'],
+  ぱ: ['pa'], ぴ: ['pi'], ぷ: ['pu'], ぺ: ['pe'], ぽ: ['po'],
+  ゔ: ['vu'],
+  ぁ: ['xa', 'la'], ぃ: ['xi', 'li'], ぅ: ['xu', 'lu'], ぇ: ['xe', 'le'], ぉ: ['xo', 'lo'],
+  っ: ['xtu', 'ltu', 'xtsu', 'ltsu'],
+  ゃ: ['xya', 'lya'], ゅ: ['xyu', 'lyu'], ょ: ['xyo', 'lyo'], ゎ: ['xwa', 'lwa'],
+  ー: ['-'], '、': [','], '。': ['.'], '！': ['!'], '？': ['?'], '　': [' '],
+};
+
+/** Contracted sounds (拗音 and loanword combinations) typed as one unit. */
+const COMBO_ROMAJI: Record<string, readonly string[]> = (() => {
+  const out: Record<string, string[]> = {};
+  const small = { ゃ: 'a', ゅ: 'u', ょ: 'o' } as const;
+  // Regular rows: き → ky-, ぎ → gy-…
+  const rows: Record<string, string> = { き: 'k', ぎ: 'g', に: 'n', ひ: 'h', び: 'b', ぴ: 'p', み: 'm', り: 'r' };
+  for (const [kana, c] of Object.entries(rows)) {
+    for (const [s, v] of Object.entries(small)) out[kana + s] = [`${c}y${v}`];
+    out[kana + 'ぇ'] = [`${c}ye`];
+    out[kana + 'ぃ'] = [`${c}yi`];
+  }
+  const add = (kana: string, ...romaji: string[]) => (out[kana] = romaji);
+  add('しゃ', 'sha', 'sya'); add('しゅ', 'shu', 'syu'); add('しょ', 'sho', 'syo'); add('しぇ', 'she', 'sye');
+  add('じゃ', 'ja', 'jya', 'zya'); add('じゅ', 'ju', 'jyu', 'zyu'); add('じょ', 'jo', 'jyo', 'zyo'); add('じぇ', 'je', 'jye', 'zye');
+  add('ちゃ', 'cha', 'tya', 'cya'); add('ちゅ', 'chu', 'tyu', 'cyu'); add('ちょ', 'cho', 'tyo', 'cyo'); add('ちぇ', 'che', 'tye', 'cye');
+  add('ぢゃ', 'dya'); add('ぢゅ', 'dyu'); add('ぢょ', 'dyo');
+  add('てぃ', 'thi'); add('てゅ', 'thu'); add('でぃ', 'dhi'); add('でゅ', 'dhu');
+  add('とぅ', 'twu'); add('どぅ', 'dwu');
+  add('ふぁ', 'fa', 'fwa'); add('ふぃ', 'fi', 'fyi'); add('ふぇ', 'fe', 'fye'); add('ふぉ', 'fo', 'fwo'); add('ふゅ', 'fyu');
+  add('うぃ', 'wi', 'whi'); add('うぇ', 'we', 'whe'); add('うぉ', 'who');
+  add('ゔぁ', 'va'); add('ゔぃ', 'vi'); add('ゔぇ', 've'); add('ゔぉ', 'vo');
+  add('つぁ', 'tsa'); add('つぃ', 'tsi'); add('つぇ', 'tse'); add('つぉ', 'tso');
+  add('くぁ', 'kwa', 'qa');
+  return out;
+})();
+
+const SMALL_KANA = new Set('ぁぃぅぇぉゃゅょゎ');
+
+/** Katakana → hiragana (ー and other symbols are kept). */
+export function toHiragana(text: string): string {
+  return text.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
+/** Splits a reading into typing units: single kana, or a kana plus a small kana (しゃ, ふぁ…). */
+export function splitKana(kana: string): string[] {
+  const chars = [...toHiragana(kana)];
+  const units: string[] = [];
+  for (let i = 0; i < chars.length; i++) {
+    const pair = chars[i] + (chars[i + 1] ?? '');
+    if (chars[i + 1] && SMALL_KANA.has(chars[i + 1]) && COMBO_ROMAJI[pair]) {
+      units.push(pair);
+      i++;
+    } else {
+      units.push(chars[i]);
+    }
+  }
+  return units;
+}
+
+/** One way to type the units starting at a position: `romaji` covers `span` units. */
+export interface RomajiOption {
+  romaji: string;
+  span: number;
+}
+
+/** Spellings of one unit on its own (no look-ahead for ん / っ). */
+function unitSpellings(unit: string): string[] {
+  if (COMBO_ROMAJI[unit]) {
+    // Also accept typing the two kana separately: しゃ = shi + xya.
+    const [a, b] = [...unit];
+    const split = (KANA_ROMAJI[a] ?? [a]).flatMap((x) => (KANA_ROMAJI[b] ?? [b]).map((y) => x + y));
+    return [...COMBO_ROMAJI[unit], ...split];
+  }
+  if (unit === 'ん') return ['nn', 'xn'];
+  return [...(KANA_ROMAJI[unit] ?? [unit.toLowerCase()])];
+}
+
+const VOWEL_N_Y = /^[aiueony]/;
+
+/**
+ * Every accepted spelling for the units starting at `i`, preferred first.
+ * ん may be a single n when the next unit doesn't start with a vowel, n or y (kantan, but kinnyoubi);
+ * っ may be written by doubling the next consonant (itte, matchi / macchi).
+ */
+export function romajiOptions(units: readonly string[], i: number): RomajiOption[] {
+  const unit = units[i];
+  if (unit === undefined) return [];
+  const out: RomajiOption[] = [];
+  const push = (romaji: string, span: number) => {
+    if (!out.some((o) => o.romaji === romaji)) out.push({ romaji, span });
+  };
+  if (unit === 'ん') {
+    const next = romajiOptions(units, i + 1);
+    if (next.length && next.every((o) => !VOWEL_N_Y.test(o.romaji))) {
+      for (const o of next) push('n' + o.romaji, 1 + o.span);
+    }
+    for (const r of unitSpellings(unit)) push(r, 1);
+    return out;
+  }
+  if (unit === 'っ') {
+    for (const o of romajiOptions(units, i + 1)) {
+      const c = o.romaji[0];
+      if (/[a-z]/.test(c) && !/[aiueon]/.test(c)) push(c + o.romaji, 1 + o.span);
+      if (o.romaji.startsWith('ch')) push('t' + o.romaji, 1 + o.span); // Hepburn: matchi
+    }
+    for (const r of unitSpellings(unit)) push(r, 1);
+    return out;
+  }
+  for (const r of unitSpellings(unit)) push(r, 1);
+  return out;
+}
+
+export type KeyResult = 'ok' | 'miss' | 'done';
+
+/** Matches romaji keystrokes against one kana reading. */
+export class RomajiMatcher {
+  readonly units: string[];
+  /** Index of the first unit not yet completed. */
+  pos = 0;
+  /** Keys typed for the unit(s) in progress. */
+  buffer = '';
+  /** Every accepted key so far, in order. */
+  typed = '';
+
+  constructor(kana: string) {
+    this.units = splitKana(kana);
+  }
+
+  get done(): boolean {
+    return this.pos >= this.units.length;
+  }
+
+  /** Feeds one key (case-insensitive). Wrong keys return 'miss' and change nothing. */
+  input(key: string): KeyResult {
+    if (this.done) return 'done';
+    const k = key.toLowerCase();
+    const next = this.buffer + k;
+    const options = romajiOptions(this.units, this.pos).filter((o) => o.romaji.startsWith(next));
+    if (options.length === 0) return 'miss';
+    this.buffer = next;
+    this.typed += k;
+    const exact = options.find((o) => o.romaji === next);
+    if (exact) {
+      this.pos += exact.span;
+      this.buffer = '';
+    }
+    return this.done ? 'done' : 'ok';
+  }
+
+  /** Kana characters fully typed so far (for highlighting the reading). */
+  get kanaDone(): number {
+    return this.units.slice(0, this.pos).join('').length;
+  }
+
+  /** The rest of the romaji to type, following the spelling already started and preferred ones after it. */
+  rest(): string {
+    let out = '';
+    let i = this.pos;
+    if (this.buffer) {
+      const o = romajiOptions(this.units, i).find((x) => x.romaji.startsWith(this.buffer))!;
+      out += o.romaji.slice(this.buffer.length);
+      i += o.span;
+    }
+    while (i < this.units.length) {
+      const o = romajiOptions(this.units, i)[0];
+      out += o.romaji;
+      i += o.span;
+    }
+    return out;
+  }
+}
+
+/** Preferred romaji for a whole reading: romajiGuide('しんかんせん') → 'shinkansenn'. */
+export function romajiGuide(kana: string): string {
+  return new RomajiMatcher(kana).rest();
+}
+
+/**
+ * One timed Japanese attempt. Sentences come from `nextSentence` (shuffled corpus in the UI, fixed in
+ * tests). Speed is correct keystrokes per minute; accuracy is correct keys / all keys.
+ */
+export class RomajiSession {
+  phase: Phase = 'idle';
+  startedAt = 0;
+  endedAt = 0;
+  keys = 0;
+  misses = 0;
+  completed = 0;
+  sentence: JaSentence;
+  matcher: RomajiMatcher;
+
+  constructor(
+    private readonly nextSentence: () => JaSentence,
+    public readonly durationMs: number,
+  ) {
+    this.sentence = nextSentence();
+    this.matcher = new RomajiMatcher(this.sentence.kana);
+  }
+
+  start(now: number): void {
+    if (this.phase !== 'idle') return;
+    this.phase = 'running';
+    this.startedAt = now;
+  }
+
+  /** Feeds one key. 'done' means the sentence was finished and the next one is now loaded. */
+  key(key: string, now: number): KeyResult | 'ignored' {
+    if (this.phase === 'finished') return 'ignored';
+    if (this.phase === 'idle') this.start(now);
+    const r = this.matcher.input(key);
+    if (r === 'miss') {
+      this.misses++;
+      return r;
+    }
+    this.keys++;
+    if (r === 'done') {
+      this.completed++;
+      this.sentence = this.nextSentence();
+      this.matcher = new RomajiMatcher(this.sentence.kana);
+    }
+    return r;
+  }
+
+  elapsed(now: number): number {
+    if (this.phase === 'idle') return 0;
+    if (this.phase === 'finished') return this.endedAt - this.startedAt;
+    return Math.min(this.durationMs, Math.max(0, now - this.startedAt));
+  }
+
+  remaining(now: number): number {
+    return this.durationMs - this.elapsed(now);
+  }
+
+  isOver(now: number): boolean {
+    return this.phase === 'running' && now - this.startedAt >= this.durationMs;
+  }
+
+  finish(now: number): TypingResult {
+    if (this.phase === 'running') {
+      this.endedAt = Math.min(now, this.startedAt + this.durationMs);
+      this.phase = 'finished';
+    }
+    return this.result(now);
+  }
+
+  result(now: number): TypingResult {
+    const elapsedMs = this.elapsed(now);
+    const minutes = Math.max(elapsedMs, 1000) / 60000;
+    const total = this.keys + this.misses;
+    return {
+      lang: 'ja',
+      speed: this.keys / minutes,
+      cpm: this.keys / minutes,
+      rawWpm: 0,
+      accuracy: total > 0 ? (this.keys / total) * 100 : 100,
+      correctChars: this.keys,
+      uncorrected: 0,
+      errors: this.misses,
+      typedChars: total,
+      elapsedMs,
+    };
+  }
+}
+
+/** Endless shuffled sentence supply without immediate repeats. */
+export function sentenceFeed<T>(items: readonly T[], random: RandomSource = defaultRandom): () => T {
+  let pool: T[] = [];
+  let last: T | undefined;
+  return () => {
+    if (pool.length === 0) {
+      pool = shuffled(items, random);
+      if (pool[0] === last && pool.length > 1) [pool[0], pool[1]] = [pool[1], pool[0]];
+    }
+    last = pool.shift()!;
+    return last;
+  };
 }

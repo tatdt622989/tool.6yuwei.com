@@ -1,68 +1,75 @@
 ---
+import { t } from '../../i18n/format';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
 import { COMMON_ENTITIES } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 const invisible = new Set([' ', ' ', ' ', ' ', '­']);
 ---
 
-<div class="tool" data-tool="html-entities">
+<div class="tool" data-tool="html-entities" {...i18nAttrs(locale, s.client)}>
   <div class="row">
-    <div class="seg" role="radiogroup" aria-label="轉換方向">
-      <label><input type="radio" name="he-mode" value="encode" checked /><span>編碼（跳脫）</span></label>
-      <label><input type="radio" name="he-mode" value="decode" /><span>解碼（還原）</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+      <label><input type="radio" name="he-mode" value="encode" checked /><span>{s.encode}</span></label>
+      <label><input type="radio" name="he-mode" value="decode" /><span>{s.decode}</span></label>
     </div>
   </div>
 
   <div class="he-opts" id="he-opts">
     <div class="field">
-      <span class="label">要轉換的字元</span>
+      <span class="label">{s.scopeLabel}</span>
       <div class="row">
-        <div class="seg" role="radiogroup" aria-label="要轉換的字元">
-          <label><input type="radio" name="he-scope" value="minimal" checked /><span>僅特殊字元</span></label>
-          <label><input type="radio" name="he-scope" value="nonascii" /><span>含所有非 ASCII</span></label>
+        <div class="seg" role="radiogroup" aria-label={s.scopeLabel}>
+          <label><input type="radio" name="he-scope" value="minimal" checked /><span>{s.scopeMinimal}</span></label>
+          <label><input type="radio" name="he-scope" value="nonascii" /><span>{s.scopeNonAscii}</span></label>
         </div>
       </div>
     </div>
     <div class="field">
-      <span class="label">表示方式</span>
+      <span class="label">{s.styleLabel}</span>
       <div class="row">
-        <div class="seg" role="radiogroup" aria-label="表示方式">
-          <label><input type="radio" name="he-style" value="named" checked /><span>具名優先</span></label>
-          <label><input type="radio" name="he-style" value="decimal" /><span>十進位 &amp;#NN;</span></label>
-          <label><input type="radio" name="he-style" value="hex" /><span>十六進位 &amp;#xNN;</span></label>
+        <div class="seg" role="radiogroup" aria-label={s.styleLabel}>
+          <label><input type="radio" name="he-style" value="named" checked /><span>{s.styleNamed}</span></label>
+          <label><input type="radio" name="he-style" value="decimal" /><span>{s.styleDecimal}</span></label>
+          <label><input type="radio" name="he-style" value="hex" /><span>{s.styleHex}</span></label>
         </div>
       </div>
     </div>
   </div>
 
   <div class="field">
-    <label for="he-input" id="he-input-label">原始文字或 HTML</label>
+    <label for="he-input" id="he-input-label">{s.client.encodeInputLabel}</label>
     <textarea id="he-input" class="mono" rows="7" spellcheck="false" autocomplete="off"></textarea>
   </div>
   <div class="field">
-    <label for="he-output">結果</label>
+    <label for="he-output">{s.outputLabel}</label>
     <textarea id="he-output" class="mono" rows="7" readonly spellcheck="false"></textarea>
     <span class="hint" id="he-meta"></span>
   </div>
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#he-output">複製結果</button>
-    <button class="btn" type="button" id="he-swap">用結果反向轉換</button>
-    <button class="btn ghost" type="button" id="he-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#he-output">{s.copy}</button>
+    <button class="btn" type="button" id="he-swap">{s.swap}</button>
+    <button class="btn ghost" type="button" id="he-clear">{s.clear}</button>
   </div>
 
   <details class="he-ref">
-    <summary>常用 HTML 實體對照表（{COMMON_ENTITIES.length} 個）</summary>
+    <summary>{t(s.refSummary, { n: COMMON_ENTITIES.length })}</summary>
     <div class="table-wrap">
       <table class="table">
         <thead>
-          <tr><th>字元</th><th>具名實體</th><th>十進位</th><th>說明</th></tr>
+          <tr><th>{s.colChar}</th><th>{s.colNamed}</th><th>{s.colDecimal}</th><th>{s.colDescription}</th></tr>
         </thead>
         <tbody>
           {
             COMMON_ENTITIES.map((e) => (
               <tr>
-                <td class="he-char">{invisible.has(e.char) ? '（空白）' : e.char}</td>
+                <td class="he-char">{invisible.has(e.char) ? s.blank : e.char}</td>
                 <td><code>{`&${e.name};`}</code></td>
                 <td><code>{`&#${e.char.codePointAt(0)};`}</code></td>
-                <td>{e.description}</td>
+                <td>{s.descriptions?.[e.name] ?? e.description}</td>
               </tr>
             ))
           }
@@ -75,7 +82,10 @@ const invisible = new Set([' ', ' ', ' ', ' ', '­']);
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatInteger } from '../../lib/format';
+  import { plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import { decodeEntities, encodeEntities, type EncodeScope, type EncodeStyle } from './logic';
+  import type { Strings } from './i18n';
 
   type Mode = 'encode' | 'decode';
   interface Prefs {
@@ -85,6 +95,7 @@ const invisible = new Set([' ', ' ', ' ', ' ', '­']);
   }
 
   const root = $('[data-tool="html-entities"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#he-input', root);
   const output = $<HTMLTextAreaElement>('#he-output', root);
   const inputLabel = $('#he-input-label', root);
@@ -114,8 +125,8 @@ const invisible = new Set([' ', ' ', ' ', ' ', '­']);
     savePref('html-entities', prefs);
     const encode = prefs.mode === 'encode';
     opts.hidden = !encode;
-    inputLabel.textContent = encode ? '原始文字或 HTML' : '含有實體的 HTML';
-    input.placeholder = encode ? '例如：<p class="note">AT&T © 2026</p>' : '例如：&lt;p&gt;AT&amp;T &copy; 2026&lt;/p&gt;';
+    inputLabel.textContent = encode ? s.encodeInputLabel : s.decodeInputLabel;
+    input.placeholder = encode ? s.encodePlaceholder : s.decodePlaceholder;
     if (input.value === '') {
       output.value = '';
       meta.textContent = '';
@@ -126,10 +137,13 @@ const invisible = new Set([' ', ' ', ' ', ' ', '­']);
     } else {
       const { text, count } = decodeEntities(input.value, resolveName);
       output.value = text;
-      meta.textContent = `已還原 ${formatInteger(count)} 個實體`;
+      meta.textContent = plural(locale, count, s.decoded);
       return;
     }
-    meta.textContent = `${formatInteger([...input.value].length)} 個字元 → ${formatInteger([...output.value].length)} 個字元`;
+    meta.textContent = t(s.lengths, {
+      in: formatInteger([...input.value].length, locale),
+      out: formatInteger([...output.value].length, locale),
+    });
   }
 
   const saved = loadPref<Prefs>('html-entities', { mode: 'encode', scope: 'minimal', style: 'named' });

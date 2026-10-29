@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { constellationOf } from '../age-calculator/logic';
-import { animalForDate, animalYearTable, lookup, signByTable, signByTerms, SIGNS } from './logic';
+import i18n from './i18n';
+import {
+  animalForDate,
+  animalYearTable,
+  branchYearTable,
+  chineseZodiacOf,
+  etoOfDate,
+  kanrekiYear,
+  lookup,
+  nextAnimalYear,
+  signByTable,
+  signByTerms,
+  SIGNS,
+  stemBranchOf,
+  warekiOf,
+} from './logic';
 
 describe('signByTable', () => {
   it('matches the boundaries', () => {
@@ -94,5 +109,74 @@ describe('tables', () => {
     const horse = rows.find((r) => r.animal === '馬')!;
     expect(horse.years.map((y) => y.year)).toEqual([1930, 1942, 1954, 1966, 1978, 1990, 2002, 2014, 2026]);
     expect(horse.years.at(-1)).toMatchObject({ ganzhi: '丙午', newYear: { y: 2026, m: 2, d: 17 } });
+  });
+});
+
+describe('stemBranchOf', () => {
+  it('cycles through the 60 combinations', () => {
+    expect(stemBranchOf(1984)).toMatchObject({ ganzhi: '甲子', stemIndex: 0, branchIndex: 0, element: '木', yang: true });
+    expect(stemBranchOf(2026)).toMatchObject({ ganzhi: '丙午', element: '火', yang: true });
+    expect(stemBranchOf(2027)).toMatchObject({ ganzhi: '丁未', element: '火', yang: false });
+    expect(stemBranchOf(1990).ganzhi).toBe('庚午');
+    expect(stemBranchOf(1966).ganzhi).toBe('丙午');
+    expect(stemBranchOf(1924 + 60).ganzhi).toBe(stemBranchOf(1924).ganzhi);
+  });
+});
+
+describe('Japanese 干支 vs Chinese zodiac boundary', () => {
+  it('ja switches on 1 January', () => {
+    expect(etoOfDate({ y: 2026, m: 1, d: 1 }).ganzhi).toBe('丙午');
+    expect(etoOfDate({ y: 2026, m: 2, d: 1 }).ganzhi).toBe('丙午');
+    expect(etoOfDate({ y: 2025, m: 12, d: 31 }).ganzhi).toBe('乙巳');
+  });
+
+  it('en switches at Lunar New Year (2026-02-17)', () => {
+    expect(chineseZodiacOf({ y: 2026, m: 2, d: 1 })).toMatchObject({ animal: '蛇', ganzhi: '乙巳', lunarYear: 2025, beforeNewYear: true });
+    expect(chineseZodiacOf({ y: 2026, m: 2, d: 17 })).toMatchObject({ animal: '馬', ganzhi: '丙午', beforeNewYear: false, yang: true });
+    expect(chineseZodiacOf({ y: 1995, m: 1, d: 20 })).toMatchObject({ animal: '狗', element: '木', yang: true, branchIndex: 10 });
+    expect(chineseZodiacOf({ y: 1900, m: 1, d: 1 })).toBeNull();
+  });
+
+  it('en animal names line up with the branch order', () => {
+    const z = chineseZodiacOf({ y: 1995, m: 8, d: 15 })!;
+    expect(i18n.en!.client.chinese!.animals[z.branchIndex]).toBe('Pig');
+    expect(i18n.ja!.client.eto!.animals[stemBranchOf(2031).branchIndex]).toBe('イノシシ');
+  });
+});
+
+describe('年女・年男 and 還暦', () => {
+  it('finds the next year with the same 十二支', () => {
+    expect(nextAnimalYear(1990, 2026)).toEqual({ year: 2026, age: 36 });
+    expect(nextAnimalYear(1990, 2027)).toEqual({ year: 2038, age: 48 });
+    expect(nextAnimalYear(2026, 2026)).toEqual({ year: 2038, age: 12 });
+    expect(nextAnimalYear(2030, 2026)).toEqual({ year: 2042, age: 12 });
+  });
+
+  it('puts 還暦 sixty years later with the same 干支', () => {
+    expect(kanrekiYear(1966)).toBe(2026);
+    expect(stemBranchOf(kanrekiYear(1966)).ganzhi).toBe(stemBranchOf(1966).ganzhi);
+  });
+});
+
+describe('warekiOf', () => {
+  it('names the era year and both eras in a change year', () => {
+    expect(warekiOf(1990)).toEqual(['平成2年']);
+    expect(warekiOf(1989)).toEqual(['昭和64年', '平成元年']);
+    expect(warekiOf(2019)).toEqual(['平成31年', '令和元年']);
+    expect(warekiOf(2026)).toEqual(['令和8年']);
+    expect(warekiOf(1926)).toEqual(['大正15年', '昭和元年']);
+    expect(warekiOf(1912)).toEqual(['明治45年', '大正元年']);
+    expect(warekiOf(1900)).toEqual(['明治33年']);
+    expect(warekiOf(1800)).toEqual([]);
+  });
+});
+
+describe('branchYearTable', () => {
+  it('lists Gregorian years per 十二支', () => {
+    const rows = branchYearTable(1924, 2031);
+    expect(rows).toHaveLength(12);
+    expect(rows[6].years.map((y) => y.year)).toContain(2026);
+    expect(rows[6].years.find((y) => y.year === 2026)!.ganzhi).toBe('丙午');
+    expect(rows[0].years[0]).toEqual({ year: 1924, ganzhi: '甲子' });
   });
 });

@@ -106,3 +106,50 @@ export function secondItem(unitPrice: number, zhe: number): BundleResult {
   const paid = unitPrice * (1 + f);
   return { items: 2, paid, perItem: paid / 2, factor: (1 + f) / 2 };
 }
+
+// ---- Percent-off markets (en, ja) ----
+
+/** Stacked percent-off discounts multiply: 30% off, then an extra 20% off → 44% off in total. */
+export function applyPercentsOff(price: number, ...percentsOff: number[]): DiscountResult {
+  if (!validPrice(price) || percentsOff.length === 0) return invalid;
+  if (percentsOff.some((p) => !Number.isFinite(p) || p < 0 || p > 100)) return invalid;
+  return result(price, percentsOff.reduce((p, off) => p * (1 - off / 100), price));
+}
+
+/** Japanese 割引: 3 割引 = 30% off. Accepts 0–10 (decimals such as 2.5 割 are allowed). */
+export function applyWariOff(price: number, wari: number): DiscountResult {
+  if (!Number.isFinite(wari) || wari < 0 || wari > 10) return invalid;
+  return applyPercentOff(price, wari * 10);
+}
+
+/** Second item at a percent off (BOGO 50% off, 2 点目半額): two items, the second discounted. */
+export function secondItemPercentOff(unitPrice: number, percentOff: number): BundleResult {
+  if (!validPrice(unitPrice) || !Number.isFinite(percentOff) || percentOff < 0 || percentOff > 100) {
+    return { items: Number.NaN, paid: Number.NaN, perItem: Number.NaN, factor: Number.NaN };
+  }
+  const f = 1 - percentOff / 100;
+  const paid = unitPrice * (1 + f);
+  return { items: 2, paid, perItem: paid / 2, factor: (1 + f) / 2 };
+}
+
+/**
+ * How a price is rounded to the currency's smallest unit:
+ *  - 'none':  keep decimals (zh-TW shows up to 2 decimals)
+ *  - 'cent':  round to cents (USD)
+ *  - 'floor': drop fractions of a yen (1 円未満切り捨て, the usual practice in Japan)
+ */
+export type MoneyRounding = 'none' | 'cent' | 'floor';
+
+export function roundMoney(value: number, rounding: MoneyRounding): number {
+  if (!Number.isFinite(value)) return value;
+  // A tiny epsilon keeps values like 1,024.9999999 (binary noise) from flooring a yen too low.
+  if (rounding === 'floor') return Math.floor(value + 1e-9);
+  if (rounding === 'cent') return Math.round((value + Number.EPSILON) * 100) / 100;
+  return value;
+}
+
+/** Price plus tax at `ratePercent` (US sales tax, 消費税 10% / 8%), rounded for the currency. */
+export function addTax(price: number, ratePercent: number, rounding: MoneyRounding = 'none'): number {
+  if (!validPrice(price) || !Number.isFinite(ratePercent) || ratePercent < 0) return Number.NaN;
+  return roundMoney(price * (1 + ratePercent / 100), rounding);
+}

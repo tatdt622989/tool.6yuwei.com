@@ -1,11 +1,19 @@
 ---
-import { PRESETS } from './logic';
+import { plural } from '../../i18n/format';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { presetsFor } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const presets = presetsFor(locale);
 ---
 
-<div class="tool" data-tool="spin-wheel">
+<div class="tool" data-tool="spin-wheel" {...i18nAttrs(locale, s.client)}>
   <div class="sw-layout">
     <div class="sw-stage" id="sw-stage">
-      <p class="sw-title" id="sw-title-view">午餐吃什麼</p>
+      <p class="sw-title" id="sw-title-view">{presets[0].name}</p>
       <div class="sw-wheel" id="sw-wheel">
         <canvas id="sw-canvas" aria-hidden="true"></canvas>
         <svg class="sw-pointer" id="sw-pointer" viewBox="0 0 40 48" aria-hidden="true">
@@ -13,67 +21,67 @@ import { PRESETS } from './logic';
           <circle cx="20" cy="15" r="5" />
         </svg>
         <button class="sw-hub" type="button" id="sw-spin" aria-describedby="sw-count">
-          <span id="sw-spin-label">開始</span>
+          <span id="sw-spin-label">{s.client.spin}</span>
         </button>
       </div>
       <div class="sw-result" id="sw-result" aria-live="polite" hidden>
-        <span class="sw-result-label" id="sw-result-n">結果</span>
+        <span class="sw-result-label" id="sw-result-n">{s.resultLabel}</span>
         <span class="sw-result-value" id="sw-result-value"></span>
         <div class="row sw-result-actions">
-          <button class="btn small" type="button" id="sw-again">再轉一次</button>
-          <button class="btn small ghost" type="button" id="sw-remove-now">從轉盤移除</button>
+          <button class="btn small" type="button" id="sw-again">{s.again}</button>
+          <button class="btn small ghost" type="button" id="sw-remove-now">{s.removeNow}</button>
         </div>
       </div>
-      <button class="btn small ghost sw-fs" type="button" id="sw-fs" hidden>
+      <button class="btn small ghost sw-fs" type="button" id="sw-fs" title={s.fsIconOnly ? s.client.fullscreen : undefined} hidden>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
-        <span id="sw-fs-label">全螢幕</span>
+        <span id="sw-fs-label" class={s.fsIconOnly ? 'visually-hidden' : undefined}>{s.client.fullscreen}</span>
       </button>
     </div>
 
     <div class="sw-panel">
       <div class="field">
-        <span class="label">常用轉盤</span>
+        <span class="label">{s.presetsLabel}</span>
         <div class="sw-presets" id="sw-presets">
-          {PRESETS.map((p) => <button class="btn small" type="button" data-preset={p.id}>{p.name}</button>)}
+          {presets.map((p) => <button class="btn small" type="button" data-preset={p.id}>{p.name}</button>)}
         </div>
       </div>
 
       <div class="field">
-        <label for="sw-title">轉盤標題</label>
-        <input id="sw-title" type="text" maxlength="30" placeholder="例如：午餐吃什麼" />
+        <label for="sw-title">{s.titleLabel}</label>
+        <input id="sw-title" type="text" maxlength="30" placeholder={s.titlePlaceholder} />
       </div>
 
       <div class="field">
-        <label for="sw-input">選項（每行一個，可用「選項*3」設定權重）</label>
+        <label for="sw-input">{s.optionsLabel}</label>
         <textarea id="sw-input" rows="8" spellcheck="false"></textarea>
         <div class="row between">
-          <span class="hint" id="sw-count">共 0 個選項</span>
+          <span class="hint" id="sw-count">{plural(locale, 0, s.client.count)}</span>
           <div class="row">
-            <button class="btn small ghost" type="button" id="sw-shuffle">打亂順序</button>
-            <button class="btn small ghost" type="button" id="sw-clear">清空</button>
+            <button class="btn small ghost" type="button" id="sw-shuffle">{s.shuffle}</button>
+            <button class="btn small ghost" type="button" id="sw-clear">{s.clear}</button>
           </div>
         </div>
       </div>
 
       <div class="field">
-        <span class="label">轉動速度</span>
-        <div class="seg" role="radiogroup" aria-label="轉動速度">
-          <label><input type="radio" name="sw-speed" value="fast" /><span>快</span></label>
-          <label><input type="radio" name="sw-speed" value="normal" checked /><span>標準</span></label>
-          <label><input type="radio" name="sw-speed" value="slow" /><span>慢</span></label>
+        <span class="label">{s.speedLabel}</span>
+        <div class="seg" role="radiogroup" aria-label={s.speedLabel}>
+          <label><input type="radio" name="sw-speed" value="fast" /><span>{s.speedFast}</span></label>
+          <label><input type="radio" name="sw-speed" value="normal" checked /><span>{s.speedNormal}</span></label>
+          <label><input type="radio" name="sw-speed" value="slow" /><span>{s.speedSlow}</span></label>
         </div>
       </div>
 
       <div class="sw-checks">
-        <label class="check"><input id="sw-autoremove" type="checkbox" /> 抽中後自動移除（不重複抽）</label>
-        <label class="check"><input id="sw-sound" type="checkbox" /> 轉動音效</label>
+        <label class="check"><input id="sw-autoremove" type="checkbox" /> {s.autoRemove}</label>
+        <label class="check"><input id="sw-sound" type="checkbox" /> {s.sound}</label>
       </div>
 
       <details class="sw-odds">
-        <summary>各選項中獎機率</summary>
+        <summary>{s.oddsSummary}</summary>
         <div class="table-wrap">
           <table class="table">
-            <thead><tr><th>選項</th><th class="num">權重</th><th class="num">機率</th></tr></thead>
+            <thead><tr><th>{s.thOption}</th><th class="num">{s.thWeight}</th><th class="num">{s.thChance}</th></tr></thead>
             <tbody id="sw-odds"></tbody>
           </table>
         </div>
@@ -83,31 +91,36 @@ import { PRESETS } from './logic';
 
   <div class="notice error" id="sw-error" hidden></div>
 
-  <section class="sw-history" aria-label="抽獎紀錄">
+  <section class="sw-history" aria-label={s.history}>
     <div class="row between">
-      <h3 class="sw-h">抽獎紀錄</h3>
+      <h3 class="sw-h">{s.history}</h3>
       <div class="row">
-        <button class="btn small ghost" type="button" data-copy="#sw-history">複製紀錄</button>
-        <button class="btn small ghost" type="button" id="sw-history-clear">清除紀錄</button>
+        <button class="btn small ghost" type="button" data-copy="#sw-history">{s.copyHistory}</button>
+        <button class="btn small ghost" type="button" id="sw-history-clear">{s.clearHistory}</button>
       </div>
     </div>
     <ol class="sw-history-list" id="sw-history" reversed></ol>
-    <p class="hint" id="sw-history-empty">轉動後的結果會依序記錄在這裡，只儲存在你的瀏覽器。</p>
+    <p class="hint" id="sw-history-empty">{s.historyEmpty}</p>
   </section>
 </div>
 
 <script>
   import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
   import { formatNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
   import {
     fitLabel,
     hasCustomWeights,
     parseOptions,
     pickWeighted,
-    PRESETS,
+    presetsFor,
     probabilities,
     randomFloat,
     removeOptionLine,
+    rotatesInVertical,
     rotationAt,
     segmentAtPointer,
     segmentsOf,
@@ -137,11 +150,15 @@ import { PRESETS } from './logic';
     normal: { ms: 5200, turns: 6 },
     slow: { ms: 8000, turns: 9 },
   };
-  const lunch = PRESETS[0];
-  const defaults: Prefs = { title: lunch.name, text: lunch.options.join('\n'), speed: 'normal', autoRemove: false, sound: false };
   const HISTORY_MAX = 50;
 
   const root = $('[data-tool="spin-wheel"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const PRESETS = presetsFor(locale);
+  // zh-TW keeps its original storage keys; other locales get their own so their wheels don't mix.
+  const PREF_KEY = locale === 'zh-TW' ? 'spin-wheel' : `spin-wheel:${locale}`;
+  const lunch = PRESETS[0];
+  const defaults: Prefs = { title: lunch.name, text: lunch.options.join('\n'), speed: 'normal', autoRemove: false, sound: false };
   const stage = $('#sw-stage', root);
   const wheel = $('#sw-wheel', root);
   const canvas = $<HTMLCanvasElement>('#sw-canvas', root);
@@ -176,14 +193,14 @@ import { PRESETS } from './logic';
   let spinning = false;
   let highlight = -1;
   let lastWinner: { option: WheelOption; raw: string } | null = null;
-  let history: HistoryItem[] = loadPref<HistoryItem[]>('spin-wheel:history', []);
+  let history: HistoryItem[] = loadPref<HistoryItem[]>(`${PREF_KEY}:history`, []);
   let audio: AudioContext | null = null;
 
   // ---------- Prefs ----------
   const speedOf = () => ($<HTMLInputElement>('input[name="sw-speed"]:checked', root).value as Speed) ?? 'normal';
 
   function save() {
-    savePref('spin-wheel', {
+    savePref(PREF_KEY, {
       title: titleInput.value,
       text: input.value,
       speed: speedOf(),
@@ -313,7 +330,14 @@ import { PRESETS } from './logic';
       for (let r = outer - fontSize / 2; r - fontSize / 2 >= inner && sweep * r >= fontSize * 0.92; r -= step) fits.push(r);
       if (fits.length === 0) return ctx.restore();
       const shown = chars.length <= fits.length ? chars : [...chars.slice(0, Math.max(1, fits.length - 1)), '\uFE19'];
-      shown.forEach((ch, k) => ctx.fillText(ch, 0, -fits[k]));
+      shown.forEach((ch, k) => {
+        if (!rotatesInVertical(ch)) return ctx.fillText(ch, 0, -fits[k]);
+        ctx.save();
+        ctx.translate(0, -fits[k]);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+      });
       return ctx.restore();
     }
     ctx.rotate(mid);
@@ -340,9 +364,9 @@ import { PRESETS } from './logic';
     titleView.textContent = titleInput.value.trim();
     titleView.hidden = titleView.textContent === '';
     const weighted = hasCustomWeights(options);
-    countHint.textContent = `共 ${options.length} 個選項${weighted ? '（含權重）' : ''}`;
+    countHint.textContent = plural(locale, options.length, s.count) + (weighted ? s.weighted : '');
     spinBtn.disabled = options.length < 2;
-    spinLabel.textContent = options.length < 2 ? '至少 2 項' : '開始';
+    spinLabel.textContent = options.length < 2 ? s.minTwo : s.spin;
 
     const probs = probabilities(options);
     oddsBody.replaceChildren(
@@ -353,9 +377,9 @@ import { PRESETS } from './logic';
         const p = document.createElement('td');
         name.textContent = o.label;
         w.className = 'num';
-        w.textContent = formatNumber(o.weight);
+        w.textContent = formatNumber(o.weight, 2, locale);
         p.className = 'num';
-        p.textContent = `${formatNumber(probs[i] * 100, 2)}%`;
+        p.textContent = `${formatNumber(probs[i] * 100, 2, locale)}%`;
         tr.append(name, w, p);
         return tr;
       }),
@@ -373,7 +397,7 @@ import { PRESETS } from './logic';
     for (const el of lockable) el.disabled = on;
     spinBtn.setAttribute('aria-busy', String(on));
     wheel.classList.toggle('is-spinning', on);
-    spinLabel.textContent = on ? '轉動中' : '開始';
+    spinLabel.textContent = on ? s.spinning : s.spin;
   }
 
   // ---------- History ----------
@@ -399,9 +423,9 @@ import { PRESETS } from './logic';
 
   function pushHistory(label: string) {
     const now = new Date();
-    const time = now.toLocaleTimeString('zh-TW', { hour12: false });
+    const time = now.toLocaleTimeString(LOCALE_INFO[locale].intl, { hour12: s.hour12 });
     history = [...history, { label, time }].slice(-HISTORY_MAX);
-    savePref('spin-wheel:history', history);
+    savePref(`${PREF_KEY}:history`, history);
     renderHistory();
   }
 
@@ -432,7 +456,7 @@ import { PRESETS } from './logic';
   }
 
   // ---------- Spin ----------
-  /** Applies the deferred 「抽中後自動移除」 only if the winner's line is still unchanged. */
+  /** Applies the deferred auto-remove (「抽中後自動移除」) only if the winner's line is still unchanged. */
   function applyPendingRemoval() {
     if (!lastWinner) return;
     const lines = input.value.split(/\r\n|\r|\n/);
@@ -453,7 +477,7 @@ import { PRESETS } from './logic';
     const raw = input.value.split(/\r\n|\r|\n/)[option.line] ?? '';
     lastWinner = { option, raw };
     pushHistory(option.label);
-    resultN.textContent = `第 ${history.length} 次結果`;
+    resultN.textContent = t(s.nth, { n: formatNumber(history.length, 0, locale) });
     resultValue.textContent = option.label;
     resultBox.hidden = false;
     resultBox.classList.remove('is-new');
@@ -470,7 +494,7 @@ import { PRESETS } from './logic';
     else lastWinner = null;
     refresh();
     if (options.length < 2) {
-      showError('請至少輸入 2 個選項，每行一個。');
+      showError(s.errorMin);
       return;
     }
 
@@ -515,7 +539,8 @@ import { PRESETS } from './logic';
       else void stage.requestFullscreen().catch(() => undefined);
     });
     document.addEventListener('fullscreenchange', () => {
-      fsLabel.textContent = document.fullscreenElement === stage ? '離開全螢幕' : '全螢幕';
+      fsLabel.textContent = document.fullscreenElement === stage ? s.exitFullscreen : s.fullscreen;
+      if (fsBtn.title) fsBtn.title = fsLabel.textContent;
       requestAnimationFrame(draw);
     });
   }
@@ -546,7 +571,7 @@ import { PRESETS } from './logic';
     if (spinning || !lastWinner) return;
     const before = input.value;
     applyPendingRemoval();
-    if (input.value === before) showError('選項內容已變更，請直接在清單中刪除。');
+    if (input.value === before) showError(s.errorChanged);
     resultBox.hidden = true;
   });
 
@@ -583,7 +608,7 @@ import { PRESETS } from './logic';
 
   $('#sw-history-clear', root).addEventListener('click', () => {
     history = [];
-    savePref('spin-wheel:history', history);
+    savePref(`${PREF_KEY}:history`, history);
     renderHistory();
   });
 

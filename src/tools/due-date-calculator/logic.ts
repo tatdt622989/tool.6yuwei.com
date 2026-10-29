@@ -48,18 +48,33 @@ export interface DueInput {
   cycle: number;
 }
 
-export function validateDueInput(input: DueInput, today: YMD): string | null {
+export type DueInputError = 'cycleInteger' | 'cycleRange' | 'future' | 'tooOld';
+
+/** zh-TW messages for dueInputError(); localized UIs map the codes through their own dictionary. */
+export const DUE_ERROR_ZH: Record<DueInputError, string> = {
+  cycleInteger: '請輸入整數的月經週期天數，例如 28。',
+  cycleRange: `月經週期請輸入 ${DATING.cycleRange.min} 到 ${DATING.cycleRange.max} 天；週期極不規則時建議以超音波推算。`,
+  future: '日期不能晚於今天。',
+  tooOld: '這個日期距今已超過 44 週，請確認年份是否正確。',
+};
+
+/** Locale-neutral validation: an error code, or null when the input is usable. */
+export function dueInputError(input: DueInput, today: YMD): DueInputError | null {
   const { method, cycle } = input;
   if (method === 'lmp') {
-    if (!Number.isFinite(cycle) || !Number.isInteger(cycle)) return '請輸入整數的月經週期天數，例如 28。';
-    if (cycle < DATING.cycleRange.min || cycle > DATING.cycleRange.max)
-      return `月經週期請輸入 ${DATING.cycleRange.min} 到 ${DATING.cycleRange.max} 天；週期極不規則時建議以超音波推算。`;
+    if (!Number.isFinite(cycle) || !Number.isInteger(cycle)) return 'cycleInteger';
+    if (cycle < DATING.cycleRange.min || cycle > DATING.cycleRange.max) return 'cycleRange';
   }
   const start = gestationStart(input);
   const days = toDayNumber(today) - toDayNumber(start);
-  if (toDayNumber(input.date) > toDayNumber(today)) return '日期不能晚於今天。';
-  if (days > 44 * 7) return '這個日期距今已超過 44 週，請確認年份是否正確。';
+  if (toDayNumber(input.date) > toDayNumber(today)) return 'future';
+  if (days > 44 * 7) return 'tooOld';
   return null;
+}
+
+export function validateDueInput(input: DueInput, today: YMD): string | null {
+  const code = dueInputError(input, today);
+  return code ? DUE_ERROR_ZH[code] : null;
 }
 
 /** Gestational day 0: the LMP-equivalent date from which 懷孕週數 is counted. */
@@ -84,20 +99,120 @@ export function gestationalAge(start: YMD, on: YMD): GestationalAge {
   return { totalDays, weeks, days: totalDays - weeks * 7 };
 }
 
-/** 1, 2 or 3 per the 國健署 schedule; 0 before day 0. */
-export function trimesterOf(weeks: number): 0 | 1 | 2 | 3 {
+/** 1, 2 or 3 per the schedule's cut-offs (default 國健署); 0 before day 0. */
+export function trimesterOf(weeks: number, schedule: ScheduleId = 'tw'): 0 | 1 | 2 | 3 {
+  const starts = SCHEDULES[schedule].trimesterStarts;
   if (weeks < 0) return 0;
-  if (weeks < HPA_PRENATAL.trimesterStarts.second) return 1;
-  if (weeks < HPA_PRENATAL.trimesterStarts.third) return 2;
+  if (weeks < starts.second) return 1;
+  if (weeks < starts.third) return 2;
   return 3;
+}
+
+/**
+ * 妊娠月数 as counted in Japan: 4-week blocks, 0–3週 = 1ヶ月 … 36–39週 = 10ヶ月.
+ * 40週 and later is still described as 10ヶ月（臨月）. Returns 0 before day 0.
+ */
+export function pregnancyMonthJp(weeks: number): number {
+  if (weeks < 0) return 0;
+  return Math.min(10, Math.floor(weeks / 4) + 1);
 }
 
 export const TRIMESTER_LABEL = ['尚未懷孕', '第一孕期', '第二孕期', '第三孕期'] as const;
 
+/**
+ * Market-specific prenatal schedules. Labels for 'us' and 'jp' items come from the tool's i18n dictionary
+ * (keyed by `id`); the zh-TW `label` stays here for backward compatibility.
+ *
+ * us — ACOG trimesters (1st to 13w6d, 2nd 14w0d–27w6d, 3rd 28w0d+) and commonly recommended timing:
+ *   NIPT from 10 wk, NT scan 11–13w6d, anatomy scan 18–22 wk, glucose screen 24–28 wk, Tdap 27–36 wk (CDC),
+ *   RSV vaccine 32–36 wk in Sept–Jan (CDC), GBS culture 36w0d–37w6d (ACOG 2020), term definitions (ACOG 2013).
+ * jp — 妊娠初期 〜15週, 中期 16〜27週, 後期 28週〜 (日本産科婦人科学会). 厚生労働省「標準的な妊婦健診」14 回：
+ *   〜23週は 4 週に 1 回、24〜35週は 2 週に 1 回、36週〜は毎週。血算・血糖 24〜35週、HTLV-1 抗体 30週頃まで、
+ *   GBS 33〜37週。産前休業は予定日を含む 42 日前＝34週1日から（労働基準法 65 条、単胎）。正期産 37週0日〜41週6日。
+ */
+export type ScheduleId = 'tw' | 'us' | 'jp';
+
+export interface ScheduleWindow {
+  id: string;
+  /** zh-TW label (tw schedule only). */
+  label?: string;
+  from: number;
+  to: number;
+  /** A single moment (e.g. "third trimester begins"), shown as one date rather than a week range. */
+  point?: boolean;
+  /** Extra days after `from` weeks (e.g. 34w1d). */
+  day?: number;
+}
+
+export interface Schedule {
+  trimesterStarts: { second: number; third: number };
+  visitWeeks: readonly number[];
+  windows: readonly ScheduleWindow[];
+}
+
+export const SCHEDULES: Record<ScheduleId, Schedule> = {
+  tw: {
+    trimesterStarts: HPA_PRENATAL.trimesterStarts,
+    visitWeeks: HPA_PRENATAL.visitWeeks,
+    windows: [
+      { id: 'us1', ...HPA_PRENATAL.windows[0] },
+      { id: 'us2', ...HPA_PRENATAL.windows[1] },
+      { id: 'gdm', ...HPA_PRENATAL.windows[2] },
+      { id: 'us3', ...HPA_PRENATAL.windows[3] },
+      { id: 'gbs', ...HPA_PRENATAL.windows[4] },
+    ],
+  },
+  us: {
+    trimesterStarts: { second: 14, third: 28 },
+    visitWeeks: [],
+    windows: [
+      { id: 'firstVisit', from: 8, to: 10 },
+      { id: 'nipt', from: 10, to: 13 },
+      { id: 'nt', from: 11, to: 13 },
+      { id: 'second', from: 14, to: 14, point: true },
+      { id: 'anatomy', from: 18, to: 22 },
+      { id: 'glucose', from: 24, to: 28 },
+      { id: 'tdap', from: 27, to: 36 },
+      { id: 'third', from: 28, to: 28, point: true },
+      { id: 'rsv', from: 32, to: 36 },
+      { id: 'gbs', from: 36, to: 37 },
+      { id: 'earlyTerm', from: 37, to: 37, point: true },
+      { id: 'fullTerm', from: 39, to: 39, point: true },
+      { id: 'due', from: 40, to: 40, point: true },
+      { id: 'lateTerm', from: 41, to: 41, point: true },
+      { id: 'postTerm', from: 42, to: 42, point: true },
+    ],
+  },
+  jp: {
+    trimesterStarts: { second: 16, third: 28 },
+    visitWeeks: [8, 12, 16, 20, 24, 26, 28, 30, 32, 34, 36, 37, 38, 39],
+    windows: [
+      { id: 'boshi', from: 8, to: 11 },
+      { id: 'early', from: 8, to: 12 },
+      { id: 'second', from: 16, to: 16, point: true },
+      { id: 'blood', from: 24, to: 35 },
+      { id: 'htlv', from: 24, to: 30 },
+      { id: 'third', from: 28, to: 28, point: true },
+      { id: 'gbs', from: 33, to: 37 },
+      { id: 'leave', from: 34, to: 34, point: true, day: 1 },
+      { id: 'term', from: 37, to: 37, point: true },
+      { id: 'due', from: 40, to: 40, point: true },
+      { id: 'postTerm', from: 42, to: 42, point: true },
+    ],
+  },
+};
+
 export type MilestoneStatus = 'done' | 'current' | 'upcoming';
 
 export interface Milestone {
+  /** zh-TW label (tw schedule); for other schedules the window id. */
   label: string;
+  kind: 'visit' | 'window';
+  /** Window id, or 'visit'. */
+  id: string;
+  /** 1-based visit number (visits only). */
+  n?: number;
+  point?: boolean;
   /** Start of the week (or window) in gestational weeks. */
   week: number;
   toWeek: number;
@@ -115,17 +230,29 @@ function status(from: YMD, to: YMD, today: YMD): MilestoneStatus {
 }
 
 /** Prenatal visits (each spans its gestational week) and screening windows, sorted by date. */
-export function milestones(start: YMD, today: YMD): Milestone[] {
+export function milestones(start: YMD, today: YMD, schedule: ScheduleId = 'tw'): Milestone[] {
   const list: Milestone[] = [];
-  HPA_PRENATAL.visitWeeks.forEach((week, i) => {
+  const plan = SCHEDULES[schedule];
+  plan.visitWeeks.forEach((week, i) => {
     const from = addDays(start, week * 7);
     const to = addDays(from, 6);
-    list.push({ label: `第 ${i + 1} 次產檢`, week, toWeek: week, from, to, status: status(from, to, today) });
+    const label = `第 ${i + 1} 次產檢`;
+    list.push({ label, kind: 'visit', id: 'visit', n: i + 1, week, toWeek: week, from, to, status: status(from, to, today) });
   });
-  for (const w of HPA_PRENATAL.windows) {
-    const from = addDays(start, w.from * 7);
-    const to = addDays(start, w.to * 7 + 6);
-    list.push({ label: w.label, week: w.from, toWeek: w.to, from, to, status: status(from, to, today) });
+  for (const w of plan.windows) {
+    const from = addDays(start, w.from * 7 + (w.day ?? 0));
+    const to = w.point ? from : addDays(start, w.to * 7 + 6);
+    list.push({
+      label: w.label ?? w.id,
+      kind: 'window',
+      id: w.id,
+      ...(w.point ? { point: true } : {}),
+      week: w.from,
+      toWeek: w.to,
+      from,
+      to,
+      status: status(from, to, today),
+    });
   }
   return list.sort((a, b) => toDayNumber(a.from) - toDayNumber(b.from) || a.toWeek - b.toWeek);
 }
@@ -143,8 +270,8 @@ export interface DueResult {
   milestones: Milestone[];
 }
 
-export function calcDue(input: DueInput, today: YMD): DueResult | null {
-  if (validateDueInput(input, today)) return null;
+export function calcDue(input: DueInput, today: YMD, schedule: ScheduleId = 'tw'): DueResult | null {
+  if (dueInputError(input, today)) return null;
   const start = gestationStart(input);
   const due = addDays(start, DATING.pregnancyDays);
   const age = gestationalAge(start, today);
@@ -152,10 +279,10 @@ export function calcDue(input: DueInput, today: YMD): DueResult | null {
     start,
     due,
     age,
-    trimester: trimesterOf(age.weeks),
+    trimester: trimesterOf(age.weeks, schedule),
     daysToDue: toDayNumber(due) - toDayNumber(today),
     progress: Math.min(100, Math.max(0, (age.totalDays / DATING.pregnancyDays) * 100)),
     conception: addDays(start, DATING.offsetFromLmp.conception),
-    milestones: milestones(start, today),
+    milestones: milestones(start, today, schedule),
   };
 }

@@ -95,18 +95,52 @@ export interface BodyFatInput extends NavyInput {
   weightKg: number;
 }
 
-export function validateInput(input: BodyFatInput): string | null {
+/** Which input is out of range; the UI maps it to a localized message. */
+export type BodyFatProblem = 'missing' | 'age' | 'height' | 'weight' | 'neck' | 'waist' | 'hip' | 'waistNeck';
+
+export function checkInput(input: BodyFatInput): BodyFatProblem | null {
   const { sex, age, heightCm, weightKg, neckCm, waistCm, hipCm } = input;
   const needed = [age, heightCm, weightKg, neckCm, waistCm, ...(sex === 'female' ? [hipCm] : [])];
-  if (!needed.every(Number.isFinite)) return sex === 'female' ? '請填寫年齡、身高、體重、頸圍、腰圍與臀圍。' : '請填寫年齡、身高、體重、頸圍與腰圍。';
-  if (age < 18 || age > 100) return '本公式適用 18 歲以上成人，請輸入 18 到 100 歲。';
-  if (heightCm < 120 || heightCm > 230) return '身高請以公分輸入，例如 170。';
-  if (weightKg < 30 || weightKg > 300) return '體重請以公斤輸入，例如 65。';
-  if (neckCm < 20 || neckCm > 70) return '頸圍請以公分輸入，一般成人約 30 到 45 公分。';
-  if (waistCm < 40 || waistCm > 200) return '腰圍請以公分輸入，例如 80。';
-  if (sex === 'female' && (hipCm < 50 || hipCm > 200)) return '臀圍請以公分輸入，例如 95。';
-  if (waistCm <= neckCm) return '腰圍必須大於頸圍，請確認是否量錯位置。';
+  if (!needed.every(Number.isFinite)) return 'missing';
+  if (age < 18 || age > 100) return 'age';
+  if (heightCm < 120 || heightCm > 230) return 'height';
+  if (weightKg < 30 || weightKg > 300) return 'weight';
+  if (neckCm < 20 || neckCm > 70) return 'neck';
+  if (waistCm < 40 || waistCm > 200) return 'waist';
+  if (sex === 'female' && (hipCm < 50 || hipCm > 200)) return 'hip';
+  if (waistCm <= neckCm) return 'waistNeck';
   return null;
+}
+
+const ZH_PROBLEMS: Record<Exclude<BodyFatProblem, 'missing'>, string> = {
+  age: '本公式適用 18 歲以上成人，請輸入 18 到 100 歲。',
+  height: '身高請以公分輸入，例如 170。',
+  weight: '體重請以公斤輸入，例如 65。',
+  neck: '頸圍請以公分輸入，一般成人約 30 到 45 公分。',
+  waist: '腰圍請以公分輸入，例如 80。',
+  hip: '臀圍請以公分輸入，例如 95。',
+  waistNeck: '腰圍必須大於頸圍，請確認是否量錯位置。',
+};
+
+/** zh-TW message for checkInput(); localized UIs map the problem code themselves. */
+export function validateInput(input: BodyFatInput): string | null {
+  const problem = checkInput(input);
+  if (!problem) return null;
+  if (problem === 'missing')
+    return input.sex === 'female' ? '請填寫年齡、身高、體重、頸圍、腰圍與臀圍。' : '請填寫年齡、身高、體重、頸圍與腰圍。';
+  return ZH_PROBLEMS[problem];
+}
+
+/** US customary conversions (exact NIST factors). */
+export const CM_PER_IN = 2.54;
+export const KG_PER_LB = 0.45359237;
+export const inToCm = (inches: number): number => inches * CM_PER_IN;
+export const cmToIn = (cm: number): number => cm / CM_PER_IN;
+export const lbToKg = (lb: number): number => lb * KG_PER_LB;
+export const kgToLb = (kg: number): number => kg / KG_PER_LB;
+/** 5 ft 9 in → 175.26 cm. An empty inches field counts as 0. */
+export function feetInchesToCm(feet: number, inches: number): number {
+  return inToCm(feet * 12 + (Number.isFinite(inches) ? inches : 0));
 }
 
 export interface BodyFatResult {
@@ -119,7 +153,7 @@ export interface BodyFatResult {
 }
 
 export function calcBodyFat(input: BodyFatInput): BodyFatResult | null {
-  if (validateInput(input)) return null;
+  if (checkInput(input)) return null;
   const navy = navyBodyFat(input);
   if (!Number.isFinite(navy)) return null;
   const bmi = bmiOf(input.heightCm, input.weightKg);

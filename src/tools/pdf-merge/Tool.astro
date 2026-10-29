@@ -1,39 +1,48 @@
-<div class="tool" data-tool="pdf-merge">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="pdf-merge" {...i18nAttrs(locale, s.client)}>
   <p class="pm-privacy">
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
-    <span><strong>檔案不會上傳。</strong>PDF 合併全程在你的瀏覽器中完成，檔案不會傳到任何伺服器，合約、報稅資料、身分證影本等機密文件也能安心處理。</span>
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
   </p>
 
   <label class="dropzone" id="pm-drop" tabindex="0">
     <input type="file" id="pm-file" accept="application/pdf,.pdf" multiple hidden />
-    <strong>點擊選擇 PDF，或拖曳到這裡</strong>
-    <span class="hint">可一次選多個檔案，之後也能繼續加入</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="row" id="pm-try">
-    <span class="hint">手邊沒有 PDF？</span>
-    <button class="btn small ghost" type="button" id="pm-sample">用兩份範例檔試試</button>
+    <span class="hint">{s.tryHint}</span>
+    <button class="btn small ghost" type="button" id="pm-sample">{s.sample}</button>
   </div>
 
   <p class="notice error" id="pm-note" hidden></p>
 
-  <ol class="pm-list" id="pm-list" aria-label="要合併的 PDF，由上到下依序合併"></ol>
-  <p class="hint" id="pm-order-hint" hidden>按住左側把手拖曳即可調整順序（手機也可以），或使用上下箭頭按鈕。合併時依列表由上到下排列。</p>
+  <ol class="pm-list" id="pm-list" aria-label={s.listAria}></ol>
+  <p class="hint" id="pm-order-hint" hidden>{s.orderHint}</p>
 
   <div class="stats" id="pm-summary" hidden>
-    <div class="stat"><span class="stat-value" id="pm-files">0</span><span class="stat-label">檔案數</span></div>
-    <div class="stat"><span class="stat-value" id="pm-pages">0</span><span class="stat-label">合併後總頁數</span></div>
-    <div class="stat"><span class="stat-value" id="pm-bytes">0 B</span><span class="stat-label">原始總大小</span></div>
+    <div class="stat"><span class="stat-value" id="pm-files">0</span><span class="stat-label">{s.statFiles}</span></div>
+    <div class="stat"><span class="stat-value" id="pm-pages">0</span><span class="stat-label">{s.statPages}</span></div>
+    <div class="stat"><span class="stat-value" id="pm-bytes">0 B</span><span class="stat-label">{s.statBytes}</span></div>
   </div>
 
   <div class="field" id="pm-name-field" hidden>
-    <label for="pm-name">輸出檔名</label>
-    <input id="pm-name" type="text" value="merged" autocomplete="off" spellcheck="false" />
+    <label for="pm-name">{s.nameLabel}</label>
+    <input id="pm-name" type="text" value={s.nameDefault} autocomplete="off" spellcheck="false" />
   </div>
 
   <div class="row" id="pm-actions" hidden>
-    <button class="btn primary" type="button" id="pm-merge" disabled>合併並下載</button>
-    <button class="btn ghost" type="button" id="pm-clear">清除全部</button>
+    <button class="btn primary" type="button" id="pm-merge" disabled>{s.merge}</button>
+    <button class="btn ghost" type="button" id="pm-clear">{s.clear}</button>
   </div>
 
   <p class="notice ok" id="pm-done" hidden aria-live="polite"></p>
@@ -41,8 +50,10 @@
 
 <script>
   import { $, downloadBlob } from '../../lib/client';
-  import { formatBytes, formatInteger } from '../../lib/format';
+  import { formatBytes, formatInteger, plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import { isPdfFile, mergeSummary, moveItem, safeFilename } from './logic';
+  import type { Strings } from './i18n';
   import { ICONS, makeSortable } from './sortable';
 
   type Ops = typeof import('./pdf-ops');
@@ -58,6 +69,7 @@
   }
 
   const root = $('[data-tool="pdf-merge"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#pm-drop', root);
   const fileInput = $<HTMLInputElement>('#pm-file', root);
   const note = $('#pm-note', root);
@@ -101,18 +113,18 @@
     row.classList.toggle('has-error', Boolean(item.error));
     const grip = el('span', 'pm-grip');
     grip.innerHTML = ICONS.grip;
-    grip.title = '拖曳調整順序';
+    grip.title = s.grip;
     const info = el('div', 'pm-info');
     const meta = el('div', 'pm-meta');
     if (item.error) meta.append(el('span', 'pm-error', item.error));
-    else if (item.pages === undefined) meta.textContent = `${formatBytes(item.size)}・讀取中…`;
-    else meta.textContent = `${formatInteger(item.pages)} 頁・${formatBytes(item.size)}`;
+    else if (item.pages === undefined) meta.textContent = t(s.reading, { size: formatBytes(item.size, locale) });
+    else meta.textContent = t(s.meta, { pages: plural(locale, item.pages, s.pageCount), size: formatBytes(item.size, locale) });
     info.append(el('div', 'pm-name', item.name), meta);
     const controls = el('div', 'pm-controls');
     controls.append(
-      iconButton(ICONS.up, `將「${item.name}」上移`, 'up'),
-      iconButton(ICONS.down, `將「${item.name}」下移`, 'down'),
-      iconButton(ICONS.remove, `移除「${item.name}」`, 'remove'),
+      iconButton(ICONS.up, t(s.moveUp, { name: item.name }), 'up'),
+      iconButton(ICONS.down, t(s.moveDown, { name: item.name }), 'down'),
+      iconButton(ICONS.remove, t(s.remove, { name: item.name }), 'remove'),
     );
     row.append(grip, el('span', 'pm-index'), info, controls);
   }
@@ -127,18 +139,18 @@
       if (up) up.disabled = index === 0;
       if (down) down.disabled = index === items.length - 1;
     });
-    const s = mergeSummary(items);
+    const sum = mergeSummary(items);
     const any = items.length > 0;
     summary.hidden = !any;
     nameField.hidden = !any;
     actions.hidden = !any;
     orderHint.hidden = items.length < 2;
     tryRow.hidden = any;
-    $('#pm-files', root).textContent = formatInteger(s.files);
-    $('#pm-pages', root).textContent = formatInteger(s.pages);
-    $('#pm-bytes', root).textContent = formatBytes(s.bytes);
-    mergeBtn.disabled = busy || !s.ready;
-    if (!busy) mergeBtn.textContent = items.length === 1 ? '請再加入至少一個 PDF' : '合併並下載';
+    $('#pm-files', root).textContent = formatInteger(sum.files, locale);
+    $('#pm-pages', root).textContent = formatInteger(sum.pages, locale);
+    $('#pm-bytes', root).textContent = formatBytes(sum.bytes, locale);
+    mergeBtn.disabled = busy || !sum.ready;
+    if (!busy) mergeBtn.textContent = items.length === 1 ? s.needMore : s.merge;
   }
 
   function showNote(text: string) {
@@ -149,7 +161,7 @@
   async function addFiles(files: File[]) {
     const pdfs = files.filter((f) => isPdfFile(f.type, f.name));
     const skipped = files.length - pdfs.length;
-    showNote(skipped ? `已略過 ${skipped} 個不是 PDF 的檔案。若要把圖片轉成 PDF，請使用「圖片轉 PDF」工具。` : '');
+    showNote(skipped ? plural(locale, skipped, s.skipped) : '');
     done.hidden = true;
     const added: Item[] = [];
     for (const file of pdfs) {
@@ -166,12 +178,12 @@
     items.push(...added);
     refresh();
     if (!added.length) return;
-    const { countPages, errorText } = await ops();
+    const { countPages, errorCode } = await ops();
     for (const item of added) {
       try {
         item.pages = await countPages(item.bytes);
       } catch (err) {
-        item.error = errorText(err);
+        item.error = s.errors[errorCode(err)];
       }
       if (!items.includes(item)) continue;
       drawRow(item);
@@ -216,22 +228,27 @@
     busy = true;
     mergeBtn.disabled = true;
     done.hidden = true;
-    mergeBtn.textContent = '合併中…';
+    mergeBtn.textContent = s.merging;
     try {
       const { mergePdfs } = await ops();
       const bytes = await mergePdfs(
         usable.map((i) => i.bytes),
-        (n, total) => (mergeBtn.textContent = `合併中…（${n}/${total}）`),
+        (n, total) => (mergeBtn.textContent = t(s.mergingProgress, { n, total })),
       );
       const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
-      const filename = safeFilename(nameInput.value, 'merged');
+      const filename = safeFilename(nameInput.value, s.nameFallback);
       downloadBlob(blob, filename);
       const pages = usable.reduce((s, i) => s + (i.pages ?? 0), 0);
-      done.textContent = `已合併 ${usable.length} 個檔案，共 ${formatInteger(pages)} 頁（${formatBytes(blob.size)}），檔案「${filename}」已開始下載。`;
+      done.textContent = t(s.done, {
+        files: usable.length,
+        pages: formatInteger(pages, locale),
+        size: formatBytes(blob.size, locale),
+        name: filename,
+      });
       done.hidden = false;
     } catch (err) {
-      const { errorText } = await ops();
-      showNote(`合併失敗：${errorText(err)}`);
+      const { errorCode } = await ops();
+      showNote(t(s.failed, { error: s.errors[errorCode(err)] }));
     } finally {
       busy = false;
       refresh();

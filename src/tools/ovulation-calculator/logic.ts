@@ -34,15 +34,28 @@ export interface Cycle {
 
 export type DayKind = 'period' | 'ovulation' | 'fertile' | 'other';
 
-export function validateCycleInput(input: CycleInput, today: YMD): string | null {
+export type CycleInputError = 'cycle' | 'period' | 'future';
+
+/** Locale-neutral validation: an error code, or null when the input is usable. */
+export function cycleInputError(input: CycleInput, today: YMD): CycleInputError | null {
   const { cycle, period } = input;
   const { cycleRange, periodRange } = OVULATION_RULES;
-  if (!Number.isInteger(cycle) || cycle < cycleRange.min || cycle > cycleRange.max)
-    return `月經週期請輸入 ${cycleRange.min} 到 ${cycleRange.max} 的整數天數。`;
-  if (!Number.isInteger(period) || period < periodRange.min || period > periodRange.max)
-    return `經期天數請輸入 ${periodRange.min} 到 ${periodRange.max} 的整數。`;
-  if (toDayNumber(input.lastStart) > toDayNumber(today)) return '最後一次月經日期不能晚於今天。';
+  if (!Number.isInteger(cycle) || cycle < cycleRange.min || cycle > cycleRange.max) return 'cycle';
+  if (!Number.isInteger(period) || period < periodRange.min || period > periodRange.max) return 'period';
+  if (toDayNumber(input.lastStart) > toDayNumber(today)) return 'future';
   return null;
+}
+
+/** zh-TW messages for cycleInputError(); localized UIs map the codes through their own dictionary. */
+export const CYCLE_ERROR_ZH: Record<CycleInputError, string> = {
+  cycle: `月經週期請輸入 ${OVULATION_RULES.cycleRange.min} 到 ${OVULATION_RULES.cycleRange.max} 的整數天數。`,
+  period: `經期天數請輸入 ${OVULATION_RULES.periodRange.min} 到 ${OVULATION_RULES.periodRange.max} 的整數。`,
+  future: '最後一次月經日期不能晚於今天。',
+};
+
+export function validateCycleInput(input: CycleInput, today: YMD): string | null {
+  const code = cycleInputError(input, today);
+  return code ? CYCLE_ERROR_ZH[code] : null;
 }
 
 export function cycleAt(start: YMD, cycle: number, period: number): Cycle {
@@ -64,7 +77,7 @@ export function cycleAt(start: YMD, cycle: number, period: number): Cycle {
  * (projecting forward when the entered period is several cycles old).
  */
 export function predictCycles(input: CycleInput, today: YMD): Cycle[] {
-  if (validateCycleInput(input, today)) return [];
+  if (cycleInputError(input, today)) return [];
   const elapsed = toDayNumber(today) - toDayNumber(input.lastStart);
   const skip = Math.max(0, Math.floor(elapsed / input.cycle));
   const count = Math.max(1, Math.min(12, Math.trunc(input.count)));

@@ -1,30 +1,39 @@
-<div class="tool" data-tool="compound-interest">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="compound-interest" {...i18nAttrs(locale, s.client)}>
   <div class="grid-2">
     <div class="field">
-      <label for="ci-principal">初始本金（元）</label>
-      <input id="ci-principal" type="text" inputmode="decimal" autocomplete="off" value="100000" />
+      <label for="ci-principal">{s.principal}</label>
+      <input id="ci-principal" type="text" inputmode="decimal" autocomplete="off" value={s.defaults.principal} />
     </div>
     <div class="field">
-      <label for="ci-monthly">每月投入（元）</label>
-      <input id="ci-monthly" type="text" inputmode="decimal" autocomplete="off" value="5000" />
-      <span class="hint">於每月月底投入，不投入填 0。</span>
+      <label for="ci-monthly">{s.monthly}</label>
+      <input id="ci-monthly" type="text" inputmode="decimal" autocomplete="off" value={s.defaults.monthly} />
+      <span class="hint">{s.monthlyHint}</span>
     </div>
     <div class="field">
-      <label for="ci-rate">年利率／年報酬率（%）</label>
-      <input id="ci-rate" type="text" inputmode="decimal" autocomplete="off" value="5" />
+      <label for="ci-rate">{s.rate}</label>
+      <input id="ci-rate" type="text" inputmode="decimal" autocomplete="off" value={s.defaults.rate} />
     </div>
     <div class="field">
-      <label for="ci-years">投資年數</label>
-      <input id="ci-years" type="text" inputmode="numeric" autocomplete="off" value="20" />
+      <label for="ci-years">{s.years}</label>
+      <input id="ci-years" type="text" inputmode="numeric" autocomplete="off" value={s.defaults.years} />
     </div>
     <div class="field">
-      <label for="ci-freq">複利頻率</label>
+      <label for="ci-freq">{s.freq}</label>
       <select id="ci-freq">
-        <option value="1">每年</option>
-        <option value="2">每半年</option>
-        <option value="4">每季</option>
-        <option value="12" selected>每月</option>
-        <option value="365">每日</option>
+        <option value="1">{s.freqOptions[1]}</option>
+        <option value="2">{s.freqOptions[2]}</option>
+        <option value="4">{s.freqOptions[4]}</option>
+        <option value="12" selected>{s.freqOptions[12]}</option>
+        <option value="365">{s.freqOptions[365]}</option>
       </select>
     </div>
   </div>
@@ -34,14 +43,14 @@
   <div id="ci-results">
     <div class="result">
       <div class="result-value" id="ci-final">—</div>
-      <div class="result-label" id="ci-final-label">期末總金額</div>
+      <div class="result-label" id="ci-final-label">{s.finalLabel}</div>
     </div>
 
     <div class="stats">
-      <div class="stat"><span class="stat-value" id="ci-contributed">—</span><span class="stat-label">累計投入本金</span></div>
-      <div class="stat"><span class="stat-value" id="ci-interest">—</span><span class="stat-label">累計利息</span></div>
-      <div class="stat"><span class="stat-value" id="ci-effective">—</span><span class="stat-label">實質年利率</span></div>
-      <div class="stat"><span class="stat-value" id="ci-double">—</span><span class="stat-label">72 法則翻倍年數</span></div>
+      <div class="stat"><span class="stat-value" id="ci-contributed">—</span><span class="stat-label">{s.contributed}</span></div>
+      <div class="stat"><span class="stat-value" id="ci-interest">—</span><span class="stat-label">{s.interest}</span></div>
+      <div class="stat"><span class="stat-value" id="ci-effective">—</span><span class="stat-label">{s.effective}</span></div>
+      <div class="stat"><span class="stat-value" id="ci-double">—</span><span class="stat-label">{s.double}</span></div>
     </div>
 
     <div class="ci-bar" aria-hidden="true">
@@ -49,16 +58,16 @@
       <div class="ci-bar-interest" id="ci-bar-interest"></div>
     </div>
     <div class="ci-legend">
-      <span><i class="ci-dot ci-dot-principal"></i>投入本金 <b id="ci-pct-principal">—</b></span>
-      <span><i class="ci-dot ci-dot-interest"></i>利息 <b id="ci-pct-interest">—</b></span>
+      <span><i class="ci-dot ci-dot-principal"></i>{s.legendPrincipal} <b id="ci-pct-principal">—</b></span>
+      <span><i class="ci-dot ci-dot-interest"></i>{s.legendInterest} <b id="ci-pct-interest">—</b></span>
     </div>
 
     <div class="field">
-      <span class="label" id="ci-table-title">逐年明細</span>
+      <span class="label" id="ci-table-title">{s.tableTitle}</span>
       <div class="table-wrap">
         <table class="table" aria-labelledby="ci-table-title">
           <thead>
-            <tr><th>年度</th><th class="num">累計投入</th><th class="num">當年利息</th><th class="num">累計利息</th><th class="num">年底餘額</th></tr>
+            <tr><th>{s.thYear}</th><th class="num">{s.thContributed}</th><th class="num">{s.thInterest}</th><th class="num">{s.thTotalInterest}</th><th class="num">{s.thBalance}</th></tr>
           </thead>
           <tbody id="ci-table"></tbody>
         </table>
@@ -66,13 +75,16 @@
     </div>
   </div>
 
-  <p class="hint">計算結果為假設利率固定不變的試算，未計入稅負、手續費與通膨，實際報酬請以金融機構或投資商品的資料為準。</p>
+  <p class="hint">{s.hint}</p>
 </div>
 
 <script>
   import { $, loadPref, savePref } from '../../lib/client';
   import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
-  import { calculateCompound, FREQUENCY_LABEL, ruleOf72, type Frequency } from './logic';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { calculateCompound, ruleOf72, type Frequency } from './logic';
+  import type { Strings } from './i18n';
 
   interface Prefs {
     principal: string;
@@ -83,6 +95,9 @@
   }
 
   const root = $('[data-tool="compound-interest"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  // Amounts are in the locale's currency, so each locale remembers its own inputs.
+  const KEY = locale === 'zh-TW' ? 'compound-interest' : `compound-interest:${locale}`;
   const principal = $<HTMLInputElement>('#ci-principal', root);
   const monthly = $<HTMLInputElement>('#ci-monthly', root);
   const rate = $<HTMLInputElement>('#ci-rate', root);
@@ -92,14 +107,14 @@
   const results = $('#ci-results', root);
   const table = $('#ci-table', root);
 
-  const yuan = (n: number) => `${formatInteger(n)} 元`;
+  const yuan = (n: number) => t(s.money, { n: formatInteger(n, locale) });
   const optional = (input: HTMLInputElement) => (input.value.trim() === '' ? 0 : parseNumber(input.value));
   const set = (id: string, text: string) => {
     $(id, root).textContent = text;
   };
 
   function render() {
-    savePref('compound-interest', {
+    savePref(KEY, {
       principal: principal.value,
       monthly: monthly.value,
       rate: rate.value,
@@ -118,7 +133,7 @@
     });
 
     if (!r) {
-      error.textContent = '請輸入本金或每月投入（不可為負）、0–100% 的年利率，以及 1–100 的整數年數。';
+      error.textContent = s.error;
       error.hidden = false;
       results.hidden = true;
       return;
@@ -127,23 +142,23 @@
     results.hidden = false;
 
     set('#ci-final', yuan(r.finalValue));
-    set('#ci-final-label', `${r.rows.length} 年後期末總金額（${FREQUENCY_LABEL[frequency]}複利）`);
+    set('#ci-final-label', plural(locale, r.rows.length, s.finalLabel, { freq: s.freqInline[frequency] }));
     set('#ci-contributed', yuan(r.totalContributed));
     set('#ci-interest', yuan(r.totalInterest));
-    set('#ci-effective', `${formatNumber(r.effectiveRatePct, 3)}%`);
+    set('#ci-effective', `${formatNumber(r.effectiveRatePct, 3, locale)}%`);
     const doubling = ruleOf72(ratePct);
-    set('#ci-double', Number.isFinite(doubling) ? `約 ${formatNumber(doubling, 1)} 年` : '—');
+    set('#ci-double', Number.isFinite(doubling) ? plural(locale, Math.round(doubling * 10) / 10, s.doubling) : '—');
 
     const principalShare = r.finalValue > 0 ? (r.totalContributed / r.finalValue) * 100 : 100;
     $('#ci-bar-principal', root).style.width = `${principalShare}%`;
     $('#ci-bar-interest', root).style.width = `${100 - principalShare}%`;
-    set('#ci-pct-principal', `${formatNumber(principalShare, 1)}%`);
-    set('#ci-pct-interest', `${formatNumber(100 - principalShare, 1)}%`);
+    set('#ci-pct-principal', `${formatNumber(principalShare, 1, locale)}%`);
+    set('#ci-pct-interest', `${formatNumber(100 - principalShare, 1, locale)}%`);
 
     table.replaceChildren(
       ...r.rows.map((row) => {
         const tr = document.createElement('tr');
-        [`第 ${row.year} 年`, yuan(row.contributed), yuan(row.interest), yuan(row.totalInterest), yuan(row.balance)].forEach(
+        [t(s.year, { n: row.year }), yuan(row.contributed), yuan(row.interest), yuan(row.totalInterest), yuan(row.balance)].forEach(
           (text, i) => {
             const td = document.createElement('td');
             td.textContent = text;
@@ -156,7 +171,7 @@
     );
   }
 
-  const prefs = loadPref<Partial<Prefs>>('compound-interest', {});
+  const prefs = loadPref<Partial<Prefs>>(KEY, {});
   if (prefs.principal !== undefined) principal.value = prefs.principal;
   if (prefs.monthly !== undefined) monthly.value = prefs.monthly;
   if (prefs.rate !== undefined) rate.value = prefs.rate;

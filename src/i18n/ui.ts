@@ -3,6 +3,8 @@
 // Placeholders like {name} are filled with t() from ./format.
 import type { Locale } from './locales';
 
+export type ShareNetwork = 'line' | 'facebook' | 'x' | 'threads' | 'hatena' | 'whatsapp' | 'reddit' | 'email';
+
 export interface UiStrings {
   skipToContent: string;
   /** Flash label on copy buttons (data-copy). */
@@ -67,6 +69,27 @@ export interface UiStrings {
     moreInCategory: string;
     /** {name} */
     toolAria: string;
+    /** Link to this tool's folder on GitHub. */
+    source: string;
+  };
+  share: {
+    heading: string;
+    /** Native share sheet button (shown only where navigator.share exists). */
+    native: string;
+    copyLink: string;
+    /** Networks shown for this locale, in order. */
+    networks: ShareNetwork[];
+  };
+  openSource: {
+    /** Footer link label. */
+    footerLink: string;
+    /** Footer legal line after the copyright. {license} */
+    legal: string;
+    /** Home hero trust note, followed by the link. */
+    homeNote: string;
+    homeLink: string;
+    /** Link to /third-party-licenses.txt */
+    notices: string;
   };
   category: {
     /** <title> when the category has no explicit title. {name} {blurb} */
@@ -139,6 +162,20 @@ export const ui: Record<Locale, UiStrings> = {
       related: '你可能也需要',
       moreInCategory: '更多{category}',
       toolAria: '{name}工具',
+      source: '查看原始碼',
+    },
+    share: {
+      heading: '分享這個工具',
+      native: '分享',
+      copyLink: '複製連結',
+      networks: ['line', 'facebook', 'threads', 'x'],
+    },
+    openSource: {
+      footerLink: '開源專案（GitHub）',
+      legal: '程式碼以 {license} 授權開源',
+      homeNote: '程式碼完全開源，所有計算都在你的瀏覽器裡完成。',
+      homeLink: '看原始碼',
+      notices: '第三方授權',
     },
     category: {
       title: '{name}線上工具：{blurb}',
@@ -209,6 +246,20 @@ export const ui: Record<Locale, UiStrings> = {
       related: 'You might also need',
       moreInCategory: 'More {category}',
       toolAria: '{name}',
+      source: 'View source code',
+    },
+    share: {
+      heading: 'Share this tool',
+      native: 'Share',
+      copyLink: 'Copy link',
+      networks: ['x', 'facebook', 'reddit', 'whatsapp', 'email'],
+    },
+    openSource: {
+      footerLink: 'Open source on GitHub',
+      legal: 'Source code licensed under {license}',
+      homeNote: 'Fully open source. Everything runs in your browser.',
+      homeLink: 'View the code',
+      notices: 'Third-party notices',
     },
     category: {
       title: 'Free {name} Online: {blurb}',
@@ -279,6 +330,20 @@ export const ui: Record<Locale, UiStrings> = {
       related: 'こちらもおすすめ',
       moreInCategory: 'ほかの{category}',
       toolAria: '{name}',
+      source: 'ソースコードを見る',
+    },
+    share: {
+      heading: 'このツールをシェア',
+      native: 'シェア',
+      copyLink: 'リンクをコピー',
+      networks: ['x', 'line', 'hatena', 'facebook'],
+    },
+    openSource: {
+      footerLink: 'オープンソース（GitHub）',
+      legal: 'ソースコードは {license} で公開',
+      homeNote: 'ソースコードはすべて公開。計算はすべてブラウザ内で完結します。',
+      homeLink: 'コードを見る',
+      notices: 'サードパーティライセンス',
     },
     category: {
       title: '{name}の無料オンラインツール：{blurb}',

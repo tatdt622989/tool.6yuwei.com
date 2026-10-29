@@ -1,43 +1,53 @@
-<div class="tool" data-tool="stopwatch">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="stopwatch" {...i18nAttrs(locale, s.client)}>
   <div class="sw-face">
-    <div class="big-display" id="sw-display" role="timer" aria-label="經過時間">
+    <div class="big-display" id="sw-display" role="timer" aria-label={s.displayAria}>
       <span id="sw-main">00:00</span><span class="sw-frac" id="sw-frac">.00</span>
     </div>
     <div class="sw-current mono" id="sw-current" hidden></div>
   </div>
 
   <div class="sw-controls">
-    <button class="btn primary" type="button" id="sw-toggle">開始</button>
-    <button class="btn" type="button" id="sw-lap" disabled>分圈</button>
-    <button class="btn" type="button" id="sw-reset" disabled>重設</button>
+    <button class="btn primary" type="button" id="sw-toggle">{s.client.start}</button>
+    <button class="btn" type="button" id="sw-lap" disabled>{s.lap}</button>
+    <button class="btn" type="button" id="sw-reset" disabled>{s.reset}</button>
   </div>
 
-  <p class="hint sw-keys">
-    快捷鍵：<kbd>空白鍵</kbd> 開始／暫停　<kbd>L</kbd> 分圈　<kbd>R</kbd> 重設
-  </p>
+  <p class="hint sw-keys">{`\n${s.keysLabel}`}<kbd>{s.spaceKey}</kbd>{s.keyToggle}<kbd>L</kbd>{s.keyLap}<kbd>R</kbd>{`${s.keyReset}\n`}</p>
 
   <div class="field" id="sw-laps-field" hidden>
-    <span class="label">分圈紀錄</span>
+    <span class="label">{s.lapsLabel}</span>
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>圈數</th>
-            <th class="num">單圈時間</th>
-            <th class="num">累計時間</th>
+            <th>{s.client.columns[0]}</th>
+            <th class="num">{s.client.columns[1]}</th>
+            <th class="num">{s.client.columns[2]}</th>
           </tr>
         </thead>
         <tbody id="sw-laps"></tbody>
       </table>
     </div>
     <div class="row">
-      <button class="btn small" type="button" id="sw-copy">複製紀錄</button>
+      <button class="btn small" type="button" id="sw-copy">{s.copy}</button>
     </div>
   </div>
 </div>
 
 <script>
   import { $, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import type { Strings } from './i18n';
   import {
     currentLap,
     elapsed,
@@ -55,6 +65,7 @@
 
   const PREF_KEY = 'stopwatch-state';
   const root = $('[data-tool="stopwatch"]');
+  const { s } = readI18n<Strings['client']>(root);
   const mainEl = $('#sw-main', root);
   const fracEl = $('#sw-frac', root);
   const currentEl = $('#sw-current', root);
@@ -78,9 +89,9 @@
     mainEl.textContent = parts.main;
     fracEl.textContent = parts.fraction;
     if (state.splits.length > 0) {
-      currentEl.textContent = `第 ${state.splits.length + 1} 圈　${formatStopwatch(currentLap(state, now))}`;
+      currentEl.textContent = t(s.current, { n: state.splits.length + 1, t: formatStopwatch(currentLap(state, now)) });
     }
-    const title = isRunning(state) ? `${parts.main} 碼錶計時中` : baseTitle;
+    const title = isRunning(state) ? t(s.title, { t: parts.main }) : baseTitle;
     if (title !== lastTitle) document.title = lastTitle = title;
   }
 
@@ -97,7 +108,7 @@
         if (row.tag) {
           const tag = document.createElement('span');
           tag.className = 'sw-tag';
-          tag.textContent = row.tag === 'fastest' ? '最快' : '最慢';
+          tag.textContent = row.tag === 'fastest' ? s.fastest : s.slowest;
           index.append(' ', tag);
         }
         const lapCell = document.createElement('td');
@@ -115,7 +126,7 @@
   function renderControls() {
     const running = isRunning(state);
     const hasTime = elapsed(state, Date.now()) > 0;
-    toggleBtn.textContent = running ? '暫停' : hasTime ? '繼續' : '開始';
+    toggleBtn.textContent = running ? s.pause : hasTime ? s.resume : s.start;
     lapBtn.disabled = !running;
     resetBtn.disabled = !running && !hasTime;
   }
@@ -160,7 +171,7 @@
 
   $('#sw-copy', root).addEventListener('click', async (event) => {
     const button = event.currentTarget as HTMLElement;
-    if (await copyText(lapsToText(state.splits))) flashButton(button);
+    if (await copyText(lapsToText(state.splits, s.columns))) flashButton(button);
   });
 
   document.addEventListener('keydown', (event) => {

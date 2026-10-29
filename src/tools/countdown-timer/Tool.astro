@@ -1,52 +1,57 @@
 ---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { t } from '../../i18n/format';
 import { PRESET_MINUTES } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 ---
 
-<div class="tool" data-tool="countdown-timer" data-state="idle">
+<div class="tool" data-tool="countdown-timer" data-state="idle" {...i18nAttrs(locale, s.client)}>
   <div class="cd-face">
-    <div class="big-display" id="cd-display" role="timer" aria-label="剩餘時間">05:00</div>
+    <div class="big-display" id="cd-display" role="timer" aria-label={s.displayAria}>05:00</div>
     <div class="cd-track" aria-hidden="true"><div class="cd-fill" id="cd-fill"></div></div>
     <p class="cd-status" id="cd-status" aria-live="polite"></p>
   </div>
 
   <div class="cd-controls">
-    <button class="btn primary" type="button" id="cd-toggle">開始</button>
-    <button class="btn" type="button" id="cd-reset">重設</button>
-    <button class="btn" type="button" id="cd-fullscreen">全螢幕</button>
+    <button class="btn primary" type="button" id="cd-toggle">{s.client.toggle.idle}</button>
+    <button class="btn" type="button" id="cd-reset">{s.reset}</button>
+    <button class="btn" type="button" id="cd-fullscreen">{s.client.fullscreen}</button>
   </div>
 
   <div class="cd-setup">
     <div class="cd-inputs">
       <div class="field">
-        <label for="cd-h">時</label>
+        <label for="cd-h">{s.hours}</label>
         <input id="cd-h" type="number" inputmode="numeric" min="0" max="99" value="0" />
       </div>
       <div class="field">
-        <label for="cd-m">分</label>
+        <label for="cd-m">{s.minutes}</label>
         <input id="cd-m" type="number" inputmode="numeric" min="0" max="59" value="5" />
       </div>
       <div class="field">
-        <label for="cd-s">秒</label>
+        <label for="cd-s">{s.seconds}</label>
         <input id="cd-s" type="number" inputmode="numeric" min="0" max="59" value="0" />
       </div>
     </div>
 
     <div class="field">
-      <span class="label">快速設定（點選後立即開始）</span>
+      <span class="label">{s.presetsLabel}</span>
       <div class="row" id="cd-presets">
         {
           PRESET_MINUTES.map((min) => (
-            <button class="btn small" type="button" data-min={min}>
-              {min} 分鐘
-            </button>
+            <button class="btn small" type="button" data-min={min}>{` ${t(s.preset, { n: min })}\n`}</button>
           ))
         }
       </div>
     </div>
 
     <div class="row">
-      <label class="check"><input type="checkbox" id="cd-sound" checked /> 提示音</label>
-      <label class="check"><input type="checkbox" id="cd-notify" /> 桌面通知</label>
+      <label class="check"><input type="checkbox" id="cd-sound" checked /> {s.sound}</label>
+      <label class="check"><input type="checkbox" id="cd-notify" /> {s.notify}</label>
     </div>
     <p class="notice" id="cd-notice" hidden></p>
   </div>
@@ -54,6 +59,9 @@ import { PRESET_MINUTES } from './logic';
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import type { Strings } from './i18n';
   import {
     createCountdown,
     describeDuration,
@@ -76,6 +84,8 @@ import { PRESET_MINUTES } from './logic';
   }
 
   const root = $('[data-tool="countdown-timer"]');
+  const { s } = readI18n<Strings['client']>(root);
+  const describe = (ms: number) => describeDuration(ms, s.units);
   const display = $('#cd-display', root);
   const fill = $('#cd-fill', root);
   const status = $('#cd-status', root);
@@ -150,27 +160,21 @@ import { PRESET_MINUTES } from './logic';
     fill.style.width = `${remainingFraction(state, now) * 100}%`;
     root.dataset.state = state.status;
 
-    const labels: Record<CountdownState['status'], string> = {
-      idle: '開始',
-      running: '暫停',
-      paused: '繼續',
-      done: '再倒數一次',
-    };
-    toggleBtn.textContent = labels[state.status];
+    toggleBtn.textContent = s.toggle[state.status];
     toggleBtn.disabled = state.durationMs <= 0;
     for (const input of inputs) input.disabled = state.status === 'running';
 
     if (state.status === 'running') {
-      status.textContent = `倒數 ${describeDuration(state.durationMs)}`;
-      setTitle(`${text} 倒數中`);
+      status.textContent = t(s.statusRunning, { d: describe(state.durationMs) });
+      setTitle(t(s.titleRunning, { t: text }));
     } else if (state.status === 'paused') {
-      status.textContent = '已暫停';
+      status.textContent = s.statusPaused;
       setTitle(baseTitle);
     } else if (state.status === 'done') {
-      status.textContent = '時間到！';
-      setTitle('時間到！');
+      status.textContent = s.timeUp;
+      setTitle(s.timeUp);
     } else {
-      status.textContent = state.durationMs > 0 ? '' : '請先設定時間';
+      status.textContent = state.durationMs > 0 ? '' : s.needTime;
       setTitle(baseTitle);
     }
   }
@@ -187,7 +191,7 @@ import { PRESET_MINUTES } from './logic';
     if (soundBox.checked) beep();
     if (notifyBox.checked && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification('時間到！', { body: `${describeDuration(state.durationMs)}的倒數已結束`, tag: 'countdown-timer' });
+        new Notification(s.timeUp, { body: t(s.notifyBody, { d: describe(state.durationMs) }), tag: 'countdown-timer' });
       } catch {
         /* Some mobile browsers only allow notifications from a service worker. */
       }
@@ -223,7 +227,7 @@ import { PRESET_MINUTES } from './logic';
 
   function start() {
     if (state.durationMs <= 0) {
-      showNotice('請先輸入倒數時間。', 'error');
+      showNotice(s.errorNoTime, 'error');
       return;
     }
     if (soundBox.checked) unlockAudio();
@@ -271,27 +275,27 @@ import { PRESET_MINUTES } from './logic';
     if (!notifyBox.checked) return;
     if (!('Notification' in window)) {
       notifyBox.checked = false;
-      showNotice('這個瀏覽器不支援桌面通知。', 'error');
+      showNotice(s.notifyUnsupported, 'error');
       return;
     }
     // Only ask when the user explicitly opts in.
     const permission =
       Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
     if (permission === 'granted') {
-      showNotice('已開啟桌面通知，時間到時會跳出提醒。', 'ok');
+      showNotice(s.notifyOn, 'ok');
     } else {
       notifyBox.checked = false;
-      showNotice('通知權限未開啟。可在網址列左側的網站設定中允許通知後再勾選。', 'error');
+      showNotice(s.notifyDenied, 'error');
     }
   });
 
   if (!document.fullscreenEnabled) fsBtn.hidden = true;
   fsBtn.addEventListener('click', () => {
     if (document.fullscreenElement) void document.exitFullscreen();
-    else root.requestFullscreen().catch(() => showNotice('無法進入全螢幕模式。', 'error'));
+    else root.requestFullscreen().catch(() => showNotice(s.fullscreenError, 'error'));
   });
   document.addEventListener('fullscreenchange', () => {
-    fsBtn.textContent = document.fullscreenElement === root ? '離開全螢幕' : '全螢幕';
+    fsBtn.textContent = document.fullscreenElement === root ? s.exitFullscreen : s.fullscreen;
   });
 
   document.addEventListener('visibilitychange', () => {

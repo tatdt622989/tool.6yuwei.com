@@ -45,6 +45,15 @@ describe('sortLines', () => {
     expect(sortLines(['陳', '林'], 'asc', { ...opts, collation: 'zhuyin' })).toEqual(['林', '陳']);
   });
 
+  it('sorts English and Japanese with their own collation', () => {
+    const en = { ...opts, collation: 'en' as const };
+    expect(sortLines(['résumé', 'Zebra', 'apple', 'Resume'], 'asc', en)).toEqual(['apple', 'Resume', 'résumé', 'Zebra']);
+    expect(sortLines(['file 10', 'File 9', 'file 1'], 'natural', en)).toEqual(['file 1', 'File 9', 'file 10']);
+    const ja = { ...opts, collation: 'ja' as const };
+    // gojūon order, hiragana and katakana interleaved: あ, イ, う, カ, さ
+    expect(sortLines(['さくら', 'カメラ', 'あめ', 'うみ', 'イヌ'], 'asc', ja)).toEqual(['あめ', 'イヌ', 'うみ', 'カメラ', 'さくら']);
+  });
+
   it('sorts by length, keeping ties in order', () => {
     expect(sortLines(['ccc', 'a', 'bb', 'd'], 'length', opts)).toEqual(['a', 'd', 'bb', 'ccc']);
     expect(sortLines(['中文字', 'ab'], 'length', opts)).toEqual(['ab', '中文字']);

@@ -23,11 +23,27 @@ export interface Charges {
   tipPct: number;
 }
 
-export interface EqualSplitInput extends Charges {
+export interface Currency {
+  /**
+   * Minor units per major unit: 1 for TWD / JPY (whole 元 / 円), 100 for USD (cents).
+   * All rounding happens in minor units. Default 1.
+   */
+  scale?: number;
+}
+
+/** 'up' = everyone pays the rounded-up amount and the organizer keeps the surplus (zh default);
+ *  'down' = everyone pays the rounded-down amount and the organizer covers the shortfall (幹事が負担). */
+export type RoundMode = 'up' | 'down';
+
+export interface EqualSplitInput extends Charges, Currency {
   subtotal: number;
   people: number;
-  /** 1 = split to the exact 元; 10 = everyone pays the same amount rounded up to 10 元. */
-  roundTo: 1 | 10;
+  /**
+   * Rounding step in minor units. 1 = split to the exact minor unit (元 / cent);
+   * 10 = everyone pays the same amount rounded to 10 元; 100 with scale 100 = whole dollars.
+   */
+  roundTo: number;
+  roundMode?: RoundMode;
 }
 
 export interface EqualSplitResult {
@@ -42,11 +58,11 @@ export interface EqualSplitResult {
   basePerPerson: number;
   /** How many people pay `basePerPerson + 1` (roundTo 1 only). */
   extraCount: number;
-  /** Amount everyone pays in roundTo-10 mode. */
+  /** Amount everyone pays when roundTo > 1. */
   roundedPerPerson: number;
-  /** Total collected; may exceed grandTotal in roundTo-10 mode. */
+  /** Total collected; may differ from grandTotal when roundTo > 1. */
   collected: number;
-  /** collected − grandTotal. */
+  /** collected − grandTotal; negative when rounding down (the organizer pays the difference). */
   surplus: number;
 }
 
@@ -57,23 +73,29 @@ function validCharges({ servicePct, tipPct }: Charges): boolean {
 /** Returns null when input is invalid (non-positive subtotal, non-integer or < 1 people, negative %). */
 export function splitEqually(input: EqualSplitInput): EqualSplitResult | null {
   const { subtotal, people, roundTo } = input;
+  const scale = input.scale ?? 1;
   if (!Number.isFinite(subtotal) || subtotal <= 0) return null;
   if (!Number.isInteger(people) || people < 1) return null;
   if (!validCharges(input)) return null;
 
   const service = (subtotal * input.servicePct) / 100;
   const tip = (subtotal * input.tipPct) / 100;
-  const grandTotal = Math.round(subtotal + service + tip);
+  const grandMinor = Math.round((subtotal + service + tip) * scale);
+  const grandTotal = grandMinor / scale;
   const exactPerPerson = grandTotal / people;
-  const basePerPerson = Math.floor(grandTotal / people);
-  const extraCount = grandTotal - basePerPerson * people;
+  const baseMinor = Math.floor(grandMinor / people);
+  const basePerPerson = baseMinor / scale;
+  const extraCount = grandMinor - baseMinor * people;
 
-  if (roundTo === 10) {
-    const roundedPerPerson = Math.ceil(grandTotal / people / 10) * 10;
-    const collected = roundedPerPerson * people;
+  if (roundTo > 1) {
+    const steps = grandMinor / people / roundTo;
+    // Rounding down to 0 would mean nobody pays anything; fall back to rounding up.
+    const count = input.roundMode === 'down' && Math.floor(steps) >= 1 ? Math.floor(steps) : Math.ceil(steps);
+    const roundedMinor = count * roundTo;
+    const collectedMinor = roundedMinor * people;
     return {
       subtotal, service, tip, grandTotal, exactPerPerson, basePerPerson, extraCount: 0,
-      roundedPerPerson, collected, surplus: collected - grandTotal,
+      roundedPerPerson: roundedMinor / scale, collected: collectedMinor / scale, surplus: (collectedMinor - grandMinor) / scale,
     };
   }
   return {
@@ -88,7 +110,7 @@ export interface Person {
   amount: number;
 }
 
-export interface ItemizedInput extends Charges {
+export interface ItemizedInput extends Charges, Currency {
   people: Person[];
   /** Items everyone shares (e.g. 合菜、飲料), split equally before charges. */
   shared: number;
@@ -102,7 +124,7 @@ export interface ItemizedShare {
   subtotal: number;
   /** Service charge and tip attributed to this person. */
   charges: number;
-  /** Final amount in whole 元. */
+  /** Final amount, rounded to the currency's minor unit (whole 元 by default). */
   pay: number;
 }
 
@@ -128,12 +150,14 @@ export function splitItemized(input: ItemizedInput): ItemizedResult | null {
   if (subtotal <= 0) return null;
   const service = (subtotal * input.servicePct) / 100;
   const tip = (subtotal * input.tipPct) / 100;
-  const grandTotal = Math.round(subtotal + service + tip);
+  const scale = input.scale ?? 1;
+  const grandMinor = Math.round((subtotal + service + tip) * scale);
+  const grandTotal = grandMinor / scale;
   const sharedPart = shared / people.length;
   const rate = (input.servicePct + input.tipPct) / 100;
 
   const subtotals = people.map((p) => p.amount + sharedPart);
-  const pays = allocate(grandTotal, subtotals);
+  const pays = allocate(grandMinor, subtotals).map((minor) => minor / scale);
   const shares = people.map((p, i) => ({
     name: p.name,
     own: p.amount,

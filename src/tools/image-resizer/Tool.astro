@@ -1,41 +1,46 @@
 ---
-import { PRESETS } from './logic';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 ---
 
-<div class="tool" data-tool="image-resizer">
+<div class="tool" data-tool="image-resizer" {...i18nAttrs(locale, s.client)}>
   <label class="dropzone" id="rs-drop" tabindex="0">
     <input type="file" id="rs-file" accept="image/*" multiple hidden />
-    <strong>點擊選擇圖片，或拖曳到這裡</strong>
-    <span class="hint">支援 JPG、PNG、WebP 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="field">
-    <span class="label">調整方式</span>
-    <div class="seg" role="radiogroup" aria-label="調整方式">
-      <label><input type="radio" name="rs-mode" value="size" checked /><span>指定尺寸</span></label>
-      <label><input type="radio" name="rs-mode" value="percent" /><span>百分比</span></label>
+    <span class="label">{s.modeLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.modeLabel}>
+      <label><input type="radio" name="rs-mode" value="size" checked /><span>{s.modeSize}</span></label>
+      <label><input type="radio" name="rs-mode" value="percent" /><span>{s.modePercent}</span></label>
     </div>
   </div>
 
   <div class="rs-panel" id="rs-size-panel">
     <div class="rs-dims">
       <div class="field">
-        <label for="rs-w">寬度（px）</label>
-        <input id="rs-w" type="number" inputmode="numeric" min="1" step="1" placeholder="自動" />
+        <label for="rs-w">{s.widthLabel}</label>
+        <input id="rs-w" type="number" inputmode="numeric" min="1" step="1" placeholder={s.client.auto} />
       </div>
       <span class="rs-times" aria-hidden="true">×</span>
       <div class="field">
-        <label for="rs-h">高度（px）</label>
-        <input id="rs-h" type="number" inputmode="numeric" min="1" step="1" placeholder="自動" />
+        <label for="rs-h">{s.heightLabel}</label>
+        <input id="rs-h" type="number" inputmode="numeric" min="1" step="1" placeholder={s.client.auto} />
       </div>
     </div>
-    <label class="check"><input type="checkbox" id="rs-lock" checked /> 鎖定長寬比</label>
+    <label class="check"><input type="checkbox" id="rs-lock" checked /> {s.lock}</label>
 
     <div class="field">
-      <span class="label">常用尺寸</span>
+      <span class="label">{s.presetsLabel}</span>
       <div class="row">
         {
-          PRESETS.map((p) => (
+          s.presets.map((p) => (
             <button class="btn small" type="button" data-w={p.width} data-h={p.height}>
               {p.label} {p.width}×{p.height}
             </button>
@@ -45,23 +50,23 @@ import { PRESETS } from './logic';
     </div>
 
     <div class="field" id="rs-fit-field" hidden>
-      <span class="label">比例不同時</span>
-      <div class="seg" role="radiogroup" aria-label="填滿方式">
-        <label><input type="radio" name="rs-fit" value="cover" checked /><span>填滿裁切</span></label>
-        <label><input type="radio" name="rs-fit" value="contain" /><span>完整放入</span></label>
-        <label><input type="radio" name="rs-fit" value="stretch" /><span>拉伸</span></label>
+      <span class="label">{s.fitLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.fitAria}>
+        <label><input type="radio" name="rs-fit" value="cover" checked /><span>{s.fitCover}</span></label>
+        <label><input type="radio" name="rs-fit" value="contain" /><span>{s.fitContain}</span></label>
+        <label><input type="radio" name="rs-fit" value="stretch" /><span>{s.fitStretch}</span></label>
       </div>
     </div>
 
     <div class="row" id="rs-pad-field" hidden>
-      <label class="check" for="rs-pad">留白顏色 <input id="rs-pad" type="color" value="#ffffff" /></label>
-      <label class="check"><input type="checkbox" id="rs-pad-clear" /> 透明（PNG／WebP）</label>
+      <label class="check" for="rs-pad">{s.padColor} <input id="rs-pad" type="color" value="#ffffff" /></label>
+      <label class="check"><input type="checkbox" id="rs-pad-clear" /> {s.padClear}</label>
     </div>
   </div>
 
   <div class="rs-panel" id="rs-percent-panel" hidden>
     <div class="field">
-      <label for="rs-pct">縮放比例（%）</label>
+      <label for="rs-pct">{s.percentLabel}</label>
       <div class="row">
         <input id="rs-pct" class="rs-pct" type="number" inputmode="decimal" min="1" max="1000" step="1" value="50" />
         <button class="btn small" type="button" data-pct="25">25%</button>
@@ -76,34 +81,36 @@ import { PRESETS } from './logic';
 
   <div class="grid-2">
     <div class="field">
-      <span class="label">輸出格式</span>
-      <div class="seg" role="radiogroup" aria-label="輸出格式">
-        <label><input type="radio" name="rs-format" value="keep" checked /><span>維持原格式</span></label>
+      <span class="label">{s.formatLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.formatLabel}>
+        <label><input type="radio" name="rs-format" value="keep" checked /><span>{s.keep}</span></label>
         <label><input type="radio" name="rs-format" value="jpeg" /><span>JPG</span></label>
         <label><input type="radio" name="rs-format" value="png" /><span>PNG</span></label>
         <label><input type="radio" name="rs-format" value="webp" /><span>WebP</span></label>
       </div>
     </div>
     <div class="field">
-      <label for="rs-quality">品質：<output id="rs-quality-out">90</output></label>
+      <label for="rs-quality">{s.qualityBefore}<output id="rs-quality-out">90</output></label>
       <input id="rs-quality" type="range" min="10" max="100" step="1" value="90" />
-      <span class="hint">僅對 JPG、WebP 有效</span>
+      <span class="hint">{s.qualityHint}</span>
     </div>
   </div>
 
   <ul class="rs-list" id="rs-list" aria-live="polite"></ul>
 
   <div class="row" id="rs-actions" hidden>
-    <button class="btn primary" type="button" id="rs-all">全部下載</button>
-    <button class="btn ghost" type="button" id="rs-clear">清除</button>
+    <button class="btn primary" type="button" id="rs-all">{s.downloadAll}</button>
+    <button class="btn ghost" type="button" id="rs-clear">{s.clear}</button>
   </div>
 
-  <p class="hint">圖片只在你的瀏覽器中處理，不會上傳到任何伺服器。</p>
+  <p class="hint">{s.privacy}</p>
 </div>
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes } from '../../lib/format';
+  import { formatBytes, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import {
     computeLayout,
     describeSpec,
@@ -153,6 +160,7 @@ import { PRESETS } from './logic';
   }
 
   const root = $('[data-tool="image-resizer"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#rs-drop', root);
   const fileInput = $<HTMLInputElement>('#rs-file', root);
   const modeRadios = $$<HTMLInputElement>('input[name="rs-mode"]', root);
@@ -300,17 +308,17 @@ import { PRESETS } from './logic';
     $('#rs-fit-field', root).hidden = !fixedBox;
     $('#rs-pad-field', root).hidden = !(fixedBox && p.fit === 'contain');
     qualityOut.textContent = quality.value;
-    desc.textContent = describeSpec(specOf(p));
+    desc.textContent = describeSpec(specOf(p), s.spec);
 
     // Show the derived side for the first image as a placeholder hint.
     const first = items.find((i) => i.srcWidth);
-    widthIn.placeholder = '自動';
-    heightIn.placeholder = '自動';
+    widthIn.placeholder = s.auto;
+    heightIn.placeholder = s.auto;
     if (first && sizeMode) {
       const w = numOrNull(p.width);
       const h = numOrNull(p.height);
-      if (w && !h) heightIn.placeholder = `自動（${proportionalHeight(first.srcWidth!, first.srcHeight!, w)}）`;
-      if (h && !w) widthIn.placeholder = `自動（${proportionalWidth(first.srcWidth!, first.srcHeight!, h)}）`;
+      if (w && !h) heightIn.placeholder = t(s.autoValue, { n: proportionalHeight(first.srcWidth!, first.srcHeight!, w) });
+      if (h && !w) widthIn.placeholder = t(s.autoValue, { n: proportionalWidth(first.srcWidth!, first.srcHeight!, h) });
     }
   }
 
@@ -367,14 +375,20 @@ import { PRESETS } from './logic';
     if (item.error) {
       meta.append(el('span', 'rs-error', item.error));
     } else if (item.waiting) {
-      meta.textContent = `${src}・請先設定尺寸`;
+      meta.textContent = t(s.waiting, { src });
     } else if (!item.result) {
-      meta.textContent = `${formatBytes(item.file.size)}，處理中…`;
+      meta.textContent = t(s.processing, { size: formatBytes(item.file.size, locale) });
     } else {
       const r = item.result;
-      meta.textContent = `${src} → ${r.width} × ${r.height}・${formatBytes(item.file.size)} → ${formatBytes(r.blob.size)}`;
+      meta.textContent = t(s.done, {
+        src,
+        width: r.width,
+        height: r.height,
+        before: formatBytes(item.file.size, locale),
+        after: formatBytes(r.blob.size, locale),
+      });
     }
-    const btn = el('button', 'btn small', '下載');
+    const btn = el('button', 'btn small', s.download);
     btn.type = 'button';
     btn.disabled = !item.result;
     btn.addEventListener('click', () => item.result && downloadBlob(item.result.blob, item.result.filename));
@@ -407,10 +421,7 @@ import { PRESETS } from './logic';
         item.result = result ?? undefined;
         item.waiting = result === null;
       } catch (err) {
-        item.error =
-          err instanceof RangeError
-            ? '輸出尺寸過大，超過瀏覽器可處理的範圍，請調小尺寸。'
-            : '無法處理這張圖片，可能是格式不支援或檔案已損毀。';
+        item.error = err instanceof RangeError ? s.tooLarge : s.error;
       }
       drawRow(item);
       updateActions();

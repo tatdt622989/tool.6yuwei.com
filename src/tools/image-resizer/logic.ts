@@ -153,18 +153,49 @@ export function stepDownSizes(width: number, height: number, targetWidth: number
   return steps;
 }
 
+/** Templates for describeSpec(); {p} percent, {w} width, {h} height. */
+export interface SpecLabels {
+  percent: string;
+  percentEmpty: string;
+  empty: string;
+  widthOnly: string;
+  heightOnly: string;
+  fitInside: string;
+  contain: string;
+  cover: string;
+  stretch: string;
+}
+
+export const ZH_SPEC_LABELS: SpecLabels = {
+  percent: '寬高各縮放為原圖的 {p}%',
+  percentEmpty: '請輸入百分比',
+  empty: '請輸入寬度或高度',
+  widthOnly: '寬度設為 {w} px，高度依比例自動計算',
+  heightOnly: '高度設為 {h} px，寬度依比例自動計算',
+  fitInside: '等比例縮放到 {w} × {h} 的範圍內，不裁切也不留白',
+  contain: '輸出 {w} × {h}，完整保留畫面，不足處留白',
+  cover: '輸出 {w} × {h}，填滿畫面並從中央裁切多餘部分',
+  stretch: '輸出 {w} × {h}，強制拉伸，比例不同時畫面會變形',
+};
+
+function fill(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
 /** One-line explanation of what the current settings will do. */
-export function describeSpec(spec: ResizeSpec): string {
-  if (spec.mode === 'percent') return positive(spec.percent) ? `寬高各縮放為原圖的 ${spec.percent}%` : '請輸入百分比';
+export function describeSpec(spec: ResizeSpec, labels: SpecLabels = ZH_SPEC_LABELS): string {
+  if (spec.mode === 'percent')
+    return positive(spec.percent) ? fill(labels.percent, { p: spec.percent }) : labels.percentEmpty;
   const w = positive(spec.width) ? Math.round(spec.width) : null;
   const h = positive(spec.height) ? Math.round(spec.height) : null;
-  if (w === null && h === null) return '請輸入寬度或高度';
-  if (h === null) return `寬度設為 ${w} px，高度依比例自動計算`;
-  if (w === null) return `高度設為 ${h} px，寬度依比例自動計算`;
-  if (spec.lockRatio) return `等比例縮放到 ${w} × ${h} 的範圍內，不裁切也不留白`;
-  if (spec.fit === 'contain') return `輸出 ${w} × ${h}，完整保留畫面，不足處留白`;
-  if (spec.fit === 'cover') return `輸出 ${w} × ${h}，填滿畫面並從中央裁切多餘部分`;
-  return `輸出 ${w} × ${h}，強制拉伸，比例不同時畫面會變形`;
+  if (w === null && h === null) return labels.empty;
+  if (h === null) return fill(labels.widthOnly, { w: w! });
+  if (w === null) return fill(labels.heightOnly, { h });
+  const vars = { w, h };
+  if (spec.lockRatio) return fill(labels.fitInside, vars);
+  if (spec.fit === 'contain') return fill(labels.contain, vars);
+  if (spec.fit === 'cover') return fill(labels.cover, vars);
+  return fill(labels.stretch, vars);
 }
 
 const EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };

@@ -34,6 +34,23 @@ describe('parseEntries', () => {
     expect(parseEntries('a\nb\na')).toHaveLength(3);
     expect(countDuplicates('a\nb\na\na')).toBe(2);
   });
+
+  it('keeps 、 and commas inside an entry by default (zh-TW, en)', () => {
+    expect(parseEntries('王、李\nSmith, John')).toEqual(['王、李', 'Smith, John']);
+  });
+
+  it('splits Japanese lists on 、，and tabs but never on spaces', () => {
+    expect(parseEntries('佐藤、鈴木，高橋\t田中\n佐藤　太郎\n山本 花子、', false, 'ja')).toEqual([
+      '佐藤',
+      '鈴木',
+      '高橋',
+      '田中',
+      '佐藤　太郎',
+      '山本 花子',
+    ]);
+    expect(countDuplicates('佐藤、鈴木\n佐藤', 'ja')).toBe(1);
+    expect(parseEntries('佐藤、鈴木\n佐藤', true, 'ja')).toEqual(['佐藤', '鈴木']);
+  });
 });
 
 describe('randomIndex', () => {
@@ -120,5 +137,8 @@ describe('helpers', () => {
   it('formats results', () => {
     expect(formatWinners(['小明', '小華'])).toBe('1. 小明\n2. 小華');
     expect(formatGroups([['a', 'b'], ['c']])).toBe('第 1 組（2 人）：a、b\n第 2 組（1 人）：c');
+    expect(formatGroups([['a', 'b'], ['c']], (g, i) => `Group ${i + 1}: ${g.join(', ')}`)).toBe(
+      'Group 1: a, b\nGroup 2: c',
+    );
   });
 });

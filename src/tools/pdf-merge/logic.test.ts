@@ -59,6 +59,13 @@ describe('isPdfFile / mergeSummary', () => {
 });
 
 describe('pdf-ops (pdf-lib in node)', () => {
+  it('maps load failures to error codes for localized messages', async () => {
+    const { errorCode, loadPdf } = await import('./pdf-ops');
+    const err = await loadPdf(new TextEncoder().encode('not a pdf')).catch((e: unknown) => e);
+    expect(errorCode(err)).toBe('invalid');
+    expect(errorCode(new Error('x'))).toBe('invalid');
+  });
+
   it('merges documents in order', async () => {
     const a = await makeSamplePdf('A', 2);
     const b = await makeSamplePdf('B', 3);

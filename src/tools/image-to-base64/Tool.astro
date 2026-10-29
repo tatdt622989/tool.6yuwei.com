@@ -1,52 +1,64 @@
-<div class="tool" data-tool="image-to-base64">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="image-to-base64" {...i18nAttrs(locale, s.client)}>
   <label class="dropzone" id="ib-drop" tabindex="0">
     <input type="file" id="ib-file" accept="image/*" hidden />
-    <strong>點擊選擇圖片，或拖曳到這裡</strong>
-    <span class="hint">支援 PNG、JPG、WebP、GIF、SVG、ICO 等，也可以按 Ctrl/Cmd + V 貼上</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="ib-preview" id="ib-preview" hidden>
-    <div class="ib-frame"><img id="ib-img" alt="預覽" /></div>
+    <div class="ib-frame"><img id="ib-img" alt={s.previewAlt} /></div>
     <div class="stats">
-      <div class="stat"><span class="stat-value ib-small" id="ib-type">—</span><span class="stat-label">格式</span></div>
-      <div class="stat"><span class="stat-value ib-small" id="ib-dims">—</span><span class="stat-label">尺寸（px）</span></div>
-      <div class="stat"><span class="stat-value ib-small" id="ib-size">—</span><span class="stat-label">原始大小</span></div>
-      <div class="stat"><span class="stat-value ib-small" id="ib-len">—</span><span class="stat-label">Base64 大小</span></div>
+      <div class="stat"><span class="stat-value ib-small" id="ib-type">—</span><span class="stat-label">{s.statType}</span></div>
+      <div class="stat"><span class="stat-value ib-small" id="ib-dims">—</span><span class="stat-label">{s.statDims}</span></div>
+      <div class="stat"><span class="stat-value ib-small" id="ib-size">—</span><span class="stat-label">{s.statSize}</span></div>
+      <div class="stat"><span class="stat-value ib-small" id="ib-len">—</span><span class="stat-label">{s.statLen}</span></div>
     </div>
   </div>
 
   <p class="notice" id="ib-note" hidden></p>
 
   <div class="field">
-    <span class="label">輸出格式</span>
-    <div class="seg" role="radiogroup" aria-label="輸出格式">
-      <label><input type="radio" name="ib-kind" value="datauri" checked /><span>Data URI</span></label>
-      <label><input type="radio" name="ib-kind" value="base64" /><span>純 Base64</span></label>
-      <label><input type="radio" name="ib-kind" value="css" /><span>CSS 背景</span></label>
-      <label><input type="radio" name="ib-kind" value="html" /><span>HTML img</span></label>
+    <span class="label">{s.kindLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.kindLabel}>
+      <label><input type="radio" name="ib-kind" value="datauri" checked /><span>{s.kinds.datauri}</span></label>
+      <label><input type="radio" name="ib-kind" value="base64" /><span>{s.kinds.base64}</span></label>
+      <label><input type="radio" name="ib-kind" value="css" /><span>{s.kinds.css}</span></label>
+      <label><input type="radio" name="ib-kind" value="html" /><span>{s.kinds.html}</span></label>
     </div>
   </div>
 
   <div class="field">
-    <label for="ib-out">轉換結果</label>
-    <textarea id="ib-out" class="mono" rows="8" readonly placeholder="選擇圖片後，Base64 編碼會顯示在這裡"></textarea>
+    <label for="ib-out">{s.outLabel}</label>
+    <textarea id="ib-out" class="mono" rows="8" readonly placeholder={s.outPlaceholder}></textarea>
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#ib-out" id="ib-copy" disabled>複製結果</button>
-    <button class="btn" type="button" id="ib-save" disabled>下載為 .txt</button>
-    <button class="btn ghost" type="button" id="ib-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#ib-out" id="ib-copy" disabled>{s.copy}</button>
+    <button class="btn" type="button" id="ib-save" disabled>{s.save}</button>
+    <button class="btn ghost" type="button" id="ib-clear">{s.clear}</button>
   </div>
 
-  <p class="hint">圖片只在你的瀏覽器中轉換，不會上傳到任何伺服器。</p>
+  <p class="hint">{s.privacy}</p>
 </div>
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes, formatInteger } from '../../lib/format';
-  import { altFromFilename, base64Length, buildOutput, parseDataUri, SIZE_ADVICE, sizeLevel, type OutputKind } from './logic';
+  import { formatBytes, formatInteger, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
+  import { altFromFilename, base64Length, buildOutput, parseDataUri, sizeLevel, type OutputKind } from './logic';
 
   const root = $('[data-tool="image-to-base64"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#ib-drop', root);
   const fileInput = $<HTMLInputElement>('#ib-file', root);
   const preview = $('#ib-preview', root);
@@ -91,7 +103,7 @@
     if (!file.type.startsWith('image/')) {
       note.hidden = false;
       note.className = 'notice error';
-      note.textContent = '這不是圖片檔，請選擇 PNG、JPG、WebP、GIF 或 SVG 等圖片。';
+      note.textContent = s.notImage;
       return;
     }
     const mine = ++token;
@@ -103,14 +115,14 @@
       preview.hidden = false;
       const parsed = parseDataUri(dataUri);
       $('#ib-type', root).textContent = (parsed?.mime ?? file.type).replace('image/', '').toUpperCase();
-      $('#ib-size', root).textContent = formatBytes(file.size);
-      $('#ib-len', root).textContent = formatBytes(base64Length(file.size));
-      $('#ib-len', root).title = `${formatInteger(dataUri.length)} 個字元`;
+      $('#ib-size', root).textContent = formatBytes(file.size, locale);
+      $('#ib-len', root).textContent = formatBytes(base64Length(file.size), locale);
+      $('#ib-len', root).title = t(s.chars, { n: formatInteger(dataUri.length, locale) });
       $('#ib-dims', root).textContent = '—';
       const level = sizeLevel(file.size);
       note.hidden = false;
       note.className = level === 'small' ? 'notice ok' : level === 'medium' ? 'notice' : 'notice error';
-      note.textContent = `${SIZE_ADVICE[level]} 轉換後約 ${formatBytes(base64Length(file.size))}，比原檔大約三分之一。`;
+      note.textContent = t(s.note, { advice: s.sizeAdvice[level], size: formatBytes(base64Length(file.size), locale) });
       renderOutput();
       try {
         await img.decode();
@@ -125,7 +137,7 @@
     } catch {
       note.hidden = false;
       note.className = 'notice error';
-      note.textContent = '讀取檔案失敗，請再試一次。';
+      note.textContent = s.readError;
     }
   }
 

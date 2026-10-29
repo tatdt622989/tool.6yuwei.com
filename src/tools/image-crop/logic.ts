@@ -10,13 +10,15 @@ export interface Rect {
 
 export type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 export type Rotation = 0 | 90 | 180 | 270;
-export type AspectId = 'free' | '1:1' | '4:3' | '16:9' | '9:16' | '4:5';
+export type AspectId = 'free' | '1:1' | '4:3' | '3:4' | '3:2' | '16:9' | '9:16' | '4:5';
 export type OutputChoice = 'keep' | 'jpeg' | 'png' | 'webp';
 
 export const ASPECTS: Record<AspectId, number | null> = {
   free: null,
   '1:1': 1,
   '4:3': 4 / 3,
+  '3:4': 3 / 4,
+  '3:2': 3 / 2,
   '16:9': 16 / 9,
   '9:16': 9 / 16,
   '4:5': 4 / 5,

@@ -1,5 +1,5 @@
 // Pure helpers for rendering PDF pages to images.
-import { baseName, parsePageRanges } from '../pdf-split/logic';
+import { baseName, parsePageRanges, ZH_RANGE_MESSAGES, type RangeMessages } from '../pdf-split/logic';
 
 export type ImageFormat = 'jpeg' | 'png';
 
@@ -60,13 +60,29 @@ export function imageFilename(pdfName: string, page: number, pageCount: number, 
 }
 
 /** Empty input means every page. */
-export function pagesToRender(input: string, pageCount: number): { pages: number[]; errors: string[] } {
+export function pagesToRender(
+  input: string,
+  pageCount: number,
+  messages: RangeMessages = ZH_RANGE_MESSAGES,
+): { pages: number[]; errors: string[] } {
   if (!input.trim()) return { pages: Array.from({ length: pageCount }, (_, i) => i + 1), errors: [] };
-  return parsePageRanges(input, pageCount);
+  return parsePageRanges(input, pageCount, messages);
 }
 
 /** A4 at a few DPIs, used in the content table and the UI hint. */
 export function a4Pixels(dpi: number): { width: number; height: number } {
   const p = planRender(595.28, 841.89, dpi);
   return { width: p.width, height: p.height };
+}
+
+/** US Letter (8.5 x 11 in) at a given DPI, for the English UI hint. */
+export function letterPixels(dpi: number): { width: number; height: number } {
+  const p = planRender(612, 792, dpi);
+  return { width: p.width, height: p.height };
+}
+
+export type PaperId = 'a4' | 'letter';
+
+export function paperPixels(paper: PaperId, dpi: number): { width: number; height: number } {
+  return paper === 'letter' ? letterPixels(dpi) : a4Pixels(dpi);
 }

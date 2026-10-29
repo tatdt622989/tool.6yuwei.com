@@ -135,6 +135,11 @@ describe('display helpers', () => {
     expect(formatMinutes(50 * MIN)).toBe('50 分鐘');
     expect(formatMinutes(125 * MIN)).toBe('2 小時 5 分');
     expect(formatMinutes(120 * MIN)).toBe('2 小時');
+    const en = { min: '{m} min', hm: '{h} hr {m} min', h: '{h} hr' };
+    expect(formatMinutes(50 * MIN, en)).toBe('50 min');
+    expect(formatMinutes(125 * MIN, en)).toBe('2 hr 5 min');
+    expect(formatMinutes(120 * MIN, en)).toBe('2 hr');
+    expect(formatMinutes(95 * MIN, { min: '{m}分', hm: '{h}時間{m}分', h: '{h}時間' })).toBe('1時間35分');
   });
 });
 

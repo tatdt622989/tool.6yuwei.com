@@ -1,68 +1,64 @@
-<div class="tool" data-tool="percentage-calculator">
-  <section class="pc-card" aria-labelledby="pc-t1">
-    <h2 class="pc-title" id="pc-t1">X 的 Y% 是多少</h2>
-    <div class="pc-line">
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="a1" value="2000" aria-label="數值 X" />
-      <span>的</span>
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="a2" value="15" aria-label="百分比 Y" />
-      <span>% 是</span>
-    </div>
-    <div class="pc-out"><strong id="pc-r1">—</strong><span class="hint" id="pc-f1"></span></div>
-  </section>
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
 
-  <section class="pc-card" aria-labelledby="pc-t2">
-    <h2 class="pc-title" id="pc-t2">X 是 Y 的幾 %</h2>
-    <div class="pc-line">
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="b1" value="45" aria-label="部分 X" />
-      <span>是</span>
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="b2" value="60" aria-label="全體 Y" />
-      <span>的</span>
-    </div>
-    <div class="pc-out"><strong id="pc-r2">—</strong><span class="hint" id="pc-f2"></span></div>
-  </section>
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
 
-  <section class="pc-card" aria-labelledby="pc-t3">
-    <h2 class="pc-title" id="pc-t3">從 X 變成 Y，增減幾 %</h2>
-    <div class="pc-line">
-      <span>從</span>
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="c1" value="32000" aria-label="原本的數值 X" />
-      <span>變成</span>
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="c2" value="35000" aria-label="新的數值 Y" />
-    </div>
-    <div class="pc-out"><strong id="pc-r3">—</strong><span class="hint" id="pc-f3"></span></div>
-  </section>
-
-  <section class="pc-card" aria-labelledby="pc-t4">
-    <h2 class="pc-title" id="pc-t4">X 增加或減少 Y% 後是多少</h2>
-    <div class="pc-line">
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="d1" value="1200" aria-label="數值 X" />
-      <div class="seg" role="radiogroup" aria-label="增加或減少">
-        <label><input type="radio" name="pc-dir" value="increase" checked /><span>增加</span></label>
-        <label><input type="radio" name="pc-dir" value="decrease" /><span>減少</span></label>
-      </div>
-      <input type="text" inputmode="decimal" autocomplete="off" data-k="d2" value="5" aria-label="百分比 Y" />
-      <span>% 後是</span>
-    </div>
-    <div class="pc-out"><strong id="pc-r4">—</strong><span class="hint" id="pc-f4"></span></div>
-  </section>
+<div class="tool" data-tool="percentage-calculator" {...i18nAttrs(locale, s.client)}>
+  {
+    s.cards.map((card, index) => (
+      <section class="pc-card" aria-labelledby={`pc-t${index + 1}`}>
+        <h2 class="pc-title" id={`pc-t${index + 1}`}>{card.title}</h2>
+        <div class="pc-line">
+          {card.parts.map((part) =>
+            typeof part === 'string' ? (
+              <span>{part}</span>
+            ) : 'field' in part ? (
+              <input
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                data-k={part.field}
+                value={s.defaults[part.field]}
+                aria-label={s.fieldAria[part.field]}
+              />
+            ) : (
+              <div class="seg" role="radiogroup" aria-label={s.directionAria}>
+                <label><input type="radio" name="pc-dir" value="increase" checked /><span>{s.increase}</span></label>
+                <label><input type="radio" name="pc-dir" value="decrease" /><span>{s.decrease}</span></label>
+              </div>
+            ),
+          )}
+        </div>
+        <div class="pc-out"><strong id={`pc-r${index + 1}`}>—</strong><span class="hint" id={`pc-f${index + 1}`}></span></div>
+      </section>
+    ))
+  }
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
   import { applyPercent, clean, percentChange, percentOf, percentRatio, type Direction } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="percentage-calculator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const inputs = $$<HTMLInputElement>('input[data-k]', root);
   const dirs = $$<HTMLInputElement>('input[name="pc-dir"]', root);
   const field = (k: string) => inputs.find((i) => i.dataset.k === k)!;
   const num = (k: string) => parseNumber(field(k).value);
-  const fmt = (v: number) => formatNumber(clean(v), 6);
+  const fmt = (v: number) => formatNumber(clean(v), 6, locale);
 
   type Prefs = Record<string, string>;
   const saved = loadPref<Prefs>('percentage-calculator', {});
   for (const input of inputs) if (typeof saved[input.dataset.k!] === 'string') input.value = saved[input.dataset.k!];
-  if (saved.dir === 'decrease') dirs[1].checked = true;
+  if (saved.dir === 'decrease') dirs.find((d) => d.value === 'decrease')!.checked = true;
 
   function put(n: number, value: string, formula: string) {
     $(`#pc-r${n}`, root).textContent = value;
@@ -77,27 +73,27 @@
 
     const [a1, a2] = [num('a1'), num('a2')];
     const r1 = percentOf(a1, a2);
-    if (Number.isNaN(r1)) put(1, '—', '請輸入數字');
+    if (Number.isNaN(r1)) put(1, '—', s.enterNumber);
     else put(1, fmt(r1), `${fmt(a1)} × ${fmt(a2)} ÷ 100 = ${fmt(r1)}`);
 
     const [b1, b2] = [num('b1'), num('b2')];
     const r2 = percentRatio(b1, b2);
-    if (Number.isNaN(r2)) put(2, '—', b2 === 0 ? '全體不能是 0' : '請輸入數字');
+    if (Number.isNaN(r2)) put(2, '—', b2 === 0 ? s.wholeZero : s.enterNumber);
     else put(2, `${fmt(r2)}%`, `${fmt(b1)} ÷ ${fmt(b2)} × 100 = ${fmt(r2)}%`);
 
     const [c1, c2] = [num('c1'), num('c2')];
     const r3 = percentChange(c1, c2);
-    if (Number.isNaN(r3)) put(3, '—', c1 === 0 ? '原本的數值為 0 時無法計算變化百分比' : '請輸入數字');
+    if (Number.isNaN(r3)) put(3, '—', c1 === 0 ? s.fromZero : s.enterNumber);
     else {
-      const word = r3 > 0 ? '增加' : r3 < 0 ? '減少' : '沒有變化';
-      put(3, r3 === 0 ? word : `${word} ${fmt(Math.abs(r3))}%`, `(${fmt(c2)} − ${fmt(c1)}) ÷ ${fmt(Math.abs(c1))} × 100 = ${fmt(r3)}%`);
+      const text = t(r3 > 0 ? s.up : r3 < 0 ? s.down : s.same, { n: fmt(Math.abs(r3)) });
+      put(3, text, `(${fmt(c2)} − ${fmt(c1)}) ÷ ${fmt(Math.abs(c1))} × 100 = ${fmt(r3)}%`);
     }
 
     const [d1, d2] = [num('d1'), num('d2')];
     const r4 = applyPercent(d1, d2, direction);
     const sign = direction === 'increase' ? '+' : '−';
-    if (Number.isNaN(r4)) put(4, '—', '請輸入數字');
-    else put(4, fmt(r4), `${fmt(d1)} × (1 ${sign} ${fmt(d2)}%) = ${fmt(r4)}，差額 ${fmt(Math.abs(r4 - d1))}`);
+    if (Number.isNaN(r4)) put(4, '—', s.enterNumber);
+    else put(4, fmt(r4), t(s.applyFormula, { x: fmt(d1), sign, p: fmt(d2), r: fmt(r4), d: fmt(Math.abs(r4 - d1)) }));
   }
 
   inputs.forEach((input) => input.addEventListener('input', render));

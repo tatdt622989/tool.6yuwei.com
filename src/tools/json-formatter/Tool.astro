@@ -1,48 +1,69 @@
-<div class="tool" data-tool="json-formatter">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="json-formatter" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <label for="jf-input">輸入 JSON</label>
+    <label for="jf-input">{s.inputLabel}</label>
     <textarea
       id="jf-input"
       class="mono"
       rows="12"
       spellcheck="false"
       autocomplete="off"
-      placeholder='貼上 JSON，例如 {"name": "王小明", "tags": ["a", "b"]}'></textarea>
+      placeholder={s.placeholder}></textarea>
   </div>
 
   <div class="row">
-    <div class="seg" role="radiogroup" aria-label="輸出模式">
-      <label><input type="radio" name="jf-mode" value="format" checked /><span>格式化</span></label>
-      <label><input type="radio" name="jf-mode" value="minify" /><span>壓縮</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+      <label><input type="radio" name="jf-mode" value="format" checked /><span>{s.format}</span></label>
+      <label><input type="radio" name="jf-mode" value="minify" /><span>{s.minify}</span></label>
     </div>
-    <div class="seg" role="radiogroup" aria-label="縮排" id="jf-indent">
-      <label><input type="radio" name="jf-indent" value="2" checked /><span>2 空格</span></label>
-      <label><input type="radio" name="jf-indent" value="4" /><span>4 空格</span></label>
-      <label><input type="radio" name="jf-indent" value="tab" /><span>Tab</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.indentAria} id="jf-indent">
+      <label><input type="radio" name="jf-indent" value="2" checked /><span>{s.spaces2}</span></label>
+      <label><input type="radio" name="jf-indent" value="4" /><span>{s.spaces4}</span></label>
+      <label><input type="radio" name="jf-indent" value="tab" /><span>{s.tab}</span></label>
     </div>
-    <label class="check"><input type="checkbox" id="jf-sort" /> 依鍵名排序</label>
+    <label class="check"><input type="checkbox" id="jf-sort" /> {s.sortKeys}</label>
   </div>
 
-  <div id="jf-status" class="notice" aria-live="polite">貼上 JSON 後會即時驗證並輸出結果。</div>
+  <div id="jf-status" class="notice" aria-live="polite">{s.client.idle}</div>
   <pre id="jf-excerpt" class="output jf-excerpt" hidden></pre>
 
   <div class="field">
-    <label for="jf-output">結果</label>
+    <label for="jf-output">{s.outputLabel}</label>
     <textarea id="jf-output" class="mono" rows="12" readonly spellcheck="false"></textarea>
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#jf-output">複製結果</button>
-    <button class="btn" type="button" id="jf-download">下載 .json</button>
-    <button class="btn ghost" type="button" id="jf-sample">載入範例</button>
-    <button class="btn ghost" type="button" id="jf-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#jf-output">{s.copy}</button>
+    <button class="btn" type="button" id="jf-download">{s.download}</button>
+    <button class="btn ghost" type="button" id="jf-sample">{s.sample}</button>
+    <button class="btn ghost" type="button" id="jf-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes, formatInteger } from '../../lib/format';
-  import { errorExcerpt, formatValue, minifyValue, parseJson, summarize, type Indent } from './logic';
+  import { formatBytes } from '../../lib/format';
+  import { plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import {
+    describeJsonError,
+    errorExcerpt,
+    formatValue,
+    jsonKind,
+    minifyValue,
+    parseJson,
+    summarize,
+    type Indent,
+  } from './logic';
+  import type { Strings } from './i18n';
 
   interface Prefs {
     mode: 'format' | 'minify';
@@ -51,6 +72,7 @@
   }
 
   const root = $('[data-tool="json-formatter"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#jf-input', root);
   const output = $<HTMLTextAreaElement>('#jf-output', root);
   const status = $('#jf-status', root);
@@ -60,7 +82,6 @@
   const modeRadios = $$<HTMLInputElement>('input[name="jf-mode"]', root);
   const indentRadios = $$<HTMLInputElement>('input[name="jf-indent"]', root);
 
-  const SAMPLE = '{"name":"王小明","age":30,"email":"ming@example.com","active":true,"tags":["admin","editor"],"address":{"city":"台北市","zip":"100"},"lastLogin":null}';
   const encoder = new TextEncoder();
 
   function readPrefs(): Prefs {
@@ -90,15 +111,15 @@
 
     if (input.value.trim() === '') {
       output.value = '';
-      setStatus('', '貼上 JSON 後會即時驗證並輸出結果。');
+      setStatus('', s.idle);
       return;
     }
 
     const parsed = parseJson(input.value);
     if (!parsed.ok) {
-      const { line, column, message } = parsed.error;
+      const { line, column } = parsed.error;
       output.value = '';
-      setStatus('error', `第 ${line} 行第 ${column} 欄：${message}`);
+      setStatus('error', t(s.errorAt, { line, column, message: describeJsonError(parsed.error, s.errors) }));
       excerpt.textContent = errorExcerpt(input.value, line, column);
       excerpt.hidden = false;
       return;
@@ -107,9 +128,13 @@
     output.value =
       prefs.mode === 'minify' ? minifyValue(parsed.value, prefs.sortKeys) : formatValue(parsed.value, prefs);
     const info = summarize(parsed.value);
-    const shape = info.depth > 0 ? `${info.type}，${formatInteger(info.size)} 個成員，深度 ${info.depth}` : info.type;
-    const sizes = `${formatBytes(encoder.encode(input.value).length)} → ${formatBytes(encoder.encode(output.value).length)}`;
-    setStatus('ok', `有效的 JSON：${shape}。大小 ${sizes}`);
+    const type = s.kinds[jsonKind(parsed.value)];
+    const shape =
+      info.depth > 0
+        ? t(s.shapeNested, { type, members: plural(locale, info.size, s.members), depth: info.depth })
+        : type;
+    const sizes = `${formatBytes(encoder.encode(input.value).length, locale)} → ${formatBytes(encoder.encode(output.value).length, locale)}`;
+    setStatus('ok', t(s.valid, { shape, sizes }));
   }
 
   applyPrefs(loadPref<Prefs>('json-formatter', { mode: 'format', indent: '2', sortKeys: false }));
@@ -122,7 +147,7 @@
     downloadBlob(new Blob([output.value], { type: 'application/json' }), name);
   });
   $('#jf-sample', root).addEventListener('click', () => {
-    input.value = SAMPLE;
+    input.value = s.sample;
     render();
   });
   $('#jf-clear', root).addEventListener('click', () => {

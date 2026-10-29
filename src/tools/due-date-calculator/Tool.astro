@@ -1,23 +1,32 @@
-<div class="tool" data-tool="due-date-calculator">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="due-date-calculator" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <span class="label">推算依據</span>
-    <div class="seg" role="radiogroup" aria-label="推算依據">
-      <label><input type="radio" name="dd-method" value="lmp" checked /><span>最後一次月經</span></label>
-      <label><input type="radio" name="dd-method" value="conception" /><span>受孕日</span></label>
-      <label><input type="radio" name="dd-method" value="ivf3" /><span>試管植入（第 3 天胚胎）</span></label>
-      <label><input type="radio" name="dd-method" value="ivf5" /><span>試管植入（第 5 天囊胚）</span></label>
+    <span class="label">{s.methodLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.methodLabel}>
+      <label><input type="radio" name="dd-method" value="lmp" checked /><span>{s.methods.lmp}</span></label>
+      <label><input type="radio" name="dd-method" value="conception" /><span>{s.methods.conception}</span></label>
+      <label><input type="radio" name="dd-method" value="ivf3" /><span>{s.methods.ivf3}</span></label>
+      <label><input type="radio" name="dd-method" value="ivf5" /><span>{s.methods.ivf5}</span></label>
     </div>
   </div>
 
   <div class="grid-2">
     <div class="field">
-      <label for="dd-date" id="dd-date-label">最後一次月經第一天</label>
+      <label for="dd-date" id="dd-date-label">{s.client.dateLabels.lmp}</label>
       <input id="dd-date" type="date" />
     </div>
     <div class="field" id="dd-cycle-field">
-      <label for="dd-cycle">月經週期（天）</label>
+      <label for="dd-cycle">{s.cycleLabel}</label>
       <input id="dd-cycle" type="text" inputmode="numeric" autocomplete="off" value="28" />
-      <span class="hint">從這次月經第一天到下次月經第一天的天數，一般為 28 天。</span>
+      <span class="hint">{s.cycleHint}</span>
     </div>
   </div>
 
@@ -26,42 +35,55 @@
   <div id="dd-output">
     <div class="result" aria-live="polite">
       <div class="result-value" id="dd-due">—</div>
-      <div class="result-label">預產期（懷孕滿 40 週）</div>
+      <div class="result-label">{s.dueLabel}</div>
     </div>
 
     <div class="stats">
-      <div class="stat"><span class="stat-value" id="dd-age">—</span><span class="stat-label">目前懷孕週數</span></div>
-      <div class="stat"><span class="stat-value" id="dd-tri">—</span><span class="stat-label">孕期（國健署分期）</span></div>
-      <div class="stat"><span class="stat-value" id="dd-left">—</span><span class="stat-label">距離預產期</span></div>
-      <div class="stat"><span class="stat-value" id="dd-conc">—</span><span class="stat-label">推估受孕日</span></div>
+      <div class="stat"><span class="stat-value" id="dd-age">—</span><span class="stat-label">{s.ageLabel}</span></div>{
+        s.monthLabel && (
+          <div class="stat">
+            <span class="stat-value" id="dd-month">—</span>
+            <span class="stat-label">{s.monthLabel}</span>
+          </div>
+        )
+      }
+      <div class="stat"><span class="stat-value" id="dd-tri">—</span><span class="stat-label">{s.triLabel}</span></div>
+      <div class="stat"><span class="stat-value" id="dd-left">—</span><span class="stat-label">{s.leftLabel}</span></div>
+      <div class="stat"><span class="stat-value" id="dd-conc">—</span><span class="stat-label">{s.concLabel}</span></div>
     </div>
 
     <div class="dd-progress" aria-hidden="true"><span id="dd-bar"></span></div>
 
     <div class="field">
-      <span class="label">國健署公費產檢與篩檢時程</span>
+      <span class="label">{s.tableLabel}</span>
       <div class="table-wrap">
         <table class="table">
           <thead>
-            <tr><th>項目</th><th class="num">懷孕週數</th><th>建議日期</th><th>狀態</th></tr>
+            <tr><th>{s.thItem}</th><th class="num">{s.thWeeks}</th><th>{s.thDate}</th><th>{s.thStatus}</th></tr>
           </thead>
           <tbody id="dd-table"></tbody>
         </table>
       </div>
-      <span class="hint">實際產檢日期請依產檢醫院安排；公費項目以國健署最新公告為準。</span>
+      <span class="hint">{s.tableHint}</span>
     </div>
   </div>
 
-  <p class="notice">結果僅供參考，請諮詢醫師。只有約 4%–5% 的寶寶剛好在預產期當天出生，37 到 42 週之間出生都屬足月；醫師會依早期超音波量測的胎兒大小校正預產期。日期只在你的瀏覽器中計算，不會上傳。</p>
+  <p class="notice">{s.notice}</p>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { formatInteger, parseNumber } from '../../lib/format';
+  import { parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { formatDate, plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
   import { addDays, parseISODate, toISODate, WEEKDAY_LABEL, weekdayOf, type YMD } from '../date-diff/logic';
-  import { calcDue, TRIMESTER_LABEL, validateDueInput, type DueInput, type DueMethod, type MilestoneStatus } from './logic';
+  import { calcDue, dueInputError, pregnancyMonthJp, type DueInput, type DueMethod, type Milestone, type ScheduleId } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="due-date-calculator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const schedule: ScheduleId = s.schedule ?? 'tw';
   const methods = $$<HTMLInputElement>('input[name="dd-method"]', root);
   const dateInput = $<HTMLInputElement>('#dd-date', root);
   const dateLabel = $('#dd-date-label', root);
@@ -71,22 +93,35 @@
   const output = $('#dd-output', root);
   const table = $('#dd-table', root);
   const bar = $('#dd-bar', root);
+  const monthEl = root.querySelector<HTMLElement>('#dd-month');
   const set = (id: string, text: string) => ($(id, root).textContent = text);
-
-  const DATE_LABEL: Record<DueMethod, string> = {
-    lmp: '最後一次月經第一天',
-    conception: '受孕日（排卵或同房日）',
-    ivf3: '胚胎植入日（第 3 天胚胎）',
-    ivf5: '囊胚植入日（第 5 天囊胚）',
-  };
-  const STATUS_LABEL: Record<MilestoneStatus, string> = { done: '已過', current: '進行中', upcoming: '未到' };
 
   function today(): YMD {
     const now = new Date();
     return { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
   }
+  const toDate = (d: YMD) => new Date(d.y, d.m - 1, d.d);
   const fmt = (d: YMD) => `${d.y}/${d.m}/${d.d}（${WEEKDAY_LABEL[weekdayOf(d)]}）`;
   const method = (): DueMethod => (methods.find((m) => m.checked)?.value ?? 'lmp') as DueMethod;
+
+  /** Due date headline: Intl for en / ja, the original hand-built format for zh-TW. */
+  function dueText(d: YMD): string {
+    if (s.intl) return formatDate(toDate(d), locale, s.intl.due);
+    return `${d.y} 年 ${d.m} 月 ${d.d} 日（${WEEKDAY_LABEL[weekdayOf(d)]}）`;
+  }
+
+  function milestoneLabel(x: Milestone): string {
+    if (x.kind === 'visit' && s.visit) return t(s.visit, { n: x.n ?? 0 });
+    return s.windows?.[x.id] ?? x.label;
+  }
+
+  function milestoneDates(x: Milestone): string {
+    if (!s.intl) return x.week === x.toWeek ? `${fmt(x.from)} 起` : `${fmt(x.from)} – ${fmt(x.to)}`;
+    const df = new Intl.DateTimeFormat(LOCALE_INFO[locale].intl, s.intl.table);
+    if (x.point) return df.format(toDate(x.from));
+    if (s.intl.rangeSep) return `${df.format(toDate(x.from))}${s.intl.rangeSep}${df.format(toDate(x.to))}`;
+    return df.formatRange(toDate(x.from), toDate(x.to));
+  }
 
   const saved = loadPref<{ method: DueMethod; date: string; cycle: string }>('due-date-calculator', {
     method: 'lmp',
@@ -107,33 +142,33 @@
 
   function render() {
     const m = method();
-    dateLabel.textContent = DATE_LABEL[m];
+    dateLabel.textContent = s.dateLabels[m];
     cycleField.hidden = m !== 'lmp';
     savePref('due-date-calculator', { method: m, date: dateInput.value, cycle: cycleInput.value });
 
     const date = parseISODate(dateInput.value);
-    if (!date) return fail('請選擇日期。');
+    if (!date) return fail(s.errorDate);
     const input: DueInput = { method: m, date, cycle: m === 'lmp' ? parseNumber(cycleInput.value) : 28 };
     const now = today();
-    const problem = validateDueInput(input, now);
-    const r = problem ? null : calcDue(input, now);
-    if (!r) return fail(problem ?? '無法計算，請檢查輸入。');
+    const problem = dueInputError(input, now);
+    const r = problem ? null : calcDue(input, now, schedule);
+    if (!r) return fail(problem ? s.errors[problem] : s.errorGeneric);
     error.hidden = true;
     output.hidden = false;
 
-    set('#dd-due', `${r.due.y} 年 ${r.due.m} 月 ${r.due.d} 日（${WEEKDAY_LABEL[weekdayOf(r.due)]}）`);
+    set('#dd-due', dueText(r.due));
     const age = r.age.totalDays < 0 ? { weeks: 0, days: 0 } : r.age;
-    set('#dd-age', `${age.weeks} 週 ${age.days} 天`);
-    set('#dd-tri', TRIMESTER_LABEL[Math.max(1, r.trimester)]);
-    set('#dd-left', r.daysToDue >= 0 ? `${formatInteger(r.daysToDue)} 天` : `已過 ${formatInteger(-r.daysToDue)} 天`);
-    set('#dd-conc', `${r.conception.m}/${r.conception.d}`);
+    set('#dd-age', t(s.age, { weeks: plural(locale, age.weeks, s.weeks), days: plural(locale, age.days, s.days) }));
+    if (monthEl && s.month) monthEl.textContent = t(s.month, { n: pregnancyMonthJp(age.weeks) });
+    set('#dd-tri', s.trimesters[Math.max(1, r.trimester)]);
+    set('#dd-left', r.daysToDue >= 0 ? plural(locale, r.daysToDue, s.left) : plural(locale, -r.daysToDue, s.overdue));
+    set('#dd-conc', s.intl ? formatDate(toDate(r.conception), locale, s.intl.short) : `${r.conception.m}/${r.conception.d}`);
     bar.style.width = `${r.progress}%`;
 
     table.innerHTML = r.milestones
       .map((x) => {
-        const weeks = x.week === x.toWeek ? `${x.week} 週` : `${x.week}–${x.toWeek} 週`;
-        const dates = x.week === x.toWeek ? `${fmt(x.from)} 起` : `${fmt(x.from)} – ${fmt(x.to)}`;
-        return `<tr class="dd-${x.status}"><td>${x.label}</td><td class="num">${weeks}</td><td>${dates}</td><td>${STATUS_LABEL[x.status]}</td></tr>`;
+        const weeks = x.week === x.toWeek ? t(s.weekOne, { w: x.week }) : t(s.weekRange, { a: x.week, b: x.toWeek });
+        return `<tr class="dd-${x.status}"><td>${milestoneLabel(x)}</td><td class="num">${weeks}</td><td>${milestoneDates(x)}</td><td>${s.status[x.status]}</td></tr>`;
       })
       .join('');
   }

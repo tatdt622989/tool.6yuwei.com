@@ -1,21 +1,24 @@
 ---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 const FORMATS = [
   ['hex', 'HEX'],
   ['rgb', 'RGB'],
   ['hsl', 'HSL'],
   ['oklch', 'OKLCH'],
 ];
-const CARDS = [
-  ['white', '白色文字'],
-  ['black', '黑色文字'],
-];
+const CARDS = s.cards;
 ---
 
-<div class="tool" data-tool="color-converter">
+<div class="tool" data-tool="color-converter" {...i18nAttrs(locale, s.client)}>
   <div class="cc-top">
-    <input type="color" id="cc-picker" value="#2456e3" aria-label="用調色盤選擇顏色" />
+    <input type="color" id="cc-picker" value="#2456e3" aria-label={s.pickerAria} />
     <div class="field">
-      <label for="cc-input">輸入任意色碼</label>
+      <label for="cc-input">{s.inputLabel}</label>
       <input
         id="cc-input"
         type="text"
@@ -23,12 +26,10 @@ const CARDS = [
         spellcheck="false"
         autocomplete="off"
         autocapitalize="off"
-        placeholder="#2456e3、rgb(36, 86, 227)、hsl(224, 77%, 52%)" />
+        placeholder={s.placeholder} />
     </div>
   </div>
-  <div id="cc-error" class="notice error" role="alert" hidden>
-    無法辨識這個色碼。支援 HEX、rgb()、hsl() 與 oklch() 格式。
-  </div>
+  <div id="cc-error" class="notice error" role="alert" hidden>{`\n${s.parseError}\n`}</div>
 
   <div class="cc-swatch" aria-hidden="true"><div id="cc-swatch"></div></div>
 
@@ -38,36 +39,38 @@ const CARDS = [
         <div class="cc-row">
           <label for={`cc-${key}`}>{label}</label>
           <input id={`cc-${key}`} type="text" class="mono" readonly />
-          <button class="btn small" type="button" data-copy={`#cc-${key}`}>複製</button>
+          <button class="btn small" type="button" data-copy={`#cc-${key}`}>{s.copy}</button>
         </div>
       ))
     }
   </div>
   <p class="hint cc-note" id="cc-gamut"></p>
 
-  <h2 class="cc-title">對比度檢查（WCAG 2）</h2>
+  <h2 class="cc-title">{s.contrastTitle}</h2>
   <div class="grid-2">
     {
       CARDS.map(([key, label]) => (
         <div class="cc-card">
           <div class="cc-preview" id={`cc-preview-${key}`}>
             <span class="cc-big">{label} Aa</span>
-            <span>一般大小的內文範例</span>
+            <span>{s.sampleBody}</span>
           </div>
           <div class="cc-ratio">
             <span class="cc-ratio-value" id={`cc-ratio-${key}`}>—</span>
-            <span class="hint">對比度</span>
+            <span class="hint">{s.contrastLabel}</span>
           </div>
           <div class="cc-badges" id={`cc-badges-${key}`}></div>
         </div>
       ))
     }
   </div>
-  <p class="hint cc-note">一般文字需達 AA 4.5:1、AAA 7:1；大字（18pt 以上，或 14pt 以上粗體）需達 AA 3:1、AAA 4.5:1。半透明色會以疊在白色背景上的結果計算。</p>
+  <p class="hint cc-note">{s.contrastNote}</p>
 </div>
 
 <script>
   import { $, debounce, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import {
     BLACK,
     WHITE,
@@ -83,6 +86,7 @@ const CARDS = [
   } from './logic';
 
   const root = $('[data-tool="color-converter"]');
+  const { s } = readI18n<Strings['client']>(root);
   const input = $<HTMLInputElement>('#cc-input', root);
   const picker = $<HTMLInputElement>('#cc-picker', root);
   const error = $('#cc-error', root);
@@ -95,14 +99,14 @@ const CARDS = [
     const items: [string, boolean][] = [
       ['AA', r.aaNormal],
       ['AAA', r.aaaNormal],
-      ['AA 大字', r.aaLarge],
-      ['AAA 大字', r.aaaLarge],
+      [`AA${s.largeSuffix}`, r.aaLarge],
+      [`AAA${s.largeSuffix}`, r.aaaLarge],
     ];
     container.replaceChildren(
       ...items.map(([label, pass]) => {
         const span = document.createElement('span');
         span.className = `cc-badge ${pass ? 'pass' : 'fail'}`;
-        span.textContent = `${label} ${pass ? '通過' : '未通過'}`;
+        span.textContent = `${label} ${pass ? s.pass : s.fail}`;
         return span;
       }),
     );
@@ -118,7 +122,7 @@ const CARDS = [
     swatch.style.background = toRgbString(color);
     if (!fromPicker) picker.value = hex.slice(0, 7);
 
-    gamut.textContent = color.clipped ? '這個 OKLCH 顏色超出 sRGB 色域，已裁切為可顯示的顏色，轉換結果會略有差異。' : '';
+    gamut.textContent = color.clipped ? s.gamut : '';
 
     const opaque = composite(color, WHITE);
     for (const [key, text] of [

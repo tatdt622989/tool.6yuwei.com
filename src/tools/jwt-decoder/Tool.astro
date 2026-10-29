@@ -1,20 +1,29 @@
-<div class="tool" data-tool="jwt-decoder">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="jwt-decoder" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <label for="jw-input">貼上 JWT</label>
+    <label for="jw-input">{s.inputLabel}</label>
     <textarea
       id="jw-input"
       class="mono"
       rows="5"
       spellcheck="false"
       autocomplete="off"
-      placeholder="eyJhbGciOiJIUzI1NiIs…（可含 Bearer 前綴）"></textarea>
+      placeholder={s.placeholder}></textarea>
   </div>
   <div class="row">
-    <button class="btn" type="button" id="jw-sample">載入範例</button>
-    <button class="btn ghost" type="button" id="jw-clear">清除</button>
+    <button class="btn" type="button" id="jw-sample">{s.sample}</button>
+    <button class="btn ghost" type="button" id="jw-clear">{s.clear}</button>
   </div>
 
-  <p class="notice jw-note">本工具只解碼內容，<strong>不驗證簽章</strong>。任何人都能解碼 JWT，請勿在其中放入密碼等機密資料；簽章是否有效必須由持有金鑰的伺服器驗證。</p>
+  <p class="notice jw-note">{s.noteBefore}<strong>{s.noteStrong}</strong>{s.noteAfter}</p>
 
   <div id="jw-error" class="notice error" role="alert" hidden></div>
 
@@ -24,32 +33,32 @@
     <div class="grid-2">
       <div class="field">
         <div class="jw-head">
-          <span class="jw-label">標頭（Header）</span>
-          <button class="btn small" type="button" data-copy="#jw-header">複製</button>
+          <span class="jw-label">{s.header}</span>
+          <button class="btn small" type="button" data-copy="#jw-header">{s.copy}</button>
         </div>
         <pre class="output jw-json" id="jw-header"></pre>
       </div>
       <div class="field">
         <div class="jw-head">
-          <span class="jw-label">酬載（Payload）</span>
-          <button class="btn small" type="button" data-copy="#jw-payload">複製</button>
+          <span class="jw-label">{s.payload}</span>
+          <button class="btn small" type="button" data-copy="#jw-payload">{s.copy}</button>
         </div>
         <pre class="output jw-json" id="jw-payload"></pre>
       </div>
     </div>
 
     <div class="field" id="jw-claims-wrap">
-      <span class="label">標準欄位</span>
+      <span class="label">{s.claimsLabel}</span>
       <div class="table-wrap">
         <table class="table jw-claims">
-          <thead><tr><th>欄位</th><th>說明</th><th>值</th></tr></thead>
+          <thead><tr><th>{s.claimCol}</th><th>{s.meaningCol}</th><th>{s.valueCol}</th></tr></thead>
           <tbody id="jw-claims"></tbody>
         </table>
       </div>
     </div>
 
     <div class="field">
-      <span class="label">簽章（Signature）</span>
+      <span class="label">{s.signature}</span>
       <div class="output" id="jw-sig"></div>
       <span class="hint" id="jw-alg"></span>
     </div>
@@ -58,40 +67,42 @@
 
 <script>
   import { $ } from '../../lib/client';
-  import {
-    CLAIM_LABELS,
-    TIME_CLAIMS,
-    decodeJwt,
-    encodeSegment,
-    formatDuration,
-    timeClaimValue,
-    tokenStatus,
-  } from './logic';
+  import { plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import { CLAIM_LABELS, TIME_CLAIMS, decodeJwt, durationParts, encodeSegment, timeClaimValue, tokenStatus } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="jwt-decoder"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#jw-input', root);
   const error = $('#jw-error', root);
   const result = $('#jw-result', root);
   const status = $('#jw-status', root);
   const claimsWrap = $('#jw-claims-wrap', root);
   const claimsBody = $('#jw-claims', root);
-  const dateFmt = new Intl.DateTimeFormat('zh-TW', { dateStyle: 'medium', timeStyle: 'medium' });
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dateFmt = new Intl.DateTimeFormat(LOCALE_INFO[locale].intl, { dateStyle: 'medium', timeStyle: 'medium' });
 
   let payload: unknown = null;
 
-  const formatSeconds = (s: number) => dateFmt.format(new Date(s * 1000));
+  const formatSeconds = (sec: number) => dateFmt.format(new Date(sec * 1000));
+  /** Raw numbers (no separators) keep zh output identical: "1000 天". */
+  const duration = (sec: number) =>
+    durationParts(sec)
+      .map(({ n, unit }) => plural(locale, n, s.units[unit], { n }))
+      .join(' ');
 
   function renderStatus() {
     if (result.hidden) return;
     const st = tokenStatus(payload, Date.now());
     const exp = timeClaimValue(payload, 'exp');
     const nbf = timeClaimValue(payload, 'nbf');
+    const d = duration(st.delta ?? 0);
     const map = {
-      valid: ['ok', `尚未過期：將在 ${formatDuration(st.delta ?? 0)}後到期（${exp ? formatSeconds(exp) : ''}）`],
-      expired: ['error', `已過期：在 ${formatDuration(st.delta ?? 0)}前到期（${exp ? formatSeconds(exp) : ''}）`],
-      'not-yet-valid': ['error', `尚未生效：${formatDuration(st.delta ?? 0)}後才開始生效（${nbf ? formatSeconds(nbf) : ''}）`],
-      'no-expiry': ['', '這個 JWT 沒有設定 exp 到期時間。'],
+      valid: ['ok', t(s.valid, { d, time: exp ? formatSeconds(exp) : '' })],
+      expired: ['error', t(s.expired, { d, time: exp ? formatSeconds(exp) : '' })],
+      'not-yet-valid': ['error', t(s.notYetValid, { d, time: nbf ? formatSeconds(nbf) : '' })],
+      'no-expiry': ['', s.noExpiry],
     } as const;
     const [kind, text] = map[st.state];
     status.className = kind ? `notice ${kind}` : 'notice';
@@ -103,13 +114,13 @@
     const seconds = (TIME_CLAIMS as readonly string[]).includes(key) ? timeClaimValue(payload, key) : undefined;
     const display =
       seconds !== undefined
-        ? `${seconds}（${formatSeconds(seconds)}）`
+        ? t(s.timeValue, { s: seconds, date: formatSeconds(seconds) })
         : Array.isArray(value)
           ? value.join(', ')
           : typeof value === 'string'
             ? value
             : JSON.stringify(value);
-    for (const text of [key, CLAIM_LABELS[key], display]) {
+    for (const text of [key, s.claims[key], display]) {
       const td = document.createElement('td');
       td.textContent = text;
       tr.append(td);
@@ -123,7 +134,7 @@
     if (input.value.trim() === '') return;
     const decoded = decodeJwt(input.value);
     if (!decoded.ok) {
-      error.textContent = decoded.error;
+      error.textContent = t(s.errors[decoded.code], { n: decoded.segments ?? 0 });
       error.hidden = false;
       return;
     }
@@ -131,15 +142,11 @@
     payload = jwt.payload;
     $('#jw-header', root).textContent = jwt.headerJson;
     $('#jw-payload', root).textContent = jwt.payloadJson;
-    $('#jw-sig', root).textContent = jwt.signature || '（空白，未簽章）';
+    $('#jw-sig', root).textContent = jwt.signature || s.emptySignature;
 
     const alg = typeof jwt.header.alg === 'string' ? jwt.header.alg : '';
     $('#jw-alg', root).textContent =
-      alg.toLowerCase() === 'none'
-        ? '演算法為 none：這個 JWT 沒有簽章，伺服器不應接受。'
-        : alg
-          ? `演算法：${alg}。簽章以 Base64URL 表示，需要對應的金鑰才能驗證。`
-          : '標頭沒有 alg 欄位。';
+      alg.toLowerCase() === 'none' ? s.algNone : alg ? t(s.alg, { alg }) : s.noAlg;
 
     const rows =
       jwt.payloadIsJson && payload && typeof payload === 'object'
@@ -156,7 +163,7 @@
   function sampleToken(): string {
     const now = Math.floor(Date.now() / 1000);
     const header = encodeSegment({ alg: 'HS256', typ: 'JWT' });
-    const body = encodeSegment({ sub: '1234567890', name: '王小明', role: 'editor', iss: 'https://auth.example.com', iat: now, exp: now + 3600 });
+    const body = encodeSegment({ sub: '1234567890', name: s.sampleName, role: 'editor', iss: 'https://auth.example.com', iat: now, exp: now + 3600 });
     return `${header}.${body}.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk`;
   }
 

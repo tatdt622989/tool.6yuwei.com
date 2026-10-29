@@ -46,6 +46,7 @@ describe('decodeText', () => {
     expect(decodeText('abc$').ok).toBe(false);
     expect(decodeText('A').ok).toBe(false);
     expect(decodeText('QQ===').ok).toBe(false);
+    expect(decodeText('abc$')).toMatchObject({ ok: false, reason: 'invalid' });
   });
 
   it('reports binary data that is not UTF-8', () => {
@@ -53,6 +54,7 @@ describe('decodeText', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain('UTF-8');
+      expect(r.reason).toBe('not-utf8');
       expect(r.bytes?.length).toBe(4);
     }
   });

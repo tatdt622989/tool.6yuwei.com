@@ -48,6 +48,20 @@ describe('parseInBase', () => {
     else throw new Error('should fail');
     expect(parseInBase('', 10).ok).toBe(false);
     expect(parseInBase('-', 10).ok).toBe(false);
+  });
+
+  it('uses localized messages', () => {
+    const en = {
+      badBase: 'Base must be 2–36',
+      empty: 'Enter a number',
+      badDigit: '"{ch}" is not a base-{base} digit (use {allowed})',
+      allowedDigits: '0–{max}',
+      allowedLetters: '0–9 and A–{max}',
+    };
+    expect(parseInBase('102', 2, en)).toEqual({ ok: false, error: '"2" is not a base-2 digit (use 0–1)' });
+    expect(parseInBase('fg', 16, en)).toEqual({ ok: false, error: '"G" is not a base-16 digit (use 0–9 and A–F)' });
+    expect(parseInBase('', 10, en)).toEqual({ ok: false, error: 'Enter a number' });
+    expect(parseInBase('1', 40, en)).toEqual({ ok: false, error: 'Base must be 2–36' });
     expect(parseInBase('1.5', 10).ok).toBe(false);
     expect(parseInBase('1', 37).ok).toBe(false);
     expect(parseInBase('1', 1).ok).toBe(false);

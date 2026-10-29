@@ -1,85 +1,100 @@
-<div class="tool" data-tool="line-tools">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="line-tools" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <label for="lt-input">文字內容（每行一筆）</label>
-    <textarea id="lt-input" class="mono" rows="12" spellcheck="false" placeholder="貼上名單、關鍵字或任何一行一筆的資料，再點選下方的操作"></textarea>
+    <label for="lt-input">{s.inputLabel}</label>
+    <textarea id="lt-input" class="mono" rows="12" spellcheck="false" placeholder={s.placeholder}></textarea>
   </div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value" id="lt-total">0</span><span class="stat-label">行數</span></div>
-    <div class="stat"><span class="stat-value" id="lt-nonempty">0</span><span class="stat-label">非空白行</span></div>
-    <div class="stat"><span class="stat-value" id="lt-dupes">0</span><span class="stat-label">重複行</span></div>
+    <div class="stat"><span class="stat-value" id="lt-total">0</span><span class="stat-label">{s.statTotal}</span></div>
+    <div class="stat"><span class="stat-value" id="lt-nonempty">0</span><span class="stat-label">{s.statNonEmpty}</span></div>
+    <div class="stat"><span class="stat-value" id="lt-dupes">0</span><span class="stat-label">{s.statDupes}</span></div>
   </div>
 
   <p class="notice" id="lt-msg" aria-live="polite" hidden></p>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#lt-input">複製結果</button>
-    <button class="btn" type="button" id="lt-undo" disabled>復原</button>
-    <button class="btn ghost" type="button" id="lt-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#lt-input">{s.copy}</button>
+    <button class="btn" type="button" id="lt-undo" disabled>{s.undo}</button>
+    <button class="btn ghost" type="button" id="lt-clear">{s.clear}</button>
   </div>
 
   <section class="lt-group" aria-labelledby="lt-h-sort">
-    <span id="lt-h-sort" class="lt-title">排序</span>
+    <span id="lt-h-sort" class="lt-title">{s.sortTitle}</span>
     <div class="row">
-      <button class="btn small" type="button" data-op="asc">A → Z</button>
-      <button class="btn small" type="button" data-op="desc">Z → A</button>
-      <button class="btn small" type="button" data-op="natural">數字自然排序</button>
-      <button class="btn small" type="button" data-op="length">依長度</button>
-      <button class="btn small" type="button" data-op="reverse">反轉順序</button>
-      <button class="btn small" type="button" data-op="shuffle">隨機打亂</button>
+      <button class="btn small" type="button" data-op="asc">{s.asc}</button>
+      <button class="btn small" type="button" data-op="desc">{s.desc}</button>
+      <button class="btn small" type="button" data-op="natural">{s.natural}</button>
+      <button class="btn small" type="button" data-op="length">{s.byLength}</button>
+      <button class="btn small" type="button" data-op="reverse">{s.reverse}</button>
+      <button class="btn small" type="button" data-op="shuffle">{s.shuffle}</button>
     </div>
     <div class="row">
-      <label class="check"><input type="checkbox" id="lt-case" /> 區分大小寫</label>
-      <label class="lt-inline" for="lt-collation">
-        中文排序
-        <select id="lt-collation">
-          <option value="stroke">依筆畫</option>
-          <option value="zhuyin">依注音</option>
-        </select>
-      </label>
+      <label class="check"><input type="checkbox" id="lt-case" /> {s.caseSensitive}</label>
+      {
+        s.zhCollation && (
+          <label class="lt-inline" for="lt-collation">
+            {s.zhCollation.label}
+            <select id="lt-collation">
+              {s.zhCollation.options.map((o) => (
+                <Fragment>{' '}<option value={o.value}>{o.label}</option></Fragment>
+              ))}
+            </select>
+          </label>
+        )
+      }
     </div>
   </section>
 
   <section class="lt-group" aria-labelledby="lt-h-clean">
-    <span id="lt-h-clean" class="lt-title">整理</span>
+    <span id="lt-h-clean" class="lt-title">{s.cleanTitle}</span>
     <div class="row">
-      <button class="btn small" type="button" data-op="dedupe">移除重複行</button>
-      <button class="btn small" type="button" data-op="empty">移除空白行</button>
-      <button class="btn small" type="button" data-op="trim">去除每行前後空白</button>
+      <button class="btn small" type="button" data-op="dedupe">{s.dedupe}</button>
+      <button class="btn small" type="button" data-op="empty">{s.removeEmpty}</button>
+      <button class="btn small" type="button" data-op="trim">{s.trim}</button>
     </div>
   </section>
 
   <section class="lt-group" aria-labelledby="lt-h-affix">
-    <span id="lt-h-affix" class="lt-title">加上前綴／後綴</span>
+    <span id="lt-h-affix" class="lt-title">{s.affixTitle}</span>
     <div class="lt-affix">
-      <input type="text" id="lt-prefix" class="mono" placeholder="前綴，例如 &quot;" aria-label="前綴" />
-      <input type="text" id="lt-suffix" class="mono" placeholder="後綴，例如 &quot;," aria-label="後綴" />
-      <button class="btn small" type="button" data-op="affix">加上</button>
+      <input type="text" id="lt-prefix" class="mono" placeholder={s.prefixPlaceholder} aria-label={s.prefixAria} />
+      <input type="text" id="lt-suffix" class="mono" placeholder={s.suffixPlaceholder} aria-label={s.suffixAria} />
+      <button class="btn small" type="button" data-op="affix">{s.addAffix}</button>
     </div>
   </section>
 
   <section class="lt-group" aria-labelledby="lt-h-number">
-    <span id="lt-h-number" class="lt-title">加上行號</span>
+    <span id="lt-h-number" class="lt-title">{s.numberTitle}</span>
     <div class="row">
-      <select id="lt-format" aria-label="行號格式" class="lt-narrow">
-        <option value="dot">1. 文字</option>
-        <option value="paren">1) 文字</option>
-        <option value="comma">1、文字</option>
-        <option value="tab">1（Tab）文字</option>
+      <select id="lt-format" aria-label={s.numberFormatAria} class="lt-narrow">
+        {s.numberFormats.map((f) => (
+          <Fragment>{' '}<option value={f.value}>{f.label}</option></Fragment>
+        ))}
       </select>
       <label class="lt-inline" for="lt-start">
-        起始
+        {s.start}
         <input type="number" id="lt-start" value="1" min="0" step="1" class="lt-num" />
       </label>
-      <label class="check"><input type="checkbox" id="lt-pad" /> 補零（01、02）</label>
-      <button class="btn small" type="button" data-op="number">加上行號</button>
+      <label class="check"><input type="checkbox" id="lt-pad" /> {s.pad}</label>
+      <button class="btn small" type="button" data-op="number">{s.addNumbers}</button>
     </div>
   </section>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { formatInteger } from '../../lib/format';
+  import { formatInteger, plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { LineOp, Strings } from './i18n';
   import {
     addAffixes,
     dedupeLines,
@@ -93,15 +108,18 @@
     sortLines,
     splitLines,
     trimLines,
+    type Collation,
     type CompareOptions,
   } from './logic';
 
   const root = $('[data-tool="line-tools"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#lt-input', root);
   const msg = $('#lt-msg', root);
   const undoBtn = $<HTMLButtonElement>('#lt-undo', root);
   const caseBox = $<HTMLInputElement>('#lt-case', root);
-  const collation = $<HTMLSelectElement>('#lt-collation', root);
+  // Only the zh page has a Chinese collation picker; other locales use their own fixed collation.
+  const collation = root.querySelector<HTMLSelectElement>('#lt-collation');
   const prefix = $<HTMLInputElement>('#lt-prefix', root);
   const suffix = $<HTMLInputElement>('#lt-suffix', root);
   const format = $<HTMLSelectElement>('#lt-format', root);
@@ -117,36 +135,29 @@
 
   const prefs = loadPref<Prefs>('line-tools', { caseSensitive: false, collation: 'stroke', format: 'dot', pad: false });
   caseBox.checked = Boolean(prefs.caseSensitive);
-  collation.value = prefs.collation === 'zhuyin' ? 'zhuyin' : 'stroke';
-  format.value = isNumberFormat(prefs.format) ? prefs.format : 'dot';
+  if (collation) collation.value = prefs.collation === 'zhuyin' ? 'zhuyin' : 'stroke';
+  format.value = isNumberFormat(prefs.format) && format.querySelector(`option[value="${prefs.format}"]`) ? prefs.format : 'dot';
   pad.checked = Boolean(prefs.pad);
 
   function persist() {
     savePref('line-tools', {
       caseSensitive: caseBox.checked,
-      collation: collation.value,
+      collation: collation ? collation.value : prefs.collation,
       format: format.value,
       pad: pad.checked,
     } satisfies Prefs);
   }
 
   function compareOptions(): CompareOptions {
-    return { caseSensitive: caseBox.checked, collation: collation.value === 'zhuyin' ? 'zhuyin' : 'stroke' };
+    const order: Collation = collation
+      ? collation.value === 'zhuyin'
+        ? 'zhuyin'
+        : 'stroke'
+      : (s.collation ?? 'stroke');
+    return { caseSensitive: caseBox.checked, collation: order };
   }
 
-  const LABELS: Record<string, string> = {
-    asc: '已依 A → Z 排序',
-    desc: '已依 Z → A 排序',
-    natural: '已依數字自然排序',
-    length: '已依長度排序',
-    reverse: '已反轉順序',
-    shuffle: '已隨機打亂',
-    dedupe: '已移除重複行',
-    empty: '已移除空白行',
-    trim: '已去除前後空白',
-    affix: '已加上前綴／後綴',
-    number: '已加上行號',
-  };
+  const lines = (n: number) => plural(locale, n, s.lines);
 
   function apply(op: string, lines: string[]): string[] {
     const cmp = compareOptions();
@@ -182,9 +193,9 @@
 
   function renderStats() {
     const stats = lineStats(splitLines(input.value), caseBox.checked);
-    $('#lt-total', root).textContent = formatInteger(stats.total);
-    $('#lt-nonempty', root).textContent = formatInteger(stats.nonEmpty);
-    $('#lt-dupes', root).textContent = formatInteger(stats.duplicates);
+    $('#lt-total', root).textContent = formatInteger(stats.total, locale);
+    $('#lt-nonempty', root).textContent = formatInteger(stats.nonEmpty, locale);
+    $('#lt-dupes', root).textContent = formatInteger(stats.duplicates, locale);
     undoBtn.disabled = history.length === 0;
   }
 
@@ -196,15 +207,15 @@
 
   for (const button of $$<HTMLButtonElement>('[data-op]', root)) {
     button.addEventListener('click', () => {
-      const op = button.dataset.op!;
+      const op = button.dataset.op! as LineOp;
       const before = splitLines(input.value);
       if (before.length === 0) {
-        showMessage('請先輸入或貼上文字。');
+        showMessage(s.empty);
         input.focus();
         return;
       }
       if (op === 'affix' && prefix.value === '' && suffix.value === '') {
-        showMessage('請先輸入前綴或後綴。');
+        showMessage(s.noAffix);
         prefix.focus();
         return;
       }
@@ -212,7 +223,7 @@
       history.push(input.value);
       if (history.length > 50) history.shift();
       input.value = joinLines(after);
-      showMessage(`${LABELS[op]}：${formatInteger(before.length)} 行 → ${formatInteger(after.length)} 行`, 'ok');
+      showMessage(t(s.result, { label: s.done[op], before: lines(before.length), after: lines(after.length) }), 'ok');
       renderStats();
     });
   }
@@ -221,7 +232,7 @@
     const previous = history.pop();
     if (previous === undefined) return;
     input.value = previous;
-    showMessage('已復原上一步。');
+    showMessage(s.undone);
     renderStats();
   });
 
@@ -238,7 +249,7 @@
     persist();
     renderStats();
   });
-  for (const el of [collation, format, pad]) el.addEventListener('change', persist);
+  for (const el of [collation, format, pad]) el?.addEventListener('change', persist);
   renderStats();
 </script>
 

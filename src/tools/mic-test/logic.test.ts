@@ -15,6 +15,7 @@ import {
   rmsOf,
   toDbfs,
 } from './logic';
+import { MEDIA_TEXT_EN, MEDIA_TEXT_JA } from './media-text';
 
 describe('levels', () => {
   it('computes RMS and peak', () => {
@@ -131,5 +132,58 @@ describe('environment and errors', () => {
   it('labels unnamed devices', () => {
     expect(deviceLabel('', 0, 'mic')).toBe('麥克風 1');
     expect(deviceLabel('  USB Mic ', 2, 'mic')).toBe('USB Mic');
+  });
+});
+
+describe('localized media text', () => {
+  const winChrome = { browser: 'chrome', platform: 'windows' } as const;
+  const iosSafari = { browser: 'safari', platform: 'ios' } as const;
+
+  it('keeps the zh-TW wording unchanged by default', () => {
+    expect(permissionHelp(winChrome, 'mic')).toEqual([
+      'Chrome：點網址列左側的「查看網站資訊」圖示 → 將「麥克風」切換為允許，然後重新整理頁面。',
+      'Windows：「設定」→「隱私權與安全性」→「麥克風」→ 開啟「麥克風存取權」與「讓桌面應用程式存取您的麥克風」。',
+    ]);
+    expect(describeMediaError('OverconstrainedError', 'camera').detail).toBe(
+      '選定的裝置已不存在，或不支援要求的設定。請在選單改選其他裝置或改用較低解析度再試一次。',
+    );
+    expect(describeMediaError('OverconstrainedError', 'mic').detail).toBe(
+      '選定的裝置已不存在，或不支援要求的設定。請在選單改選其他裝置再試一次。',
+    );
+    expect(describeMediaError('', 'mic').detail).toBe('發生未預期的錯誤（未知）。請重新整理頁面，或改用其他瀏覽器再試一次。');
+    expect(describeMediaError('NotReadableError', 'camera').detail).toContain('（例如 LINE、Teams、Zoom、Google Meet 或 OBS）');
+    expect(deviceLabel('', 0, 'camera')).toBe('相機 1');
+  });
+
+  it('fills English templates with sentence-case names', () => {
+    expect(describeMediaError('NotAllowedError', 'mic', MEDIA_TEXT_EN)).toEqual({
+      title: 'Microphone access was blocked',
+      detail:
+        'Your browser or operating system blocked this site from using the microphone. Allow it with the steps below, then press Start again.',
+      showPermissionHelp: true,
+    });
+    const steps = permissionHelp(winChrome, 'camera', MEDIA_TEXT_EN);
+    expect(steps[1]).toBe(
+      'Windows 11: Settings > Privacy & security > Camera, then turn on “Camera access” and “Let desktop apps access your camera”.',
+    );
+    expect(describeMediaError('Weird', 'mic', MEDIA_TEXT_EN).detail).toContain('(Weird)');
+    expect(deviceLabel(' ', 1, 'mic', MEDIA_TEXT_EN)).toBe('Microphone 2');
+  });
+
+  it('fills Japanese templates', () => {
+    expect(permissionHelp(iosSafari, 'mic', MEDIA_TEXT_JA)).toHaveLength(2);
+    expect(permissionHelp({ browser: 'chrome', platform: 'mac' }, 'camera', MEDIA_TEXT_JA)[1]).toBe(
+      'macOS：「システム設定」→「プライバシーとセキュリティ」→「カメラ」で、ブラウザをオンにします（変更後はブラウザの再起動が必要な場合があります）。',
+    );
+    expect(describeMediaError('OverconstrainedError', 'camera', MEDIA_TEXT_JA).detail).toContain('別のデバイスを選んで（または解像度を下げて）、');
+    expect(describeMediaError('OverconstrainedError', 'mic', MEDIA_TEXT_JA).detail).toContain('別のデバイスを選んで、');
+    for (const text of [MEDIA_TEXT_EN, MEDIA_TEXT_JA]) {
+      for (const name of ['NotFoundError', 'NotReadableError', 'insecure', 'unsupported', 'x']) {
+        for (const kind of ['mic', 'camera'] as const) {
+          const p = describeMediaError(name, kind, text);
+          expect(p.title + p.detail).not.toMatch(/\{\w+\}/);
+        }
+      }
+    }
   });
 });

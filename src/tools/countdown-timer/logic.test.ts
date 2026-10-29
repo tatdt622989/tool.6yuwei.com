@@ -92,4 +92,14 @@ describe('duration helpers', () => {
     expect(describeDuration(45_000)).toBe('45 秒');
     expect(describeDuration(0)).toBe('0 秒');
   });
+
+  it('describes durations with other unit words', () => {
+    const en = { h: '{n} hr', m: '{n} min', s: '{n} sec', sep: ' ' };
+    const ja = { h: '{n}時間', m: '{n}分', s: '{n}秒', sep: '' };
+    expect(describeDuration(5_400_000, en)).toBe('1 hr 30 min');
+    expect(describeDuration(3_725_000, en)).toBe('1 hr 2 min 5 sec');
+    expect(describeDuration(0, en)).toBe('0 sec');
+    expect(describeDuration(5_400_000, ja)).toBe('1時間30分');
+    expect(describeDuration(180_000, ja)).toBe('3分');
+  });
 });

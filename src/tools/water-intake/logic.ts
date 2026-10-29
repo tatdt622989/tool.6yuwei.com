@@ -38,19 +38,71 @@ export interface WaterResult {
   cups: number;
 }
 
-export function validateWater({ weightKg, exerciseMin, cupMl }: WaterInput): string | null {
-  if (!Number.isFinite(weightKg)) return '請輸入體重。';
-  if (weightKg < 20 || weightKg > 250) return '體重請以公斤輸入，例如 60。';
-  if (!Number.isFinite(exerciseMin) || exerciseMin < 0 || exerciseMin > 600) return '運動時間請輸入 0 到 600 分鐘。';
-  if (!Number.isFinite(cupMl) || cupMl < 50 || cupMl > 2000) return '杯子容量請輸入 50 到 2000 毫升。';
+/** Which input is missing or out of range; the UI maps it to a localized message. */
+export type WaterProblem = 'missing' | 'weight' | 'exercise' | 'cup';
+
+export function checkWater({ weightKg, exerciseMin, cupMl }: WaterInput): WaterProblem | null {
+  if (!Number.isFinite(weightKg)) return 'missing';
+  if (weightKg < 20 || weightKg > 250) return 'weight';
+  if (!Number.isFinite(exerciseMin) || exerciseMin < 0 || exerciseMin > 600) return 'exercise';
+  if (!Number.isFinite(cupMl) || cupMl < 50 || cupMl > 2000) return 'cup';
   return null;
 }
+
+const ZH_PROBLEMS: Record<WaterProblem, string> = {
+  missing: '請輸入體重。',
+  weight: '體重請以公斤輸入，例如 60。',
+  exercise: '運動時間請輸入 0 到 600 分鐘。',
+  cup: '杯子容量請輸入 50 到 2000 毫升。',
+};
+
+/** zh-TW message for checkWater(); localized UIs map the problem code themselves. */
+export function validateWater(input: WaterInput): string | null {
+  const problem = checkWater(input);
+  return problem ? ZH_PROBLEMS[problem] : null;
+}
+
+/** US customary conversions (exact NIST factors). 1 US fl oz = 29.5735295625 ml. */
+export const ML_PER_FL_OZ = 29.5735295625;
+export const KG_PER_LB = 0.45359237;
+export const flOzToMl = (oz: number): number => oz * ML_PER_FL_OZ;
+export const mlToFlOz = (ml: number): number => ml / ML_PER_FL_OZ;
+export const lbToKg = (lb: number): number => lb * KG_PER_LB;
+/** ml per kg → fl oz per lb: 30 ml/kg ≈ 0.46 oz/lb. */
+export const mlPerKgToOzPerLb = (mlPerKg: number): number => mlToFlOz(mlPerKg * KG_PER_LB);
+
+/**
+ * Whole fl oz for each of `count` drinks that add up to the total rounded to 1 fl oz:
+ * the remainder is spread one ounce at a time over the first drinks (106 oz / 14 → 8 × 8 oz + 6 × 7 oz).
+ */
+export function slotsInFlOz(totalMl: number, count: number): number[] {
+  const n = Math.trunc(count);
+  if (!(n > 0) || !(totalMl > 0)) return [];
+  const total = Math.round(mlToFlOz(totalMl));
+  const per = Math.floor(total / n);
+  const extra = total - per * n;
+  return Array.from({ length: n }, (_, i) => per + (i < extra ? 1 : 0));
+}
+
+/**
+ * Official reference amounts shown next to the estimate, by market (ml/day).
+ * - tw: 國健署建議每日總液體量（see WATER_RULES.hpaTotalFluid）.
+ * - us: National Academies (2004) adequate intake of total beverages, including drinking water:
+ *   men about 3.0 L (13 cups), women about 2.2 L (9 cups). Total water incl. food is 3.7 L / 2.7 L.
+ * - jp: 厚生労働省「健康のため水を飲もう」推進運動: 飲み水として 1 日あたり約 1.2 L（男女共通）。
+ */
+export type FluidReference = 'tw' | 'us' | 'jp';
+export const REFERENCE_FLUID: Record<FluidReference, Record<Sex, number>> = {
+  tw: WATER_RULES.hpaTotalFluid,
+  us: { male: 3000, female: 2200 },
+  jp: { male: 1200, female: 1200 },
+};
 
 /** Rounds to the nearest 10 ml so results read naturally. */
 const round10 = (ml: number) => Math.round(ml / 10) * 10;
 
 export function calcWater(input: WaterInput): WaterResult | null {
-  if (validateWater(input)) return null;
+  if (checkWater(input)) return null;
   const { weightKg, activity, exerciseMin, hot, cupMl } = input;
   const exercise = round10((exerciseMin / 60) * WATER_RULES.exerciseMlPerHour);
   const climate = hot ? WATER_RULES.hotClimateMl : 0;

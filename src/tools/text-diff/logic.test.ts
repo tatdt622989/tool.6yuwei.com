@@ -162,4 +162,13 @@ describe('rendering', () => {
     expect(html.indexOf('a2')).toBeLessThan(html.indexOf('b1'));
     expect(renderSplit(diffText('the fox', 'the cat', opts).rows)).toContain('<mark class="td-ins">cat</mark>');
   });
+
+  it('labels collapsed rows in zh by default and accepts a localized label', () => {
+    const old = Array.from({ length: 10 }, (_, i) => `line ${i}`).join('\n');
+    const rows = collapseRows(diffText(old, old.replace('line 9', 'line nine'), opts).rows, 1);
+    expect(renderSplit(rows)).toContain('<td colspan="4">略過 8 行相同內容</td>');
+    const en = (n: number) => `${n} unchanged <lines>`;
+    expect(renderUnified(rows, en)).toContain('8 unchanged &#60;lines&#62;');
+    expect(renderSplit(rows, en)).not.toContain('略過');
+  });
 });

@@ -10,16 +10,40 @@ export interface MatchInfo {
   named: Record<string, string | undefined> | null;
 }
 
+/** Error and label text produced by the pure logic (zh defaults; the UI passes its locale's copy). */
+export interface RegexMessages {
+  /** {flag} */
+  badFlag: string;
+  /** {message} */
+  syntax: string;
+  /** {message} */
+  failed: string;
+  /** Shown for a capture group that did not participate in the match. */
+  unset: string;
+}
+
+export const ZH_MESSAGES: RegexMessages = {
+  badFlag: '不支援的旗標「{flag}」，可用的旗標為 g i m s u y。',
+  syntax: '語法錯誤：{message}',
+  failed: '執行失敗：{message}',
+  unset: '（未參與）',
+};
+
+/** Fill {placeholders} in a RegexMessages template. */
+export function formatMessage(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k] : m));
+}
+
 export type BuildResult = { ok: true; regex: RegExp } | { ok: false; error: string };
 
-export function buildRegex(pattern: string, flags: string): BuildResult {
+export function buildRegex(pattern: string, flags: string, messages: RegexMessages = ZH_MESSAGES): BuildResult {
   const bad = [...flags].find((f) => !SUPPORTED_FLAGS.includes(f));
-  if (bad) return { ok: false, error: `不支援的旗標「${bad}」，可用的旗標為 g i m s u y。` };
+  if (bad) return { ok: false, error: formatMessage(messages.badFlag, { flag: bad }) };
   const unique = [...new Set(flags)].join('');
   try {
     return { ok: true, regex: new RegExp(pattern, unique) };
   } catch (err) {
-    return { ok: false, error: `語法錯誤：${(err as Error).message}` };
+    return { ok: false, error: formatMessage(messages.syntax, { message: (err as Error).message }) };
   }
 }
 
@@ -86,6 +110,8 @@ export interface RunRequest {
   text: string;
   replacement: string;
   limit?: number;
+  /** Localized error text; zh when omitted. Travels with the request into the worker. */
+  messages?: RegexMessages;
 }
 
 export type RunResponse =
@@ -94,7 +120,7 @@ export type RunResponse =
 
 /** Everything the UI needs in one call; runs inside a Web Worker so a runaway pattern can be killed. */
 export function run(req: RunRequest): RunResponse {
-  const built = buildRegex(req.pattern, req.flags);
+  const built = buildRegex(req.pattern, req.flags, req.messages);
   if (!built.ok) return built;
   const { matches, truncated } = findMatches(built.regex, req.text, req.limit ?? MAX_MATCHES);
   const replaced = req.text.replace(new RegExp(built.regex.source, built.regex.flags), req.replacement);
@@ -102,8 +128,8 @@ export function run(req: RunRequest): RunResponse {
 }
 
 /** "$1: abc · year: 2026" summary of a match's capture groups. */
-export function describeGroups(m: MatchInfo): string {
-  const show = (v: string | undefined) => (v === undefined ? '（未參與）' : v);
+export function describeGroups(m: MatchInfo, unset = ZH_MESSAGES.unset): string {
+  const show = (v: string | undefined) => (v === undefined ? unset : v);
   const parts = m.groups.map((g, i) => `$${i + 1}: ${show(g)}`);
   for (const [name, v] of Object.entries(m.named ?? {})) parts.push(`${name}: ${show(v)}`);
   return parts.join(' · ');

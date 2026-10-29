@@ -1,33 +1,41 @@
 ---
-const styles = [
-  { value: 'upper', label: 'UPPER CASE', hint: '全部大寫' },
-  { value: 'lower', label: 'lower case', hint: '全部小寫' },
-  { value: 'title', label: 'Title Case', hint: '標題大寫' },
-  { value: 'sentence', label: 'Sentence case', hint: '句首大寫' },
-  { value: 'toggle', label: 'tOGGLE cASE', hint: '大小寫互換' },
-  { value: 'camel', label: 'camelCase', hint: '小駝峰' },
-  { value: 'pascal', label: 'PascalCase', hint: '大駝峰' },
-  { value: 'snake', label: 'snake_case', hint: '底線' },
-  { value: 'kebab', label: 'kebab-case', hint: '連字號' },
-  { value: 'constant', label: 'CONSTANT_CASE', hint: '常數' },
+import { pickStrings, type ToolProps } from '../../i18n/tool';
+import type { CaseStyle } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+
+const styles: { value: CaseStyle; label: string }[] = [
+  { value: 'upper', label: 'UPPER CASE' },
+  { value: 'lower', label: 'lower case' },
+  { value: 'title', label: 'Title Case' },
+  { value: 'sentence', label: 'Sentence case' },
+  { value: 'toggle', label: 'tOGGLE cASE' },
+  { value: 'camel', label: 'camelCase' },
+  { value: 'pascal', label: 'PascalCase' },
+  { value: 'snake', label: 'snake_case' },
+  { value: 'kebab', label: 'kebab-case' },
+  { value: 'constant', label: 'CONSTANT_CASE' },
 ];
 ---
 
 <div class="tool" data-tool="case-converter">
   <div class="field">
-    <label for="cc-input">輸入文字</label>
-    <textarea id="cc-input" rows="7" placeholder="貼上英文句子、標題或變數名稱，例如 getUserName 或 hello world"></textarea>
+    <label for="cc-input">{s.inputLabel}</label>
+    <textarea id="cc-input" rows="7" placeholder={s.placeholder}></textarea>
   </div>
 
   <fieldset class="cc-styles">
-    <legend class="label">轉換格式</legend>
+    <legend class="label">{s.stylesLegend}</legend>
     {
-      styles.map((s, i) => (
+      styles.map((style, i) => (
         <label class="cc-style">
-          <input type="radio" name="cc-style" value={s.value} checked={i === 0} />
+          <input type="radio" name="cc-style" value={style.value} checked={i === 0} />
           <span class="cc-style-box">
-            <span class="cc-style-name mono">{s.label}</span>
-            <span class="cc-style-hint">{s.hint}</span>
+            <span class="cc-style-name mono">{style.label}</span>
+            <span class="cc-style-hint">{s.hints[style.value]}</span>
           </span>
         </label>
       ))
@@ -35,14 +43,14 @@ const styles = [
   </fieldset>
 
   <div class="field">
-    <label for="cc-output">轉換結果</label>
-    <textarea id="cc-output" rows="7" readonly placeholder="結果會即時顯示在這裡"></textarea>
+    <label for="cc-output">{s.outputLabel}</label>
+    <textarea id="cc-output" rows="7" readonly placeholder={s.outputPlaceholder}></textarea>
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#cc-output">複製結果</button>
-    <button class="btn" type="button" id="cc-apply">以結果取代輸入</button>
-    <button class="btn ghost" type="button" id="cc-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#cc-output">{s.copy}</button>
+    <button class="btn" type="button" id="cc-apply">{s.apply}</button>
+    <button class="btn ghost" type="button" id="cc-clear">{s.clear}</button>
   </div>
 </div>
 

@@ -1,21 +1,30 @@
-<div class="tool" data-tool="markdown-preview">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="markdown-preview" {...i18nAttrs(locale, s.client)}>
   <div class="row between">
-    <div class="seg md-tabs" role="radiogroup" aria-label="切換編輯或預覽">
-      <label><input type="radio" name="md-view" value="edit" checked /><span>編輯</span></label>
-      <label><input type="radio" name="md-view" value="preview" /><span>預覽</span></label>
+    <div class="seg md-tabs" role="radiogroup" aria-label={s.viewAria}>
+      <label><input type="radio" name="md-view" value="edit" checked /><span>{s.edit}</span></label>
+      <label><input type="radio" name="md-view" value="preview" /><span>{s.preview}</span></label>
     </div>
-    <label class="check"><input type="checkbox" id="md-breaks" /> 單一換行也換行</label>
+    <label class="check"><input type="checkbox" id="md-breaks" /> {s.breaks}</label>
   </div>
 
   <div class="md-panes" id="md-panes" data-view="edit">
     <div class="md-pane md-edit">
       <label for="md-input" class="md-pane-label">Markdown</label>
-      <textarea id="md-input" class="mono" spellcheck="false" placeholder="在這裡輸入 Markdown…"></textarea>
+      <textarea id="md-input" class="mono" spellcheck="false" placeholder={s.placeholder}></textarea>
     </div>
     <div class="md-pane md-view">
-      <span class="md-pane-label" id="md-preview-label">預覽</span>
+      <span class="md-pane-label" id="md-preview-label">{s.preview}</span>
       <div class="md-preview" id="md-preview" role="region" aria-labelledby="md-preview-label" aria-live="off">
-        <p class="muted">載入中…</p>
+        <p class="muted">{s.loading}</p>
       </div>
     </div>
   </div>
@@ -23,20 +32,32 @@
   <p class="hint" id="md-meta"></p>
 
   <div class="row">
-    <button class="btn primary" type="button" id="md-copy-html">複製 HTML</button>
-    <button class="btn" type="button" id="md-dl-md">下載 .md</button>
-    <button class="btn" type="button" id="md-dl-html">下載 .html</button>
-    <button class="btn ghost" type="button" id="md-sample">載入範例</button>
-    <button class="btn ghost" type="button" id="md-clear">清除</button>
+    <button class="btn primary" type="button" id="md-copy-html">{s.copyHtml}</button>
+    <button class="btn" type="button" id="md-dl-md">{s.downloadMd}</button>
+    <button class="btn" type="button" id="md-dl-html">{s.downloadHtml}</button>
+    <button class="btn ghost" type="button" id="md-sample">{s.sample}</button>
+    <button class="btn ghost" type="button" id="md-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, copyText, debounce, downloadBlob, flashButton, loadPref, savePref } from '../../lib/client';
   import { formatInteger } from '../../lib/format';
-  import { SAMPLE_MARKDOWN, buildHtmlDocument, extractTitle, toFilename } from './logic';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import {
+    SAMPLE_MARKDOWN,
+    SAMPLE_MARKDOWN_EN,
+    SAMPLE_MARKDOWN_JA,
+    buildHtmlDocument,
+    extractTitle,
+    toFilename,
+  } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="markdown-preview"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const SAMPLE = { zh: SAMPLE_MARKDOWN, en: SAMPLE_MARKDOWN_EN, ja: SAMPLE_MARKDOWN_JA }[s.sample] ?? SAMPLE_MARKDOWN;
   const input = $<HTMLTextAreaElement>('#md-input', root);
   const preview = $('#md-preview', root);
   const panes = $('#md-panes', root);
@@ -56,7 +77,10 @@
         DOMPurify.sanitize(marked.parse(markdown, { async: false, gfm: true, breaks: breaks.checked }));
       render();
     } catch {
-      preview.innerHTML = '<p class="muted">預覽元件載入失敗，請重新整理頁面。</p>';
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = s.loadFailed;
+      preview.replaceChildren(p);
     }
   }
 
@@ -64,10 +88,16 @@
     const markdown = input.value;
     const chars = [...markdown].length;
     const lines = markdown === '' ? 0 : markdown.split('\n').length;
-    meta.textContent = `${formatInteger(chars)} 個字元 · ${formatInteger(lines)} 行`;
+    meta.textContent = t(s.meta, { chars: formatInteger(chars, locale), lines: formatInteger(lines, locale) });
     if (!toHtml) return;
     html = toHtml(markdown);
-    preview.innerHTML = html || '<p class="muted">預覽會顯示在這裡</p>';
+    if (html) preview.innerHTML = html;
+    else {
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = s.empty;
+      preview.replaceChildren(p);
+    }
   }
 
   const saveDraft = debounce(() => savePref(DRAFT_KEY, input.value), 400);
@@ -77,7 +107,7 @@
     viewRadios.forEach((r) => (r.checked = r.value === view));
   }
 
-  input.value = loadPref(DRAFT_KEY, SAMPLE_MARKDOWN);
+  input.value = loadPref(DRAFT_KEY, SAMPLE);
   breaks.checked = loadPref('markdown-preview', { breaks: false }).breaks;
 
   input.addEventListener(
@@ -102,11 +132,11 @@
   });
   $('#md-dl-html', root).addEventListener('click', () => {
     if (!toHtml) return;
-    const doc = buildHtmlDocument(toHtml(input.value), title());
+    const doc = buildHtmlDocument(toHtml(input.value), title(), s.document);
     downloadBlob(new Blob([doc], { type: 'text/html;charset=utf-8' }), toFilename(title(), 'html'));
   });
   $('#md-sample', root).addEventListener('click', () => {
-    input.value = SAMPLE_MARKDOWN;
+    input.value = SAMPLE;
     render();
     saveDraft();
   });

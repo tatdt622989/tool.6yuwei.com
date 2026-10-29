@@ -4,6 +4,7 @@ import {
   flipCoins,
   formatValue,
   generateNumbers,
+  parsePreset,
   randomBelow,
   rangeSize,
   rollDice,
@@ -99,6 +100,20 @@ describe('generateNumbers', () => {
     expect(generateNumbers({ ...base, min: -1e300, max: 1e300 }).ok).toBe(false);
   });
 
+  it('reports a machine-readable code and the numbers behind each error', () => {
+    const notEnough = generateNumbers({ ...base, min: 1, max: 5, count: 6, unique: true });
+    expect(notEnough).toMatchObject({ ok: false, code: 'not-enough-unique', vars: { size: 5, count: 6 } });
+    expect(generateNumbers({ ...base, min: 10, max: 1 })).toMatchObject({ code: 'min-over-max' });
+    expect(generateNumbers({ ...base, min: Number.NaN })).toMatchObject({ code: 'invalid-bounds' });
+    expect(generateNumbers({ ...base, count: 0 })).toMatchObject({ code: 'count-too-small' });
+    expect(generateNumbers({ ...base, count: 10_001 })).toMatchObject({ code: 'count-too-large', vars: { max: 10_000 } });
+    expect(generateNumbers({ ...base, decimals: 7 })).toMatchObject({ code: 'bad-decimals', vars: { max: 6 } });
+    expect(generateNumbers({ ...base, min: 0.11, max: 0.19, decimals: 1 })).toMatchObject({ code: 'empty-range' });
+    expect(generateNumbers({ ...base, min: -1e300, max: 1e300 })).toMatchObject({ code: 'range-too-wide' });
+    // The zh-TW message is unchanged for existing callers.
+    expect(notEnough.ok === false && notEnough.error).toBe('範圍內只有 5 個不同的數字，無法產生 6 個不重複的數字。');
+  });
+
   it('is deterministic with an injected source', () => {
     expect(values({ min: 5, max: 9, count: 3 }, sequence([0, 1, 4]))).toEqual([5, 6, 9]);
   });
@@ -127,5 +142,35 @@ describe('dice and coins', () => {
     const flips = flipCoins(100);
     expect(flips.heads + flips.tails).toBe(100);
     expect(flipCoins(3, sequence([0, 1, 0]))).toEqual({ values: ['heads', 'tails', 'heads'], heads: 2, tails: 1 });
+  });
+});
+
+describe('parsePreset', () => {
+  it('reads min, max, count, unique and optional decimals', () => {
+    expect(parsePreset('1,69,5,1')).toEqual({ min: 1, max: 69, count: 5, unique: true, decimals: 0 });
+    expect(parsePreset('0,1,1,0,2')).toEqual({ min: 0, max: 1, count: 1, unique: false, decimals: 2 });
+    expect(parsePreset('1,26,1')).toEqual({ min: 1, max: 26, count: 1, unique: false, decimals: 0 });
+  });
+
+  it('rejects malformed specs', () => {
+    expect(parsePreset('')).toBeNull();
+    expect(parsePreset('1,2')).toBeNull();
+    expect(parsePreset('1,x,3')).toBeNull();
+  });
+
+  it('lottery presets draw valid tickets', () => {
+    // Loto 6 (Japan): 6 distinct numbers from 1–43. Powerball: 5 of 1–69 plus 1 of 1–26.
+    for (const [spec, size] of [
+      ['1,43,6,1', 43],
+      ['1,37,7,1', 37],
+      ['1,69,5,1', 69],
+      ['1,70,5,1', 70],
+    ] as const) {
+      const p = parsePreset(spec)!;
+      const v = values({ ...p, sort: 'asc' });
+      expect(new Set(v).size).toBe(p.count);
+      expect(Math.min(...v)).toBeGreaterThanOrEqual(1);
+      expect(Math.max(...v)).toBeLessThanOrEqual(size);
+    }
   });
 });

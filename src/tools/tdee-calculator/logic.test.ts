@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   activityFactor,
   calcTdee,
+  checkBody,
   cutTarget,
+  feetInchesToCm,
+  ganpule,
+  jpReferenceBmr,
+  kgToLb,
+  lbToKg,
   harrisBenedict,
   macrosFor,
   mifflinStJeor,
@@ -85,5 +91,48 @@ describe('validateBody', () => {
     expect(validateBody(man)).toBeNull();
     expect(validateBody({ ...man, age: 10 })).toMatch(/年齡/);
     expect(validateBody({ ...man, weightKg: 500 })).toMatch(/體重/);
+  });
+});
+
+describe('checkBody', () => {
+  it('returns problem codes and keeps zh messages', () => {
+    expect(checkBody(man)).toBeNull();
+    expect(checkBody({ ...man, age: Number.NaN })).toBe('missing');
+    expect(checkBody({ ...man, age: 14 })).toBe('age');
+    expect(checkBody({ ...man, heightCm: 69 })).toBe('height');
+    expect(checkBody({ ...man, weightKg: 400 })).toBe('weight');
+    expect(validateBody({ ...man, age: 14 })).toBe('年齡請輸入 15 到 100 歲。');
+    expect(validateBody({ ...man, age: Number.NaN })).toBe('請輸入年齡、身高與體重。');
+  });
+});
+
+describe('US customary input', () => {
+  it('converts feet, inches and pounds', () => {
+    expect(feetInchesToCm(5, 9)).toBeCloseTo(175.26, 9);
+    expect(feetInchesToCm(6, Number.NaN)).toBeCloseTo(182.88, 9);
+    expect(lbToKg(160)).toBeCloseTo(72.5748, 4);
+    expect(kgToLb(lbToKg(200))).toBeCloseTo(200, 9);
+  });
+
+  it('gives the same TDEE as metric input', () => {
+    const us = calcTdee({ sex: 'male', age: 30, heightCm: feetInchesToCm(5, 9), weightKg: lbToKg(160) }, 'moderate')!;
+    expect(us.bmr).toBeCloseTo(10 * 72.5748 + 6.25 * 175.26 - 150 + 5, 2); // 1676.1
+    expect(Math.round(us.tdee)).toBe(2598);
+  });
+});
+
+describe('Japanese BMR formulas', () => {
+  it('国立健康・栄養研究所の式 matches hand calculation', () => {
+    expect(ganpule(man)).toBeCloseTo(((0.0481 * 70 + 0.0234 * 175 - 0.0138 * 30 - 0.4235) * 1000) / 4.186, 6);
+    expect(Math.round(ganpule(man))).toBe(1583);
+    expect(Math.round(ganpule(woman))).toBe(1196);
+  });
+
+  it('基礎代謝基準値 × 体重 picks the age band', () => {
+    expect(jpReferenceBmr(man)).toBeCloseTo(22.5 * 70, 9);
+    expect(jpReferenceBmr({ ...man, age: 29 })).toBeCloseTo(23.7 * 70, 9);
+    expect(jpReferenceBmr({ ...woman, age: 50 })).toBeCloseTo(20.7 * 55, 9);
+    expect(jpReferenceBmr({ ...man, age: 16 })).toBeCloseTo(27 * 70, 9);
+    expect(jpReferenceBmr({ ...man, age: 10 })).toBeNaN();
   });
 });

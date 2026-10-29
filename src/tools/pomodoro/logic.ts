@@ -168,12 +168,25 @@ export function formatClock(ms: number): string {
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
 
-export function formatMinutes(ms: number): string {
+/** Templates for formatMinutes: {m} minutes, {h} hours. */
+export interface MinuteUnits {
+  /** Under an hour, e.g. '{m} 分鐘'. */
+  min: string;
+  /** Hours and minutes, e.g. '{h} 小時 {m} 分'. */
+  hm: string;
+  /** Whole hours, e.g. '{h} 小時'. */
+  h: string;
+}
+
+export const ZH_MINUTE_UNITS: MinuteUnits = { min: '{m} 分鐘', hm: '{h} 小時 {m} 分', h: '{h} 小時' };
+
+export function formatMinutes(ms: number, units: MinuteUnits = ZH_MINUTE_UNITS): string {
   const min = Math.round(ms / 60_000);
-  if (min < 60) return `${min} 分鐘`;
+  const fill = (template: string, h: number, m: number) => template.replace('{h}', String(h)).replace('{m}', String(m));
+  if (min < 60) return fill(units.min, 0, min);
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m ? `${h} 小時 ${m} 分` : `${h} 小時`;
+  return fill(m ? units.hm : units.h, h, m);
 }
 
 /* ---------- Daily tally (persisted, resets each local day) ---------- */

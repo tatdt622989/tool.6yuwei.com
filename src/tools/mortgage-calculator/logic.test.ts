@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { annuityPayment, buildSchedule, summarizeByYear, validateLoan, wanToYuan, type LoanInput } from './logic';
+import {
+  annuityPayment,
+  buildSchedule,
+  loanFromPrice,
+  monthlyHousingPayment,
+  MORTGAGE_PROBLEM_ZH,
+  mortgageProblem,
+  summarizeByYear,
+  validateLoan,
+  wanToYuan,
+  type LoanInput,
+} from './logic';
 
 const base: LoanInput = { principal: 1_000_000, annualRate: 6, years: 30, graceYears: 0, method: 'annuity' };
 
@@ -119,5 +130,51 @@ describe('wanToYuan', () => {
   it('converts 萬元 to 元', () => {
     expect(wanToYuan(1000)).toBe(10_000_000);
     expect(wanToYuan(0.5)).toBe(5000);
+  });
+});
+
+describe('mortgageProblem', () => {
+  it('returns codes that map to the zh-TW messages', () => {
+    expect(mortgageProblem(base)).toBeNull();
+    expect(mortgageProblem({ ...base, principal: 0 })).toBe('amount');
+    expect(mortgageProblem({ ...base, annualRate: 31 })).toBe('rate');
+    expect(mortgageProblem({ ...base, years: 41 })).toBe('years');
+    expect(mortgageProblem({ ...base, graceYears: -1 })).toBe('grace');
+    expect(mortgageProblem({ ...base, graceYears: base.years })).toBe('graceTooLong');
+    expect(mortgageProblem({ ...base, annualRate: Number.NaN })).toBe('incomplete');
+    expect(validateLoan({ ...base, years: 41 })).toBe(MORTGAGE_PROBLEM_ZH.years);
+    expect(MORTGAGE_PROBLEM_ZH.years).toBe('貸款年限請輸入 1 到 40 的整數。');
+  });
+});
+
+describe('US inputs (en)', () => {
+  it('derives the loan from price and down payment', () => {
+    expect(loanFromPrice(350_000, 20)).toBeCloseTo(280_000, 6);
+    expect(loanFromPrice(350_000, 0)).toBe(350_000);
+    expect(loanFromPrice(350_000, 100)).toBe(0);
+    expect(loanFromPrice(350_000, 101)).toBeNaN();
+    expect(loanFromPrice(0, 20)).toBeNaN();
+    expect(loanFromPrice(Number.NaN, 20)).toBeNaN();
+  });
+
+  it('a $280,000 30-year loan at 6.5% costs $1,769.79 a month', () => {
+    const r = buildSchedule({ principal: 280_000, annualRate: 6.5, years: 30, graceYears: 0, method: 'annuity' })!;
+    expect(r.firstPayment).toBeCloseTo(1769.79, 2);
+    expect(r.totalInterest).toBeCloseTo(357_125, -1);
+  });
+
+  it('adds monthly shares of property tax, insurance and HOA', () => {
+    expect(monthlyHousingPayment(1769.79, { propertyTaxYear: 3600, insuranceYear: 1800, hoaMonth: 50 })).toBeCloseTo(2269.79, 6);
+    expect(monthlyHousingPayment(1000, { propertyTaxYear: 0, insuranceYear: 0, hoaMonth: 0 })).toBe(1000);
+  });
+});
+
+describe('Japan example (ja)', () => {
+  it('3,000万円・35年・1.0%: 元利均等 vs 元金均等', () => {
+    const annuity = buildSchedule({ principal: 30_000_000, annualRate: 1, years: 35, graceYears: 0, method: 'annuity' })!;
+    const equal = buildSchedule({ principal: 30_000_000, annualRate: 1, years: 35, graceYears: 0, method: 'principal' })!;
+    expect(Math.round(annuity.firstPayment)).toBe(84_686);
+    expect(Math.round(equal.firstPayment)).toBe(96_429);
+    expect(equal.totalInterest).toBeLessThan(annuity.totalInterest);
   });
 });

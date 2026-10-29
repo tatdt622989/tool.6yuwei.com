@@ -1,51 +1,62 @@
-<div class="tool" data-tool="heic-to-jpg">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="heic-to-jpg" {...i18nAttrs(locale, s.client)}>
   <p class="notice ok hj-privacy">
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
-    <span><strong>照片不會上傳</strong>：HEIC 轉 JPG 完全在你的瀏覽器中進行，照片不會離開你的裝置，離線也能使用。</span>
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
   </p>
 
   <label class="dropzone" id="hj-drop" tabindex="0">
     <input type="file" id="hj-file" accept=".heic,.heif,.hif,image/heic,image/heif" multiple hidden />
-    <strong>點擊選擇 HEIC 照片，或拖曳到這裡</strong>
-    <span class="hint">支援 iPhone 拍攝的 .heic、.heif 照片，可一次選多張</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="grid-2">
     <div class="field">
-      <span class="label">輸出格式</span>
-      <div class="seg" role="radiogroup" aria-label="輸出格式">
+      <span class="label">{s.formatLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.formatLabel}>
         <label><input type="radio" name="hj-format" value="jpeg" checked /><span>JPG</span></label>
         <label><input type="radio" name="hj-format" value="png" /><span>PNG</span></label>
       </div>
     </div>
     <div class="field" id="hj-quality-field">
-      <label for="hj-quality">品質：<output id="hj-quality-out">90</output></label>
+      <label for="hj-quality">{s.qualityBefore}<output id="hj-quality-out">90</output></label>
       <input id="hj-quality" type="range" min="10" max="100" step="1" value="90" />
-      <span class="hint">建議 85–92，數字越高畫質越好、檔案越大</span>
+      <span class="hint">{s.qualityHint}</span>
     </div>
   </div>
 
   <p class="notice" id="hj-note" hidden></p>
 
   <div class="stats" id="hj-summary" hidden>
-    <div class="stat"><span class="stat-value" id="hj-count">0</span><span class="stat-label">照片數</span></div>
-    <div class="stat"><span class="stat-value" id="hj-done">0</span><span class="stat-label">已轉換</span></div>
-    <div class="stat"><span class="stat-value" id="hj-before">0 B</span><span class="stat-label">HEIC 大小</span></div>
-    <div class="stat"><span class="stat-value" id="hj-after">0 B</span><span class="stat-label">轉換後</span></div>
+    <div class="stat"><span class="stat-value" id="hj-count">0</span><span class="stat-label">{s.statCount}</span></div>
+    <div class="stat"><span class="stat-value" id="hj-done">0</span><span class="stat-label">{s.statDone}</span></div>
+    <div class="stat"><span class="stat-value" id="hj-before">0 B</span><span class="stat-label">{s.statBefore}</span></div>
+    <div class="stat"><span class="stat-value" id="hj-after">0 B</span><span class="stat-label">{s.statAfter}</span></div>
   </div>
 
   <ul class="hj-list" id="hj-list" aria-live="polite"></ul>
 
   <div class="row" id="hj-actions" hidden>
-    <button class="btn primary" type="button" id="hj-zip">全部下載（ZIP）</button>
-    <button class="btn" type="button" id="hj-all">逐張下載</button>
-    <button class="btn ghost" type="button" id="hj-clear">清除</button>
+    <button class="btn primary" type="button" id="hj-zip">{s.zip}</button>
+    <button class="btn" type="button" id="hj-all">{s.all}</button>
+    <button class="btn ghost" type="button" id="hj-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes } from '../../lib/format';
+  import { formatBytes, formatInteger, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import { createZip } from '../pdf-split/zip';
   import { encoderQuality, firstBlob, isHeic, outputFilename, outputMime, type HeicOutput } from './logic';
 
@@ -70,6 +81,7 @@
   type Heic2Any = (options: { blob: Blob; toType?: string; quality?: number }) => Promise<Blob | Blob[]>;
 
   const root = $('[data-tool="heic-to-jpg"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#hj-drop', root);
   const fileInput = $<HTMLInputElement>('#hj-file', root);
   const formatRadios = $$<HTMLInputElement>('input[name="hj-format"]', root);
@@ -177,7 +189,7 @@
       }
     }
     if (!out) {
-      item.status = '載入 HEIC 解碼器並轉換中，每張約需數秒…';
+      item.status = s.loadingDecoder;
       drawRow(item);
       const heic2any = await loadHeic2any();
       const blob = firstBlob(
@@ -219,13 +231,13 @@
     if (item.error) {
       meta.append(el('span', 'hj-error', item.error));
     } else if (!item.result) {
-      meta.textContent = `${formatBytes(item.file.size)}，${item.status ?? '等待轉換…'}`;
+      meta.textContent = t(s.pending, { size: formatBytes(item.file.size, locale), status: item.status ?? s.waiting });
     } else {
       const r = item.result;
-      const dims = r.width ? `・${r.width} × ${r.height}` : '';
-      meta.textContent = `${formatBytes(item.file.size)} → ${formatBytes(r.blob.size)}${dims}`;
+      const dims = r.width ? t(s.dims, { width: r.width, height: r.height }) : '';
+      meta.textContent = t(s.done, { before: formatBytes(item.file.size, locale), after: formatBytes(r.blob.size, locale) }) + dims;
     }
-    const btn = el('button', 'btn small', '下載');
+    const btn = el('button', 'btn small', s.download);
     btn.type = 'button';
     btn.disabled = !item.result;
     btn.addEventListener('click', () => item.result && downloadBlob(item.result.blob, item.result.filename));
@@ -236,10 +248,10 @@
     const done = items.filter((i) => i.result);
     summary.hidden = items.length === 0;
     actions.hidden = items.length === 0;
-    $('#hj-count', root).textContent = String(items.length);
-    $('#hj-done', root).textContent = String(done.length);
-    $('#hj-before', root).textContent = formatBytes(done.reduce((s, i) => s + i.file.size, 0));
-    $('#hj-after', root).textContent = formatBytes(done.reduce((s, i) => s + i.result!.blob.size, 0));
+    $('#hj-count', root).textContent = formatInteger(items.length, locale);
+    $('#hj-done', root).textContent = formatInteger(done.length, locale);
+    $('#hj-before', root).textContent = formatBytes(done.reduce((sum, i) => sum + i.file.size, 0), locale);
+    $('#hj-after', root).textContent = formatBytes(done.reduce((sum, i) => sum + i.result!.blob.size, 0), locale);
     zipBtn.disabled = done.length === 0;
     allBtn.disabled = done.length === 0;
   }
@@ -261,7 +273,7 @@
         const prefs = readPrefs();
         const item = items.find((i) => !i.result && !i.error);
         if (!item) break;
-        item.status = '轉換中…';
+        item.status = s.converting;
         drawRow(item);
         try {
           const result = await convert(item, prefs);
@@ -272,9 +284,7 @@
           item.result = result;
         } catch {
           if (gen !== generation || !items.includes(item)) continue;
-          item.error = navigator.onLine
-            ? '無法轉換這張照片，可能不是 HEIC 格式、檔案已損毀，或解析度超過瀏覽器上限。'
-            : '目前離線，無法載入 HEIC 解碼器。請連上網路重新整理一次，之後即可離線使用。';
+          item.error = navigator.onLine ? s.error : s.offline;
         }
         drawRow(item);
         updateSummary();
@@ -312,9 +322,7 @@
       items.push(item);
     }
     note.hidden = skipped === 0;
-    note.textContent = skipped
-      ? `已略過 ${skipped} 個非 HEIC 檔案。JPG、PNG 等其他格式請改用「圖片格式轉換」工具。`
-      : '';
+    note.textContent = skipped ? (skipped === 1 && s.skippedOne ? s.skippedOne : t(s.skipped, { n: skipped })) : '';
     updateSummary();
     void processQueue();
   }
@@ -363,7 +371,7 @@
     if (done.length === 0) return;
     const label = zipBtn.textContent;
     zipBtn.disabled = true;
-    zipBtn.textContent = '打包中…';
+    zipBtn.textContent = s.zipping;
     try {
       const entries = await Promise.all(
         done.map(async (i) => ({ name: i.result!.filename, data: new Uint8Array(await i.result!.blob.arrayBuffer()) })),

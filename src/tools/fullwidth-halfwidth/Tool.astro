@@ -1,62 +1,79 @@
-<div class="tool" data-tool="fullwidth-halfwidth">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="fullwidth-halfwidth" {...i18nAttrs(locale, s.client)}>
   <div class="row fw-top">
     <div class="field">
-      <span class="label">轉換方向</span>
-      <div class="seg" role="radiogroup" aria-label="轉換方向">
-        <label><input type="radio" name="fw-dir" value="toHalf" checked /><span>全形 → 半形</span></label>
-        <label><input type="radio" name="fw-dir" value="toFull" /><span>半形 → 全形</span></label>
+      <span class="label">{s.dirLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.dirLabel}>
+        <label><input type="radio" name="fw-dir" value="toHalf" checked /><span>{s.toHalf}</span></label>
+        <label><input type="radio" name="fw-dir" value="toFull" /><span>{s.toFull}</span></label>
       </div>
     </div>
     <div class="field">
-      <label for="fw-punct">標點轉換</label>
+      <label for="fw-punct">{s.punctLabel}</label>
       <select id="fw-punct">
-        <option value="none">不轉換</option>
-        <option value="zhToEn">中文標點 → 英文標點</option>
-        <option value="enToZh">英文標點 → 中文標點</option>
+        {s.punctOptions.map((o) => (
+          <Fragment>{' '}<option value={o.value}>{o.label}</option></Fragment>
+        ))}
       </select>
     </div>
   </div>
 
   <fieldset class="fw-classes">
-    <legend class="label">轉換範圍</legend>
-    <label class="check"><input type="checkbox" name="letters" checked /> 英文字母</label>
-    <label class="check"><input type="checkbox" name="digits" checked /> 數字</label>
-    <label class="check"><input type="checkbox" name="symbols" /> 符號（，！？（）等）</label>
-    <label class="check"><input type="checkbox" name="space" /> 空白</label>
+    <legend class="label">{s.classesLegend}</legend>
+    <label class="check"><input type="checkbox" name="letters" checked /> {s.letters}</label>
+    <label class="check"><input type="checkbox" name="digits" checked /> {s.digits}</label>
+    <label class="check"><input type="checkbox" name="symbols" /> {s.symbols}</label>
+    <label class="check"><input type="checkbox" name="space" /> {s.space}</label>{
+      s.kana && (
+        <Fragment>{' '}<label class="check"><input type="checkbox" name="kana" /> {s.kana}</label></Fragment>
+      )
+    }
   </fieldset>
   <p class="hint fw-hint" id="fw-hint"></p>
 
   <div class="grid-2">
     <div class="field">
-      <label for="fw-input">原始文字</label>
-      <textarea id="fw-input" rows="9" placeholder="例如：ＡＢＣ１２３　或　iPhone 15, 128GB"></textarea>
+      <label for="fw-input">{s.inputLabel}</label>
+      <textarea id="fw-input" rows="9" placeholder={s.placeholder}></textarea>
     </div>
     <div class="field">
-      <label for="fw-output">轉換結果</label>
-      <textarea id="fw-output" rows="9" readonly placeholder="結果會即時顯示在這裡"></textarea>
+      <label for="fw-output">{s.outputLabel}</label>
+      <textarea id="fw-output" rows="9" readonly placeholder={s.outputPlaceholder}></textarea>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value" id="fw-s-alnum">0</span><span class="stat-label">原文全形英數</span></div>
-    <div class="stat"><span class="stat-value" id="fw-s-symbols">0</span><span class="stat-label">原文全形符號</span></div>
-    <div class="stat"><span class="stat-value" id="fw-s-spaces">0</span><span class="stat-label">原文全形空白</span></div>
-    <div class="stat"><span class="stat-value" id="fw-s-changed">0</span><span class="stat-label">已轉換字元</span></div>
+    {
+      s.stats.map((st) => (
+        <Fragment>{' '}<div class="stat"><span class="stat-value" id={`fw-s-${st.key}`}>0</span><span class="stat-label">{st.label}</span></div></Fragment>
+      ))
+    }
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#fw-output">複製結果</button>
-    <button class="btn" type="button" id="fw-apply">以結果取代原文</button>
-    <button class="btn ghost" type="button" id="fw-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#fw-output">{s.copy}</button>
+    <button class="btn" type="button" id="fw-apply">{s.apply}</button>
+    <button class="btn ghost" type="button" id="fw-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { formatInteger } from '../../lib/format';
-  import { convertWidth, widthStats, type ConvertOptions, type Direction, type PunctuationMode, type WidthClasses } from './logic';
+  import { formatInteger } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { convertWidth, kanaStats, widthStats, type ConvertOptions, type Direction, type PunctuationMode, type WidthClasses } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="fullwidth-halfwidth"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#fw-input', root);
   const output = $<HTMLTextAreaElement>('#fw-output', root);
   const punct = $<HTMLSelectElement>('#fw-punct', root);
@@ -70,11 +87,8 @@
     punctuation: 'none',
   };
 
-  const HINTS: Record<PunctuationMode, string> = {
-    none: '中文內容通常保留全形標點；只想把全形英數字改成半形時，維持預設即可。',
-    zhToEn: '會把，。、「」（）等中文標點換成英文標點，並在英文字前補上空格。',
-    enToZh: '只轉換緊鄰中文字的英文標點，英文句子、數字（3.14、12:30）與網址不受影響。',
-  };
+  // Only the modes this page offers (Japanese has no "English → Chinese punctuation").
+  const HINTS = s.hints;
 
   function readOptions(): ConvertOptions {
     const direction = (dirRadios.find((r) => r.checked)?.value ?? 'toHalf') as Direction;
@@ -93,14 +107,21 @@
   function render() {
     const opts = readOptions();
     savePref('fullwidth-halfwidth', opts);
-    hint.textContent = HINTS[opts.punctuation];
+    hint.textContent = HINTS[opts.punctuation] ?? '';
     const result = convertWidth(input.value, opts);
     output.value = result.text;
     const stats = widthStats(input.value);
-    $('#fw-s-alnum', root).textContent = formatInteger(stats.fullAlnum);
-    $('#fw-s-symbols', root).textContent = formatInteger(stats.fullSymbols);
-    $('#fw-s-spaces', root).textContent = formatInteger(stats.fullSpaces);
-    $('#fw-s-changed', root).textContent = formatInteger(result.changed);
+    const values: Record<string, number> = {
+      alnum: stats.fullAlnum,
+      symbols: stats.fullSymbols,
+      spaces: stats.fullSpaces,
+      kana: kanaStats(input.value).halfKana,
+      changed: result.changed,
+    };
+    for (const [key, value] of Object.entries(values)) {
+      const cell = root.querySelector(`#fw-s-${key}`);
+      if (cell) cell.textContent = formatInteger(value, locale);
+    }
   }
 
   applyOptions(loadPref('fullwidth-halfwidth', defaults));

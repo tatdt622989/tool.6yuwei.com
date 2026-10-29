@@ -1,32 +1,48 @@
-<div class="tool" data-tool="typing-test">
+---
+import { t } from '../../i18n/format';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+import JaPrompt from './JaPrompt.astro';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const c = s.client;
+const def = c.lang[c.langs[0]]!;
+const opts = c.langs.map((l) => ({ value: l, label: c.lang[l]!.option }));
+---
+
+<div class="tool" data-tool="typing-test" {...i18nAttrs(locale, c)}>
   <div class="tt-controls">
-    <div class="seg" role="radiogroup" aria-label="測驗語言">
-      <label><input type="radio" name="tt-lang" value="zh" checked /><span>中文</span></label>
-      <label><input type="radio" name="tt-lang" value="en" /><span>English</span></label>
+    {opts.length > 1 && (
+    <div class="seg" role="radiogroup" aria-label={s.langAria}>
+      <label><input type="radio" name="tt-lang" value={opts[0].value} checked /><span>{opts[0].label}</span></label>
+      <label><input type="radio" name="tt-lang" value={opts[1].value} /><span>{opts[1].label}</span></label>
     </div>
-    <div class="seg" role="radiogroup" aria-label="測驗時間">
-      <label><input type="radio" name="tt-dur" value="30" /><span>30 秒</span></label>
-      <label><input type="radio" name="tt-dur" value="60" checked /><span>60 秒</span></label>
-      <label><input type="radio" name="tt-dur" value="120" /><span>120 秒</span></label>
+    )}
+    <div class="seg" role="radiogroup" aria-label={s.durAria}>
+      <label><input type="radio" name="tt-dur" value="30" /><span>{s.durLabels['30']}</span></label>
+      <label><input type="radio" name="tt-dur" value="60" checked /><span>{s.durLabels['60']}</span></label>
+      <label><input type="radio" name="tt-dur" value="120" /><span>{s.durLabels['120']}</span></label>
     </div>
-    <label class="check" id="tt-punct-wrap"><input id="tt-punct" type="checkbox" checked /> 含標點符號</label>
+    <label class="check" id="tt-punct-wrap" hidden={!c.langs.includes('zh')}><input id="tt-punct" type="checkbox" checked /> {s.punct}</label>
   </div>
 
   <div class="tt-live" aria-live="off">
     <div class="tt-clock">
       <span class="tt-clock-value" id="tt-clock">1:00</span>
-      <span class="stat-label">剩餘時間</span>
+      <span class="stat-label">{s.clockLabel}</span>
     </div>
-    <div class="stat"><span class="stat-value" id="tt-speed">0</span><span class="stat-label" id="tt-speed-label">字/分</span></div>
-    <div class="stat"><span class="stat-value" id="tt-acc">—</span><span class="stat-label">正確率</span></div>
-    <div class="stat"><span class="stat-value" id="tt-err">0</span><span class="stat-label">錯誤</span></div>
+    <div class="stat"><span class="stat-value" id="tt-speed">0</span><span class="stat-label" id="tt-speed-label">{def.unit}</span></div>
+    <div class="stat"><span class="stat-value" id="tt-acc">—</span><span class="stat-label">{s.accLabel}</span></div>
+    <div class="stat"><span class="stat-value" id="tt-err">0</span><span class="stat-label">{s.errLabel}</span></div>
   </div>
   <div class="tt-progress" aria-hidden="true"><div class="tt-progress-bar" id="tt-bar"></div></div>
 
-  <div class="tt-passage" id="tt-passage" lang="zh-Hant" aria-label="測驗文章，請照著輸入"></div>
+  <div class="tt-passage" id="tt-passage" lang={def.tag} aria-label={s.passageAria}></div>{s.ja && <JaPrompt label={s.ja.boxAria} />}
 
   <div class="field">
-    <label for="tt-input" id="tt-input-label">在這裡輸入（打下第一個字就開始計時）</label>
+    <label for="tt-input" id="tt-input-label">{def.inputLabel}</label>
     <textarea
       id="tt-input"
       rows="3"
@@ -34,45 +50,45 @@
       autocorrect="off"
       autocapitalize="off"
       spellcheck="false"
-      placeholder="照著上方文章輸入，可使用注音、倉頡、拼音或嘸蝦米輸入法"></textarea>
-    <span class="hint" id="tt-hint">選字中的注音或字根不會被計算，送出（選定）的字才算數；按 Esc 可重新開始。</span>
+      placeholder={def.placeholder}></textarea>
+    <span class="hint" id="tt-hint">{def.hint}</span>
   </div>
 
   <div class="row">
-    <button class="btn" type="button" id="tt-restart">重新開始</button>
-    <button class="btn ghost" type="button" id="tt-new">換一篇文章</button>
+    <button class="btn" type="button" id="tt-restart">{s.restart}</button>
+    <button class="btn ghost" type="button" id="tt-new">{s.newText}</button>
   </div>
 
   <section class="tt-result" id="tt-result" aria-live="polite" hidden>
     <div class="tt-result-head">
       <div>
-        <span class="result-label" id="tt-r-title">測驗結果</span>
-        <div class="tt-result-speed"><span id="tt-r-speed">0</span><small id="tt-r-unit">字/分</small></div>
+        <span class="result-label" id="tt-r-title">{s.resultTitle}</span>
+        <div class="tt-result-speed"><span id="tt-r-speed">0</span><small id="tt-r-unit">{def.unit}</small></div>
       </div>
       <div class="tt-badges">
         <span class="tt-rank" id="tt-r-rank"></span>
-        <span class="tt-record" id="tt-r-record" hidden>新紀錄</span>
+        <span class="tt-record" id="tt-r-record" hidden>{s.record}</span>
       </div>
     </div>
     <div class="stats">
-      <div class="stat"><span class="stat-value" id="tt-r-acc">—</span><span class="stat-label">正確率</span></div>
-      <div class="stat"><span class="stat-value" id="tt-r-correct">0</span><span class="stat-label" id="tt-r-correct-label">正確字數</span></div>
-      <div class="stat"><span class="stat-value" id="tt-r-errors">0</span><span class="stat-label">錯誤次數（含已修正）</span></div>
-      <div class="stat" id="tt-r-extra-wrap"><span class="stat-value" id="tt-r-extra">0</span><span class="stat-label" id="tt-r-extra-label">未修正錯字</span></div>
+      <div class="stat"><span class="stat-value" id="tt-r-acc">—</span><span class="stat-label">{s.accLabel}</span></div>
+      <div class="stat"><span class="stat-value" id="tt-r-correct">0</span><span class="stat-label" id="tt-r-correct-label">{def.correctLabel}</span></div>
+      <div class="stat"><span class="stat-value" id="tt-r-errors">0</span><span class="stat-label">{s.errorsLabel}</span></div>
+      <div class="stat" id="tt-r-extra-wrap"><span class="stat-value" id="tt-r-extra">0</span><span class="stat-label" id="tt-r-extra-label">{t(def.extraLabel, { cpm: 0 })}</span></div>
     </div>
     <p class="hint" id="tt-r-best"></p>
     <div class="row">
-      <button class="btn primary" type="button" id="tt-again">再測一次</button>
-      <button class="btn" type="button" data-copy="#tt-r-summary">複製成績</button>
+      <button class="btn primary" type="button" id="tt-again">{s.again}</button>
+      <button class="btn" type="button" data-copy="#tt-r-summary">{s.copyResult}</button>
       <span class="visually-hidden" id="tt-r-summary"></span>
     </div>
   </section>
 
   <div class="tt-bests">
-    <span class="label">你的最佳紀錄（只存在這台裝置）</span>
+    <span class="label">{s.bestsLabel}</span>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>模式</th><th class="num">30 秒</th><th class="num">60 秒</th><th class="num">120 秒</th></tr></thead>
+        <thead><tr><th>{s.thMode}</th><th class="num">{s.durLabels['30']}</th><th class="num">{s.durLabels['60']}</th><th class="num">{s.durLabels['120']}</th></tr></thead>
         <tbody id="tt-bests"></tbody>
       </table>
     </div>
@@ -82,21 +98,28 @@
 <script>
   import { $, loadPref, savePref } from '../../lib/client';
   import { formatInteger, formatNumber } from '../../lib/format';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import {
     bestKey,
     buildPassage,
     compareTyped,
     DURATIONS,
     formatClock,
+    JA_SENTENCES,
     mergeBest,
     rankOf,
+    RomajiSession,
+    sentenceFeed,
     targetLength,
     TypingSession,
     type BestMap,
     type CharState,
+    type JaSentence,
     type Lang,
     type TypingResult,
   } from './logic';
+  import type { DurationKey, LangStrings, Strings } from './i18n';
 
   interface Prefs {
     lang: Lang;
@@ -104,11 +127,13 @@
     punctuation: boolean;
   }
 
-  const defaults: Prefs = { lang: 'zh', duration: 60, punctuation: true };
-  const UNIT: Record<Lang, string> = { zh: '字/分', en: 'WPM' };
-  const LANG_NAME: Record<Lang, string> = { zh: '中文', en: '英文' };
-
   const root = $('[data-tool="typing-test"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  /** Strings for a test language, in this page's locale. */
+  const L = (lang: Lang) => s.lang[lang] as LangStrings;
+  const defaults: Prefs = { lang: s.langs[0], duration: 60, punctuation: true };
+  const nextJaSentence = sentenceFeed(JA_SENTENCES);
+
   const passageEl = $('#tt-passage', root);
   const input = $<HTMLTextAreaElement>('#tt-input', root);
   const inputLabel = $('#tt-input-label', root);
@@ -123,12 +148,24 @@
   const punctWrap = $('#tt-punct-wrap', root);
   const resultBox = $('#tt-result', root);
   const bestsBody = $('#tt-bests', root);
+  // Japanese romaji mode (ja locale only).
+  const jaBox = root.querySelector<HTMLElement>('#tt-ja');
+  const jaText = jaBox?.querySelector<HTMLElement>('#tt-ja-text');
+  const [jaKanaDone, jaKanaRest] = jaBox ? Array.from(jaBox.querySelectorAll<HTMLElement>('#tt-ja-kana span')) : [];
+  const [jaRomaDone, jaRomaCur, jaRomaRest] = jaBox ? Array.from(jaBox.querySelectorAll<HTMLElement>('#tt-ja-roma span')) : [];
 
   let prefs: Prefs = { ...defaults, ...loadPref<Partial<Prefs>>('typing-test', {}) };
   if (!DURATIONS.includes(prefs.duration as (typeof DURATIONS)[number])) prefs.duration = 60;
+  if (!s.langs.includes(prefs.lang)) prefs.lang = s.langs[0];
   let bests = loadPref<BestMap>('typing-test:best', {});
 
   let session: TypingSession;
+  let ja: RomajiSession | null = null;
+  /** The running attempt: `session` (zh / en) or `ja`. */
+  let active: TypingSession | RomajiSession;
+  /** Japanese mode: input value already fed to the matcher (kept while an IME / keyboard composes). */
+  let jaFed = '';
+  let missTimer: number | undefined;
   let spans: HTMLSpanElement[] = [];
   let states: CharState[] = [];
   let composing = false;
@@ -137,7 +174,8 @@
 
   // ---------- Prefs ----------
   function readPrefs(): Prefs {
-    const lang = $<HTMLInputElement>('input[name="tt-lang"]:checked', root).value as Lang;
+    const picked = root.querySelector<HTMLInputElement>('input[name="tt-lang"]:checked')?.value as Lang | undefined;
+    const lang = picked && s.langs.includes(picked) ? picked : s.langs[0];
     const duration = Number($<HTMLInputElement>('input[name="tt-dur"]:checked', root).value);
     return { lang, duration, punctuation: punct.checked };
   }
@@ -213,15 +251,22 @@
     window.clearInterval(timer);
     prefs = readPrefs();
     savePref('typing-test', prefs);
+    if (prefs.lang === 'ja') {
+      resetJa(newPassage);
+      return;
+    }
+    if (jaBox) jaBox.hidden = true;
+    passageEl.hidden = false;
     const keep = !newPassage && session && session.lang === prefs.lang ? session.passage : null;
     const passage =
       keep && keep.length >= targetLength(prefs.lang, prefs.duration) && hasPunctuationSetting(keep)
         ? keep
         : buildPassage({ lang: prefs.lang, punctuation: prefs.punctuation }, targetLength(prefs.lang, prefs.duration));
     session = new TypingSession(passage, prefs.lang, prefs.duration * 1000);
+    active = session;
 
     passageEl.replaceChildren();
-    passageEl.lang = prefs.lang === 'zh' ? 'zh-Hant' : 'en';
+    passageEl.lang = L(prefs.lang).tag;
     passageEl.classList.toggle('is-en', prefs.lang === 'en');
     passageEl.scrollTop = 0;
     spans = [];
@@ -230,22 +275,92 @@
     appendSpans(passage);
     paint('');
 
+    resetInput();
+    updateLive();
+  }
+
+  /** Input box, labels and live stats for the current test language. */
+  function resetInput() {
+    const strings = L(prefs.lang);
     composing = false;
+    jaFed = '';
     input.value = '';
     input.readOnly = false;
-    input.lang = passageEl.lang;
-    input.placeholder =
-      prefs.lang === 'zh' ? '照著上方文章輸入，可使用注音、倉頡、拼音或嘸蝦米輸入法' : 'Type the text above. Timer starts on your first key.';
-    inputLabel.textContent = '在這裡輸入（打下第一個字就開始計時）';
-    hint.textContent =
-      prefs.lang === 'zh'
-        ? '選字中的注音或字根不會被計算，送出（選定）的字才算數；按 Esc 可重新開始。'
-        : '大小寫與標點都要正確；按 Esc 可重新開始。';
+    input.lang = strings.tag;
+    input.placeholder = strings.placeholder;
+    inputLabel.textContent = strings.inputLabel;
+    hint.textContent = strings.hint;
     punctWrap.hidden = prefs.lang !== 'zh';
     resultBox.hidden = true;
     root.classList.remove('is-running', 'is-finished');
-    liveSpeedLabel.textContent = UNIT[prefs.lang];
+    liveSpeedLabel.textContent = strings.unit;
+  }
+
+  // ---------- Japanese romaji mode ----------
+  function resetJa(newSentence: boolean) {
+    const keep: JaSentence | null = !newSentence && ja ? ja.sentence : null;
+    let first = true;
+    ja = new RomajiSession(() => {
+      const next = first && keep ? keep : nextJaSentence();
+      first = false;
+      return next;
+    }, prefs.duration * 1000);
+    active = ja;
+    passageEl.hidden = true;
+    if (jaBox) jaBox.hidden = false;
+    resetInput();
+    paintJa();
     updateLive();
+  }
+
+  function paintJa() {
+    if (!ja || !jaText) return;
+    const m = ja.matcher;
+    const kana = ja.sentence.kana;
+    jaText.textContent = ja.sentence.text;
+    jaKanaDone.textContent = kana.slice(0, m.kanaDone);
+    jaKanaRest.textContent = kana.slice(m.kanaDone);
+    const rest = m.rest();
+    jaRomaDone.textContent = m.typed;
+    jaRomaCur.textContent = rest.slice(0, 1);
+    jaRomaRest.textContent = rest.slice(1);
+  }
+
+  function flashMiss() {
+    if (!jaBox) return;
+    jaBox.classList.remove('is-miss');
+    void jaBox.offsetWidth; // restart the animation
+    jaBox.classList.add('is-miss');
+    window.clearTimeout(missTimer);
+    missTimer = window.setTimeout(() => jaBox.classList.remove('is-miss'), 300);
+  }
+
+  /** Feeds newly typed characters to the romaji matcher. Kana (IME on) are not counted; a hint explains. */
+  function jaInput(stillComposing: boolean) {
+    if (!ja) return;
+    const value = input.value;
+    const fresh = value.startsWith(jaFed) ? value.slice(jaFed.length) : '';
+    jaFed = value;
+    let sawKana = false;
+    for (const ch of fresh) {
+      if (/^[\x21-\x7e ]$/.test(ch)) jaKey(ch);
+      else if (!/\s/.test(ch)) sawKana = true;
+    }
+    if (sawKana && s.imeWarning) hint.textContent = s.imeWarning;
+    if (!stillComposing || ja.phase === 'finished') {
+      input.value = '';
+      jaFed = '';
+    }
+  }
+
+  function jaKey(ch: string) {
+    if (!ja || ja.phase === 'finished') return;
+    const now = performance.now();
+    if (ja.phase === 'idle') begin();
+    if (ja.key(ch, now) === 'miss') flashMiss();
+    paintJa();
+    if (ja.isOver(now)) end();
+    else updateLive();
   }
 
   /** Reuse the current text only if it matches the punctuation setting. */
@@ -255,15 +370,15 @@
   }
 
   function begin() {
-    if (session.phase !== 'idle') return;
-    session.start(performance.now());
+    if (active.phase !== 'idle') return;
+    active.start(performance.now());
     root.classList.add('is-running');
     timer = window.setInterval(onTick, 100);
   }
 
   function onTick() {
     const now = performance.now();
-    if (session.isOver(now)) end();
+    if (active.isOver(now)) end();
     else updateLive();
   }
 
@@ -280,21 +395,22 @@
 
   function updateLive() {
     const now = performance.now();
-    const remaining = session.remaining(now);
+    const remaining = active.remaining(now);
     clock.textContent = formatClock(remaining);
-    bar.style.transform = `scaleX(${1 - remaining / session.durationMs})`;
-    const r = session.result(now);
+    bar.style.transform = `scaleX(${1 - remaining / active.durationMs})`;
+    const r = active.result(now);
     // The first two seconds are too short for a stable rate.
-    liveSpeed.textContent = session.elapsed(now) >= 2000 ? formatInteger(r.speed) : '0';
-    liveAcc.textContent = session.entries > 0 ? `${formatNumber(r.accuracy, 1)}%` : '—';
-    liveErr.textContent = formatInteger(session.errors);
+    liveSpeed.textContent = active.elapsed(now) >= 2000 ? formatInteger(r.speed, locale) : '0';
+    const entries = active instanceof RomajiSession ? r.typedChars : active.entries;
+    liveAcc.textContent = entries > 0 ? `${formatNumber(r.accuracy, 1, locale)}%` : '—';
+    liveErr.textContent = formatInteger(r.errors, locale);
   }
 
   function end() {
     window.clearInterval(timer);
     const now = performance.now();
     // Whatever is still being composed by the IME at the bell is not counted.
-    const result = session.finish(now);
+    const result = active.finish(now);
     input.readOnly = true;
     root.classList.remove('is-running');
     root.classList.add('is-finished');
@@ -303,8 +419,10 @@
   }
 
   function showResult(r: TypingResult) {
-    const lang = session.lang;
-    const seconds = session.durationMs / 1000;
+    const lang = r.lang;
+    const seconds = active.durationMs / 1000;
+    const dur = s.durPhrase[String(seconds) as DurationKey];
+    const st = L(lang);
     const key = bestKey(lang, seconds);
     const merged = mergeBest(bests, key, r, new Date().toISOString().slice(0, 10));
     if (merged.isNew) {
@@ -313,29 +431,36 @@
     }
     const rank = rankOf(lang, r.speed);
 
-    $('#tt-r-title', root).textContent = `${LANG_NAME[lang]} ${seconds} 秒測驗結果`;
-    $('#tt-r-speed', root).textContent = formatInteger(r.speed);
-    $('#tt-r-unit', root).textContent = UNIT[lang];
-    $('#tt-r-rank', root).textContent = rank.label;
+    $('#tt-r-title', root).textContent = t(s.resultTitle, { lang: st.name, s: seconds, dur });
+    $('#tt-r-speed', root).textContent = formatInteger(r.speed, locale);
+    $('#tt-r-unit', root).textContent = st.unit;
+    $('#tt-r-rank', root).textContent = s.ranks[rank.level] ?? rank.label;
     $('#tt-r-rank', root).dataset.level = String(rank.level);
     $('#tt-r-record', root).hidden = !merged.isNew;
-    $('#tt-r-acc', root).textContent = `${formatNumber(r.accuracy, 1)}%`;
-    $('#tt-r-correct', root).textContent = formatInteger(r.correctChars);
-    $('#tt-r-correct-label', root).textContent = lang === 'zh' ? '正確字數' : '正確字元';
-    $('#tt-r-errors', root).textContent = formatInteger(r.errors);
+    $('#tt-r-acc', root).textContent = `${formatNumber(r.accuracy, 1, locale)}%`;
+    $('#tt-r-correct', root).textContent = formatInteger(r.correctChars, locale);
+    $('#tt-r-correct-label', root).textContent = st.correctLabel;
+    $('#tt-r-errors', root).textContent = formatInteger(r.errors, locale);
     if (lang === 'en') {
-      $('#tt-r-extra', root).textContent = formatInteger(r.rawWpm);
-      $('#tt-r-extra-label', root).textContent = `原始速度 WPM（CPM ${formatInteger(r.cpm)}）`;
+      $('#tt-r-extra', root).textContent = formatInteger(r.rawWpm, locale);
+      $('#tt-r-extra-label', root).textContent = t(st.extraLabel, { cpm: formatInteger(r.cpm, locale) });
+    } else if (lang === 'ja') {
+      $('#tt-r-extra', root).textContent = formatInteger(ja?.completed ?? 0, locale);
+      $('#tt-r-extra-label', root).textContent = st.extraLabel;
     } else {
-      $('#tt-r-extra', root).textContent = formatInteger(r.uncorrected);
-      $('#tt-r-extra-label', root).textContent = '未修正錯字';
+      $('#tt-r-extra', root).textContent = formatInteger(r.uncorrected, locale);
+      $('#tt-r-extra-label', root).textContent = st.extraLabel;
     }
     const best = bests[key];
+    const vars = { lang: st.name, s: seconds, dur, unit: st.unit };
     $('#tt-r-best', root).textContent = best
-      ? `${LANG_NAME[lang]} ${seconds} 秒最佳紀錄：${best.speed} ${UNIT[lang]}，正確率 ${best.accuracy}%（${best.date}）`
+      ? t(s.best, { ...vars, speed: best.speed, acc: best.accuracy, date: best.date })
       : '';
-    $('#tt-r-summary', root).textContent =
-      `我的${LANG_NAME[lang]}打字速度：${formatInteger(r.speed)} ${UNIT[lang]}，正確率 ${formatNumber(r.accuracy, 1)}%（${seconds} 秒測驗）`;
+    $('#tt-r-summary', root).textContent = t(s.summary, {
+      ...vars,
+      speed: formatInteger(r.speed, locale),
+      acc: formatNumber(r.accuracy, 1, locale),
+    });
 
     resultBox.hidden = false;
     renderBests();
@@ -345,17 +470,17 @@
 
   function renderBests() {
     bestsBody.replaceChildren(
-      ...(['zh', 'en'] as Lang[]).map((lang) => {
+      ...s.langs.map((lang) => {
         const tr = document.createElement('tr');
         const th = document.createElement('td');
-        th.textContent = `${LANG_NAME[lang]}（${UNIT[lang]}）`;
+        th.textContent = t(s.bestRow, { lang: L(lang).name, unit: L(lang).unit });
         tr.append(th);
         for (const d of DURATIONS) {
           const td = document.createElement('td');
           td.className = 'num';
           const b = bests[bestKey(lang, d)];
           td.textContent = b ? String(b.speed) : '—';
-          if (b) td.title = `正確率 ${b.accuracy}%，${b.date}`;
+          if (b) td.title = t(s.bestTitle, { acc: b.accuracy, date: b.date });
           tr.append(td);
         }
         return tr;
@@ -366,13 +491,19 @@
   // ---------- Input events ----------
   input.addEventListener('compositionstart', () => {
     composing = true;
+    if (active === ja) return; // romaji mode: only typed letters start the clock
     if (session.phase === 'idle') begin();
   });
   input.addEventListener('compositionend', () => {
     composing = false;
-    commit();
+    if (active === ja) jaInput(false);
+    else commit();
   });
   input.addEventListener('input', (event) => {
+    if (active === ja) {
+      jaInput(composing || (event as InputEvent).isComposing);
+      return;
+    }
     if (composing || (event as InputEvent).isComposing) {
       if (session.phase === 'idle') begin();
       // Latin keyboards on Android also compose; their text is final, so show it (not counted yet).
@@ -395,6 +526,7 @@
     }
   });
   passageEl.addEventListener('click', () => input.focus());
+  jaBox?.addEventListener('click', () => input.focus());
 
   root.addEventListener('change', (e) => {
     const target = e.target as HTMLElement;

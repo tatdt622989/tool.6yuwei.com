@@ -140,12 +140,30 @@ export function dateDiff(start: YMD, end: YMD, includeEnd = false): DateDiffResu
   };
 }
 
+export type SpanUnit = 'years' | 'months' | 'days';
+
+/** Non-zero parts of a span in order; days are kept when everything is 0. Localized text is built by the caller. */
+export function spanParts(span: YMDSpan): { unit: SpanUnit; n: number }[] {
+  const parts: { unit: SpanUnit; n: number }[] = [];
+  if (span.years) parts.push({ unit: 'years', n: span.years });
+  if (span.months) parts.push({ unit: 'months', n: span.months });
+  if (span.days || parts.length === 0) parts.push({ unit: 'days', n: span.days });
+  return parts;
+}
+
+const ZH_SPAN_UNIT: Record<SpanUnit, string> = { years: '年', months: '個月', days: '天' };
+
 export function formatSpan(span: YMDSpan): string {
-  const parts: string[] = [];
-  if (span.years) parts.push(`${span.years} 年`);
-  if (span.months) parts.push(`${span.months} 個月`);
-  if (span.days || parts.length === 0) parts.push(`${span.days} 天`);
-  return parts.join(' ');
+  return spanParts(span)
+    .map((p) => `${p.n} ${ZH_SPAN_UNIT[p.unit]}`)
+    .join(' ');
+}
+
+/** A Date at UTC midnight of the day, for Intl formatting with { timeZone: 'UTC' }. Works for years < 100 too. */
+export function toUTCDate(date: YMD): Date {
+  const t = new Date(0);
+  t.setUTCFullYear(date.y, date.m - 1, date.d);
+  return t;
 }
 
 /** e.g. 2026 年 10 月 29 日（四） */

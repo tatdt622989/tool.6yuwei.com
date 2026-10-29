@@ -88,12 +88,23 @@ export function formatCountdown(ms: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
-/** Human-readable duration such as「1 小時 30 分」or「45 秒」. */
-export function describeDuration(ms: number): string {
+/** Unit words for describeDuration. Templates take {n}; parts are joined with `sep`. */
+export interface DurationUnits {
+  h: string;
+  m: string;
+  s: string;
+  sep: string;
+}
+
+export const ZH_DURATION_UNITS: DurationUnits = { h: '{n} 小時', m: '{n} 分', s: '{n} 秒', sep: ' ' };
+
+/** Human-readable duration such as「1 小時 30 分」or「45 秒」(en: "1 hr 30 min", ja:「1時間30分」). */
+export function describeDuration(ms: number, units: DurationUnits = ZH_DURATION_UNITS): string {
   const { h, m, s } = splitDuration(ms);
+  const fill = (template: string, n: number) => template.replace('{n}', String(n));
   const parts: string[] = [];
-  if (h) parts.push(`${h} 小時`);
-  if (m) parts.push(`${m} 分`);
-  if (s) parts.push(`${s} 秒`);
-  return parts.length ? parts.join(' ') : '0 秒';
+  if (h) parts.push(fill(units.h, h));
+  if (m) parts.push(fill(units.m, m));
+  if (s) parts.push(fill(units.s, s));
+  return parts.length ? parts.join(units.sep) : fill(units.s, 0);
 }

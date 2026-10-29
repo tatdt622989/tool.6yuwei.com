@@ -264,16 +264,21 @@ function partsHtml(parts: Segment[], mark: 'del' | 'ins'): string {
 }
 
 const cell = (cls: string, html: string) => `<td class="${cls}">${html}</td>`;
-const skipRow = (count: number, cols: number) =>
-  `<tr class="td-skip"><td colspan="${cols}">略過 ${count} 行相同內容</td></tr>`;
+
+/** Text of a collapsed "N unchanged lines" row. Localized pages pass their own; the default is zh-TW. */
+export type SkipLabel = (count: number) => string;
+export const defaultSkipLabel: SkipLabel = (count) => `略過 ${count} 行相同內容`;
+
+const skipRow = (count: number, cols: number, label: SkipLabel) =>
+  `<tr class="td-skip"><td colspan="${cols}">${escapeHtml(label(count))}</td></tr>`;
 
 /** Two-column table: old on the left, new on the right. */
-export function renderSplit(rows: DisplayRow[]): string {
+export function renderSplit(rows: DisplayRow[], skipLabel: SkipLabel = defaultSkipLabel): string {
   const body = rows
     .map((row) => {
       switch (row.kind) {
         case 'skip':
-          return skipRow(row.count, 4);
+          return skipRow(row.count, 4, skipLabel);
         case 'equal':
           return `<tr>${cell('td-no', String(row.oldNo))}${cell('td-code', escapeHtml(row.oldText))}${cell('td-no', String(row.newNo))}${cell('td-code', escapeHtml(row.newText))}</tr>`;
         case 'delete':
@@ -289,7 +294,7 @@ export function renderSplit(rows: DisplayRow[]): string {
 }
 
 /** Single column, git-style: within a changed block all removed lines come before the added ones. */
-export function renderUnified(rows: DisplayRow[]): string {
+export function renderUnified(rows: DisplayRow[], skipLabel: SkipLabel = defaultSkipLabel): string {
   const out: string[] = [];
   let olds: string[] = [];
   let news: string[] = [];
@@ -312,7 +317,7 @@ export function renderUnified(rows: DisplayRow[]): string {
     }
     if (row.kind === 'equal' || row.kind === 'skip') {
       flush();
-      out.push(row.kind === 'skip' ? skipRow(row.count, 4) : line('', String(row.oldNo), String(row.newNo), '', escapeHtml(row.newText)));
+      out.push(row.kind === 'skip' ? skipRow(row.count, 4, skipLabel) : line('', String(row.oldNo), String(row.newNo), '', escapeHtml(row.newText)));
     }
   }
   flush();

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   bmiOf,
   calcBodyFat,
+  checkInput,
   classifyBodyFat,
+  cmToIn,
+  feetInchesToCm,
+  inToCm,
+  kgToLb,
+  lbToKg,
   composition,
   deurenbergBodyFat,
   isHpaObese,
@@ -75,5 +81,53 @@ describe('calcBodyFat', () => {
 
   it('composition handles 0%', () => {
     expect(composition(60, 0)).toEqual({ fatKg: 0, leanKg: 60 });
+  });
+});
+
+describe('checkInput', () => {
+  it('returns a problem code for each invalid field', () => {
+    expect(checkInput(man)).toBeNull();
+    expect(checkInput(woman)).toBeNull();
+    expect(checkInput({ ...man, neckCm: Number.NaN })).toBe('missing');
+    expect(checkInput({ ...woman, hipCm: Number.NaN })).toBe('missing');
+    expect(checkInput({ ...man, age: 17 })).toBe('age');
+    expect(checkInput({ ...man, heightCm: 69 })).toBe('height');
+    expect(checkInput({ ...man, weightKg: 160 * 10 })).toBe('weight');
+    expect(checkInput({ ...man, neckCm: 15 })).toBe('neck');
+    expect(checkInput({ ...man, waistCm: 34 })).toBe('waist');
+    expect(checkInput({ ...woman, hipCm: 38 })).toBe('hip');
+    expect(checkInput({ ...man, waistCm: 45, neckCm: 50 })).toBe('waistNeck');
+  });
+
+  it('keeps the zh-TW messages for validateInput', () => {
+    expect(validateInput({ ...man, neckCm: Number.NaN })).toBe('請填寫年齡、身高、體重、頸圍與腰圍。');
+    expect(validateInput({ ...woman, hipCm: Number.NaN })).toBe('請填寫年齡、身高、體重、頸圍、腰圍與臀圍。');
+    expect(validateInput(man)).toBeNull();
+  });
+});
+
+describe('US customary conversions', () => {
+  it('converts inches and pounds exactly', () => {
+    expect(inToCm(1)).toBe(2.54);
+    expect(cmToIn(2.54)).toBe(1);
+    expect(lbToKg(1)).toBe(0.45359237);
+    expect(kgToLb(lbToKg(160))).toBeCloseTo(160, 9);
+    expect(feetInchesToCm(5, 9)).toBeCloseTo(175.26, 9);
+    expect(feetInchesToCm(6, Number.NaN)).toBeCloseTo(182.88, 9);
+  });
+
+  it('gives the expected result for a man measured in inches', () => {
+    const r = calcBodyFat({
+      sex: 'male',
+      age: 30,
+      heightCm: feetInchesToCm(5, 9),
+      weightKg: lbToKg(160),
+      neckCm: inToCm(15),
+      waistCm: inToCm(34),
+      hipCm: Number.NaN,
+    })!;
+    expect(r.navy).toBeCloseTo(17.86, 2);
+    expect(r.category?.id).toBe('fitness');
+    expect(kgToLb(r.composition.fatKg)).toBeCloseTo(28.6, 1);
   });
 });

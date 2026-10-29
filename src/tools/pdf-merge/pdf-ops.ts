@@ -46,6 +46,11 @@ export function errorText(err: unknown): string {
   return err instanceof PdfError ? err.message : PDF_ERROR_TEXT.invalid;
 }
 
+/** Error code for any thrown value, so localized UIs can pick their own message. */
+export function errorCode(err: unknown): PdfErrorCode {
+  return err instanceof PdfError ? err.code : 'invalid';
+}
+
 function rotate(page: ReturnType<PDFDocument['getPage']>, extra: number) {
   if (!extra) return;
   const angle = (((page.getRotation().angle + extra) % 360) + 360) % 360;

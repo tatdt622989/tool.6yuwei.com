@@ -18,9 +18,74 @@ export interface EvalOptions {
   ans?: number;
 }
 
-export type EvalResult = { ok: true; value: number } | { ok: false; error: string };
+/** Machine-readable error codes; localized UIs map them to their own messages (i18n.ts). */
+export type CalcErrorCode =
+  | 'badNumber'
+  | 'multipleDots'
+  | 'unknownChar'
+  | 'empty'
+  | 'extraRightParen'
+  | 'badSyntax'
+  | 'incomplete'
+  | 'emptyParens'
+  | 'missingRightParen'
+  | 'missingOperand'
+  | 'unbalanced'
+  | 'missingValueBeforeOperator'
+  | 'tanUndefined90'
+  | 'tanUndefined'
+  | 'factorialDomain'
+  | 'tooLarge'
+  | 'inverseTrigDomain'
+  | 'logDomain'
+  | 'sqrtNegative'
+  | 'divideByZero'
+  | 'negativeFractionalPower'
+  | 'notANumber';
 
-export class CalcError extends Error {}
+/** zh-TW messages (the default; `error` in EvalResult keeps these for existing callers). */
+export const ERROR_MESSAGES: Record<CalcErrorCode, string> = {
+  badNumber: '數字格式不正確',
+  multipleDots: '數字有多個小數點',
+  unknownChar: '無法辨識的字元「{ch}」',
+  empty: '請輸入算式',
+  extraRightParen: '右括號多了，括號不對稱',
+  badSyntax: '算式格式不正確',
+  incomplete: '算式不完整',
+  emptyParens: '括號內沒有內容',
+  missingRightParen: '缺少右括號',
+  missingOperand: '函數後面缺少數值',
+  unbalanced: '括號不對稱',
+  missingValueBeforeOperator: '運算符號前缺少數值',
+  tanUndefined90: 'tan 在 90° 的奇數倍沒有定義',
+  tanUndefined: 'tan 在此角度沒有定義',
+  factorialDomain: '階乘只適用於 0 以上的整數',
+  tooLarge: '數值太大，超出可計算範圍',
+  inverseTrigDomain: '{fn} 的輸入必須介於 -1 到 1',
+  logDomain: '對數的真數必須大於 0',
+  sqrtNegative: '負數不能開平方根',
+  divideByZero: '不能除以 0',
+  negativeFractionalPower: '負數的非整數次方沒有實數解',
+  notANumber: '無法計算',
+};
+
+export type EvalResult =
+  | { ok: true; value: number }
+  | { ok: false; error: string; code: CalcErrorCode; vars?: Record<string, string> };
+
+function fill(template: string, vars: Record<string, string> = {}): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => vars[k] ?? m);
+}
+
+export class CalcError extends Error {
+  readonly code: CalcErrorCode;
+  readonly vars?: Record<string, string>;
+  constructor(code: CalcErrorCode, vars?: Record<string, string>) {
+    super(fill(ERROR_MESSAGES[code], vars));
+    this.code = code;
+    this.vars = vars;
+  }
+}
 
 type FuncName = 'sin' | 'cos' | 'tan' | 'asin' | 'acos' | 'atan' | 'ln' | 'log' | 'sqrt' | 'cbrt' | 'abs';
 
@@ -85,8 +150,8 @@ export function tokenize(raw: string): Token[] {
     const ch = s[i];
     if (/[\d.]/.test(ch)) {
       const m = /^(\d+\.?\d*|\.\d+)(E[+-]?\d+)?/.exec(s.slice(i));
-      if (!m) throw new CalcError('數字格式不正確');
-      if (/^\d*\.\d*\./.test(s.slice(i))) throw new CalcError('數字有多個小數點');
+      if (!m) throw new CalcError('badNumber');
+      if (/^\d*\.\d*\./.test(s.slice(i))) throw new CalcError('multipleDots');
       tokens.push({ t: 'num', v: Number(m[0]) });
       i += m[0].length;
       continue;
@@ -131,7 +196,7 @@ export function tokenize(raw: string): Token[] {
       i += name.length;
       continue;
     }
-    throw new CalcError(`無法辨識的字元「${ch}」`);
+    throw new CalcError('unknownChar', { ch });
   }
   return tokens;
 }
@@ -141,11 +206,11 @@ class Parser {
   constructor(private readonly tokens: Token[]) {}
 
   parse(): Node {
-    if (this.tokens.length === 0) throw new CalcError('請輸入算式');
+    if (this.tokens.length === 0) throw new CalcError('empty');
     const node = this.expr();
     if (this.i < this.tokens.length) {
       const tok = this.tokens[this.i];
-      throw new CalcError(tok.t === 'rp' ? '右括號多了，括號不對稱' : '算式格式不正確');
+      throw new CalcError(tok.t === 'rp' ? 'extraRightParen' : 'badSyntax');
     }
     return node;
   }
@@ -213,7 +278,7 @@ class Parser {
 
   private primary(): Node {
     const tok = this.peek();
-    if (!tok) throw new CalcError('算式不完整');
+    if (!tok) throw new CalcError('incomplete');
     this.i++;
     switch (tok.t) {
       case 'num':
@@ -221,23 +286,23 @@ class Parser {
       case 'const':
         return { k: 'const', v: tok.v };
       case 'lp': {
-        if (this.peek()?.t === 'rp') throw new CalcError('括號內沒有內容');
+        if (this.peek()?.t === 'rp') throw new CalcError('emptyParens');
         const inner = this.expr();
-        if (this.peek()?.t !== 'rp') throw new CalcError('缺少右括號');
+        if (this.peek()?.t !== 'rp') throw new CalcError('missingRightParen');
         this.i++;
         return inner;
       }
       case 'func': {
         const next = this.peek();
-        if (!next) throw new CalcError('函數後面缺少數值');
+        if (!next) throw new CalcError('missingOperand');
         // sin(30)² applies the square to the result; sin 30² takes the square first.
         const a = next.t === 'lp' ? this.primary() : this.unary();
         return { k: 'func', f: tok.v, a };
       }
       case 'rp':
-        throw new CalcError('括號不對稱');
+        throw new CalcError('unbalanced');
       default:
-        throw new CalcError(tok.t === 'post' ? '運算符號前缺少數值' : '算式不完整');
+        throw new CalcError(tok.t === 'post' ? 'missingValueBeforeOperator' : 'incomplete');
     }
   }
 }
@@ -259,7 +324,7 @@ function trig(f: 'sin' | 'cos' | 'tan', x: number, angle: AngleMode): number {
       const cos = [1, 0, -1, 0][d / 90];
       if (f === 'sin') return sin;
       if (f === 'cos') return cos;
-      if (cos === 0) throw new CalcError('tan 在 90° 的奇數倍沒有定義');
+      if (cos === 0) throw new CalcError('tanUndefined90');
       return sin / cos;
     }
     if (f === 'tan' && Number.isInteger(d) && d % 45 === 0) return d === 45 || d === 225 ? 1 : -1;
@@ -268,13 +333,13 @@ function trig(f: 'sin' | 'cos' | 'tan', x: number, angle: AngleMode): number {
   if (f === 'sin') return snap(Math.sin(r));
   if (f === 'cos') return snap(Math.cos(r));
   const cos = snap(Math.cos(r));
-  if (cos === 0) throw new CalcError('tan 在此角度沒有定義');
+  if (cos === 0) throw new CalcError('tanUndefined');
   return snap(Math.sin(r)) / cos;
 }
 
 export function factorial(n: number): number {
-  if (!Number.isInteger(n) || n < 0) throw new CalcError('階乘只適用於 0 以上的整數');
-  if (n > 170) throw new CalcError('數值太大，超出可計算範圍');
+  if (!Number.isInteger(n) || n < 0) throw new CalcError('factorialDomain');
+  if (n > 170) throw new CalcError('tooLarge');
   let r = 1;
   for (let i = 2; i <= n; i++) r *= i;
   return r;
@@ -305,7 +370,7 @@ function evalNode(node: Node, opts: EvalOptions): number {
           return trig(node.f, a, opts.angle);
         case 'asin':
         case 'acos': {
-          if (a < -1 || a > 1) throw new CalcError(`${node.f === 'asin' ? 'sin⁻¹' : 'cos⁻¹'} 的輸入必須介於 -1 到 1`);
+          if (a < -1 || a > 1) throw new CalcError('inverseTrigDomain', { fn: node.f === 'asin' ? 'sin⁻¹' : 'cos⁻¹' });
           const r = node.f === 'asin' ? Math.asin(a) : Math.acos(a);
           return opts.angle === 'deg' ? r / DEG : r;
         }
@@ -313,10 +378,10 @@ function evalNode(node: Node, opts: EvalOptions): number {
           return opts.angle === 'deg' ? Math.atan(a) / DEG : Math.atan(a);
         case 'ln':
         case 'log':
-          if (a <= 0) throw new CalcError('對數的真數必須大於 0');
+          if (a <= 0) throw new CalcError('logDomain');
           return node.f === 'ln' ? Math.log(a) : Math.log10(a);
         case 'sqrt':
-          if (a < 0) throw new CalcError('負數不能開平方根');
+          if (a < 0) throw new CalcError('sqrtNegative');
           return Math.sqrt(a);
         case 'cbrt':
           return Math.cbrt(a);
@@ -342,7 +407,7 @@ function evalNode(node: Node, opts: EvalOptions): number {
         case '*':
           return a * b;
         case '/':
-          if (b === 0) throw new CalcError('不能除以 0');
+          if (b === 0) throw new CalcError('divideByZero');
           return a / b;
         case '^': {
           if (a < 0 && !Number.isInteger(b)) {
@@ -350,15 +415,15 @@ function evalNode(node: Node, opts: EvalOptions): number {
             const inv = 1 / b;
             const n = Math.round(inv);
             if (Math.abs(inv - n) < 1e-9 && n % 2 !== 0) return -Math.pow(-a, b);
-            throw new CalcError('負數的非整數次方沒有實數解');
+            throw new CalcError('negativeFractionalPower');
           }
-          if (a === 0 && b < 0) throw new CalcError('不能除以 0');
+          if (a === 0 && b < 0) throw new CalcError('divideByZero');
           return Math.pow(a, b);
         }
       }
     }
   }
-  throw new CalcError('算式格式不正確');
+  throw new CalcError('badSyntax');
 }
 
 /** Closes any parentheses the user left open, like most scientific calculators do. */
@@ -367,7 +432,7 @@ export function autoClose(tokens: Token[]): Token[] {
   for (const t of tokens) {
     if (t.t === 'lp') depth++;
     else if (t.t === 'rp') depth--;
-    if (depth < 0) throw new CalcError('右括號多了，括號不對稱');
+    if (depth < 0) throw new CalcError('extraRightParen');
   }
   return depth > 0 ? [...tokens, ...Array.from({ length: depth }, () => ({ t: 'rp' }) as Token)] : tokens;
 }
@@ -376,11 +441,11 @@ export function evaluate(expression: string, opts: EvalOptions = { angle: 'deg' 
   try {
     const tokens = autoClose(tokenize(expression));
     const value = evalNode(new Parser(tokens).parse(), opts);
-    if (Number.isNaN(value)) return { ok: false, error: '無法計算' };
-    if (!Number.isFinite(value)) return { ok: false, error: '數值太大，超出可計算範圍' };
+    if (Number.isNaN(value)) return { ok: false, error: ERROR_MESSAGES.notANumber, code: 'notANumber' };
+    if (!Number.isFinite(value)) return { ok: false, error: ERROR_MESSAGES.tooLarge, code: 'tooLarge' };
     return { ok: true, value: roundSignificant(value) };
   } catch (err) {
-    if (err instanceof CalcError) return { ok: false, error: err.message };
+    if (err instanceof CalcError) return { ok: false, error: err.message, code: err.code, vars: err.vars };
     throw err;
   }
 }

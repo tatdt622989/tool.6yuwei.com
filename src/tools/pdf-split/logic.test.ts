@@ -27,6 +27,13 @@ describe('parsePageRanges', () => {
     expect(parsePageRanges('  ', 5)).toEqual({ pages: [], errors: [] });
     expect(parsePageRanges('-', 5).errors).toHaveLength(1);
   });
+  it('accepts the Japanese wave dash as a range separator', () => {
+    expect(parsePageRanges('２〜４、６', 10).pages).toEqual([2, 3, 4, 6]);
+  });
+  it('fills localized message templates', () => {
+    const ja = { unreadable: '「{token}」を読み取れません', outOfRange: '「{token}」は範囲外です（全 {count} ページ）' };
+    expect(parsePageRanges('abc,12', 10, ja).errors).toEqual(['「abc」を読み取れません', '「12」は範囲外です（全 10 ページ）']);
+  });
 });
 
 describe('formatPageRanges', () => {

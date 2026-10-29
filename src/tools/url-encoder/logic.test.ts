@@ -36,12 +36,14 @@ describe('decodeUrl', () => {
     const r = decodeUrl('abc%2Gdef');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain('第 4 個字元');
+    expect(r).toMatchObject({ ok: false, code: 'bad-percent', position: 4 });
   });
 
   it('reports invalid UTF-8 sequences', () => {
     const r = decodeUrl('%E4%B8');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain('UTF-8');
+    expect(r).toMatchObject({ ok: false, code: 'bad-utf8' });
   });
 
   it('safeDecode falls back to the input', () => {
@@ -86,5 +88,7 @@ describe('parseUrl', () => {
   it('rejects empty and unparsable input', () => {
     expect(parseUrl('  ').ok).toBe(false);
     expect(parseUrl('http://exa mple.com').ok).toBe(false);
+    expect(parseUrl('  ')).toMatchObject({ code: 'empty' });
+    expect(parseUrl('http://exa mple.com')).toMatchObject({ code: 'invalid' });
   });
 });

@@ -37,14 +37,14 @@ const defs = [
       },
       en: {
         name: 'Money & Finance',
-        blurb: 'Loans, interest, savings and investing',
+        blurb: 'Loans, mortgages, savings, exchange rates',
         title: 'Free Money & Finance Calculators Online',
         description:
           'Everyday money calculators: loan and mortgage payments, compound interest, savings growth, dividends and investment returns. Enter your numbers and get an instant answer with the formula explained, so you can see exactly where each figure comes from.',
       },
       ja: {
         name: 'お金・資産運用',
-        blurb: 'ローン、複利、積立、配当',
+        blurb: '手取り計算、ローン、定期預金、為替',
         title: 'お金の計算ツール：ローン・複利・積立シミュレーション',
         description:
           '毎日のお金の計算に役立つツール集です。ローンや住宅ローンの返済額、複利・積立のシミュレーション、配当利回りなどを、数字を入れるだけですぐに計算できます。計算式もあわせて解説しているので、結果の根拠がひと目でわかります。',
@@ -63,14 +63,14 @@ const defs = [
       },
       en: {
         name: 'Calculators',
-        blurb: 'BMI, percentages, discounts, unit conversion',
+        blurb: 'Tips, sales tax, GPA, fractions, BMI',
         title: 'Free Online Calculators: BMI, Percentage, Discount & More',
         description:
           'Quick calculators for everyday life: BMI, percentages, discounts, splitting the bill, unit conversion and more. Results update as you type, and each tool explains the formula behind the number.',
       },
       ja: {
         name: '計算ツール',
-        blurb: 'BMI、パーセント、割引、単位換算',
+        blurb: '消費税、日割り、坪換算、割り勘、BMI',
         title: '無料の計算ツール：BMI・パーセント・割引計算など',
         description:
           '暮らしの中でよく使う計算ツールです。BMI、パーセント、割引・割引率、割り勘、単位換算など。入力するとすぐに結果が表示され、計算式の解説もついています。',
@@ -89,14 +89,14 @@ const defs = [
       },
       en: {
         name: 'Time & Date',
-        blurb: 'Date difference, age, time zones, timers',
+        blurb: 'Exact time, time cards, time zones, timers',
         title: 'Free Time & Date Tools: Date Calculator, Timers, Time Zones',
         description:
           'Tools for working with time: count the days between dates, calculate age, convert between time zones, and use a stopwatch, countdown timer or Pomodoro timer right in your browser.',
       },
       ja: {
         name: '時間・日付',
-        blurb: '日数計算、年齢、時差、タイマー',
+        blurb: '和暦変換、祝日、時報、日数計算、タイマー',
         title: '時間・日付の便利ツール：日数計算・時差・タイマー',
         description:
           '時間と日付に関するツールです。日付の間の日数計算、満年齢の計算、世界の時差の変換のほか、ストップウォッチ、カウントダウンタイマー、ポモドーロタイマーもブラウザですぐに使えます。',
@@ -122,7 +122,7 @@ const defs = [
       },
       ja: {
         name: 'テキスト',
-        blurb: '文字数カウント、変換、比較',
+        blurb: '文字数カウント、ローマ字、カナ変換、漢数字',
         title: '無料のテキストツール：文字数カウント・変換・比較',
         description:
           'レポートや原稿、SNS 投稿の作成に役立つテキストツールです。文字数カウント、大文字・小文字変換、行の並べ替えと重複削除、2 つの文章の差分比較など。処理はすべてブラウザ内で行われ、文章がサーバーに送信されることはありません。',

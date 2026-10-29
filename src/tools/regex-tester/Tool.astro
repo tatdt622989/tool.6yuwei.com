@@ -1,57 +1,27 @@
 ---
-const FLAGS = [
-  { flag: 'g', label: '全域', title: '找出所有符合，而不只第一個' },
-  { flag: 'i', label: '忽略大小寫', title: '不區分大小寫' },
-  { flag: 'm', label: '多行', title: '^ 與 $ 比對每一行的開頭與結尾' },
-  { flag: 's', label: 'dotAll', title: '讓 . 也能比對換行' },
-  { flag: 'u', label: 'Unicode', title: '以 Unicode 碼位處理，可用 \\p{…}' },
-  { flag: 'y', label: '黏著', title: '只從 lastIndex 位置開始比對' },
-];
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
 
-const CHEATSHEET: [string, string, string][] = [
-  ['.', '任意一個字元（不含換行，加 s 旗標才包含）', 'a.c 符合 abc、a1c'],
-  ['\\d　\\D', '數字 0–9／非數字', '\\d{3} 符合 123'],
-  ['\\w　\\W', '英數字與底線／其他字元', '\\w+ 符合 user_01'],
-  ['\\s　\\S', '空白字元（空格、Tab、換行）／非空白', 'a\\sb 符合 a b'],
-  ['\\b', '單字邊界（只對英數字有效）', '\\bcat\\b 不符合 category'],
-  ['^　$', '開頭／結尾（加 m 旗標時為每一行）', '^\\d+$ 整行都是數字'],
-  ['[abc]　[^abc]', '其中一個字元／以外的字元', '[aeiou] 母音'],
-  ['[a-z0-9]', '字元範圍', '[A-F0-9] 十六進位'],
-  ['*　+　?', '0 次以上／1 次以上／0 或 1 次', 'colou?r 符合 color、colour'],
-  ['{n}　{n,}　{n,m}', '剛好 n 次／至少 n 次／n 到 m 次', '\\d{2,4}'],
-  ['*?　+?', '非貪婪：盡可能少比對', '<.+?> 只比對一個標籤'],
-  ['(abc)', '擷取群組，可用 $1 參照', '(\\d+)-(\\d+)'],
-  ['(?:abc)', '只分組不擷取', '(?:ab)+'],
-  ['(?<name>abc)', '具名群組，可用 $<name> 參照', '(?<year>\\d{4})'],
-  ['a|b', '或', 'cat|dog'],
-  ['(?=abc)　(?!abc)', '正向／負向先行斷言', '\\d+(?=元) 只取金額數字'],
-  ['(?<=abc)　(?<!abc)', '正向／負向後行斷言', '(?<=\\$)\\d+'],
-  ['\\1', '反向參照第 1 個群組', '(\\w)\\1 符合 aa、ll'],
-  ['\\p{Script=Han}', '中文字（需要 u 旗標）', '\\p{Script=Han}+'],
-  ['\\u4e00　\\x41', 'Unicode／十六進位字元', '[\\u4e00-\\u9fff]'],
-];
-
-const REPLACEMENTS: [string, string][] = [
-  ['$1、$2…', '第 n 個擷取群組'],
-  ['$<name>', '具名群組'],
-  ['$&', '整個符合的文字'],
-  ['$`　$\'', '符合位置之前／之後的文字'],
-  ['$$', '一個 $ 符號'],
-];
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const FLAGS = s.flags;
+const CHEATSHEET = s.cheatsheet;
+const REPLACEMENTS = s.replacements;
 ---
 
-<div class="tool" data-tool="regex-tester">
+<div class="tool" data-tool="regex-tester" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <label for="rx-pattern">正規表達式</label>
+    <label for="rx-pattern">{s.patternLabel}</label>
     <div class="rx-pattern">
       <span class="rx-slash" aria-hidden="true">/</span>
-      <input id="rx-pattern" type="text" class="mono" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="例如 \d{4}-\d{2}-\d{2}" />
+      <input id="rx-pattern" type="text" class="mono" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder={s.patternPlaceholder} />
       <span class="rx-slash mono" aria-hidden="true">/<span id="rx-flag-text"></span></span>
     </div>
   </div>
 
   <fieldset class="rx-flags">
-    <legend class="visually-hidden">旗標</legend>
+    <legend class="visually-hidden">{s.flagsLegend}</legend>
     {
       FLAGS.map(({ flag, label, title }) => (
         <label class="check" title={title}>
@@ -67,20 +37,20 @@ const REPLACEMENTS: [string, string][] = [
   <div id="rx-error" class="notice error" role="alert" hidden></div>
 
   <div class="field">
-    <label for="rx-text">測試文字</label>
-    <textarea id="rx-text" rows="7" spellcheck="false" placeholder="貼上要比對的文字"></textarea>
+    <label for="rx-text">{s.textLabel}</label>
+    <textarea id="rx-text" rows="7" spellcheck="false" placeholder={s.textPlaceholder}></textarea>
   </div>
 
   <div class="field">
-    <span class="label" id="rx-count">比對結果</span>
+    <span class="label" id="rx-count">{s.client.resultLabel}</span>
     <div class="output rx-highlight" id="rx-highlight" aria-live="polite"></div>
   </div>
 
   <div class="field" id="rx-list-wrap" hidden>
-    <span class="label">符合清單</span>
+    <span class="label">{s.listLabel}</span>
     <div class="table-wrap rx-list">
       <table class="table">
-        <thead><tr><th class="num">#</th><th class="num">位置</th><th>符合內容</th><th>群組</th></tr></thead>
+        <thead><tr><th class="num">#</th><th class="num">{s.colPosition}</th><th>{s.colMatch}</th><th>{s.colGroups}</th></tr></thead>
         <tbody id="rx-list"></tbody>
       </table>
     </div>
@@ -88,27 +58,27 @@ const REPLACEMENTS: [string, string][] = [
   </div>
 
   <div class="field">
-    <label for="rx-replace">取代為（選填）</label>
-    <input id="rx-replace" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder="例如 $3/$2/$1 或 $<year>" />
+    <label for="rx-replace">{s.replaceLabel}</label>
+    <input id="rx-replace" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder={s.replacePlaceholder} />
   </div>
   <div class="field" id="rx-replaced-wrap" hidden>
     <div class="rx-head">
-      <span class="label">取代結果預覽</span>
-      <button class="btn small" type="button" data-copy="#rx-replaced">複製</button>
+      <span class="label">{s.replacedLabel}</span>
+      <button class="btn small" type="button" data-copy="#rx-replaced">{s.copy}</button>
     </div>
     <div class="output" id="rx-replaced"></div>
   </div>
 
   <div class="row">
-    <button class="btn ghost" type="button" id="rx-sample">載入範例</button>
-    <button class="btn ghost" type="button" id="rx-clear">清除</button>
+    <button class="btn ghost" type="button" id="rx-sample">{s.sample}</button>
+    <button class="btn ghost" type="button" id="rx-clear">{s.clear}</button>
   </div>
 
   <details class="rx-cheat" open>
-    <summary>常用語法速查</summary>
+    <summary>{s.cheatSummary}</summary>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>語法</th><th>意義</th><th>範例</th></tr></thead>
+        <thead><tr><th>{s.colSyntax}</th><th>{s.colMeaning}</th><th>{s.colExample}</th></tr></thead>
         <tbody>
           {
             CHEATSHEET.map(([syntax, meaning, example]) => (
@@ -124,7 +94,7 @@ const REPLACEMENTS: [string, string][] = [
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>取代語法</th><th>代表</th></tr></thead>
+        <thead><tr><th>{s.colReplaceSyntax}</th><th>{s.colReplaceMeaning}</th></tr></thead>
         <tbody>
           {
             REPLACEMENTS.map(([syntax, meaning]) => (
@@ -143,12 +113,16 @@ const REPLACEMENTS: [string, string][] = [
 <script>
   import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
   import { formatInteger } from '../../lib/format';
-  import { describeGroups, escapeHtml, highlight, MAX_MATCHES, run, type RunRequest, type RunResponse } from './logic';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import { describeGroups, escapeHtml, formatMessage, highlight, MAX_MATCHES, run, type RunRequest, type RunResponse } from './logic';
+  import type { Strings } from './i18n';
 
   const TIMEOUT_MS = 1500;
   const MAX_ROWS = 200;
 
   const root = $('[data-tool="regex-tester"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const pattern = $<HTMLInputElement>('#rx-pattern', root);
   const text = $<HTMLTextAreaElement>('#rx-text', root);
   const replace = $<HTMLInputElement>('#rx-replace', root);
@@ -173,8 +147,8 @@ const REPLACEMENTS: [string, string][] = [
   const SAMPLE: Prefs = {
     pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
     flags: 'g',
-    text: '訂單 A102 於 2026-10-29 成立，預計 2026-11-03 出貨。\n客服信箱：service@example.com，電話 02-2345-6789。',
-    replacement: '$<day>/$<month>/$<year>',
+    text: s.sampleText,
+    replacement: s.sampleReplacement,
   };
 
   const readRequest = (): RunRequest => ({
@@ -182,6 +156,7 @@ const REPLACEMENTS: [string, string][] = [
     flags: flagBoxes.filter((b) => b.checked).map((b) => b.value).join(''),
     text: text.value,
     replacement: replace.value,
+    messages: s.messages,
   });
 
   function apply(p: Prefs) {
@@ -192,7 +167,7 @@ const REPLACEMENTS: [string, string][] = [
   }
 
   function resetOutput(message: string) {
-    count.textContent = '比對結果';
+    count.textContent = s.resultLabel;
     highlighted.innerHTML = message ? `<span class="muted">${escapeHtml(message)}</span>` : escapeHtml(text.value);
     listWrap.hidden = true;
     replacedWrap.hidden = true;
@@ -208,12 +183,15 @@ const REPLACEMENTS: [string, string][] = [
     if (!res.ok) return showError(res.error);
     error.hidden = true;
     const n = res.matches.length;
-    count.textContent = n === 0 ? '比對結果：沒有符合' : `比對結果：${formatInteger(n)} 個符合${res.truncated ? '（已達上限）' : ''}`;
-    highlighted.innerHTML = req.text ? highlight(req.text, res.matches) : '<span class="muted">輸入測試文字後會在這裡標示符合的部分</span>';
+    count.textContent =
+      n === 0 ? s.noMatch : t(s.matches, { n: formatInteger(n, locale), truncated: res.truncated ? s.truncated : '' });
+    highlighted.innerHTML = req.text
+      ? highlight(req.text, res.matches)
+      : `<span class="muted">${escapeHtml(s.emptyHint)}</span>`;
 
     const rows = res.matches.slice(0, MAX_ROWS).map((m, i) => {
       const tr = document.createElement('tr');
-      const cells = [String(i + 1), `${m.index}–${m.end}`, m.text === '' ? '（空字串）' : m.text, describeGroups(m) || '—'];
+      const cells = [String(i + 1), `${m.index}–${m.end}`, m.text === '' ? s.emptyString : m.text, describeGroups(m, s.messages.unset) || '—'];
       cells.forEach((value, c) => {
         const td = document.createElement('td');
         td.textContent = value;
@@ -226,10 +204,10 @@ const REPLACEMENTS: [string, string][] = [
     list.replaceChildren(...rows);
     listWrap.hidden = n === 0;
     listNote.textContent = res.truncated
-      ? `為避免瀏覽器當機，最多找出 ${formatInteger(MAX_MATCHES)} 個符合，表格列出前 ${MAX_ROWS} 個。`
+      ? t(s.noteTruncated, { max: formatInteger(MAX_MATCHES, locale), rows: MAX_ROWS })
       : n > MAX_ROWS
-        ? `表格只列出前 ${MAX_ROWS} 個符合。`
-        : '位置以 UTF-16 字元索引表示，從 0 開始。';
+        ? t(s.noteRows, { rows: MAX_ROWS })
+        : s.noteIndex;
 
     replacedWrap.hidden = req.replacement === '' || req.text === '';
     replaced.textContent = res.replaced;
@@ -289,7 +267,7 @@ const REPLACEMENTS: [string, string][] = [
       try {
         show(req, run(req));
       } catch (err) {
-        showError(`執行失敗：${(err as Error).message}`);
+        showError(formatMessage(s.messages.failed, { message: (err as Error).message }));
       }
       return;
     }
@@ -299,7 +277,7 @@ const REPLACEMENTS: [string, string][] = [
       worker?.terminate();
       worker = null;
       pending = false;
-      showError(`運算超過 ${TIMEOUT_MS / 1000} 秒已中止。這個樣式可能造成「災難性回溯」，例如 (a+)+$ 這類巢狀重複，請改寫樣式後再試。`);
+      showError(t(s.timeout, { s: TIMEOUT_MS / 1000 }));
     }, TIMEOUT_MS);
   }
 

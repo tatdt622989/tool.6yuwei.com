@@ -1,15 +1,24 @@
-<div class="tool" data-tool="base64">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="base64" {...i18nAttrs(locale, s.client)}>
   <div class="row">
-    <div class="seg" role="radiogroup" aria-label="轉換方向">
-      <label><input type="radio" name="b64-mode" value="encode" checked /><span>編碼</span></label>
-      <label><input type="radio" name="b64-mode" value="decode" /><span>解碼</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+      <label><input type="radio" name="b64-mode" value="encode" checked /><span>{s.encode}</span></label>
+      <label><input type="radio" name="b64-mode" value="decode" /><span>{s.decode}</span></label>
     </div>
-    <label class="check b64-enc-opt"><input type="checkbox" id="b64-urlsafe" /> URL-safe（- _）</label>
-    <label class="check b64-enc-opt"><input type="checkbox" id="b64-nopad" /> 移除結尾 =</label>
+    <label class="check b64-enc-opt"><input type="checkbox" id="b64-urlsafe" /> {s.urlSafe}</label>
+    <label class="check b64-enc-opt"><input type="checkbox" id="b64-nopad" /> {s.noPadding}</label>
   </div>
 
   <div class="field">
-    <label for="b64-input" id="b64-input-label">要編碼的文字</label>
+    <label for="b64-input" id="b64-input-label">{s.client.inputEncode}</label>
     <textarea id="b64-input" rows="8" spellcheck="false" autocomplete="off"></textarea>
   </div>
 
@@ -17,22 +26,24 @@
   <div id="b64-hex" class="output" hidden></div>
 
   <div class="field">
-    <label for="b64-output" id="b64-output-label">Base64 結果</label>
+    <label for="b64-output" id="b64-output-label">{s.client.outputEncode}</label>
     <textarea id="b64-output" class="mono" rows="8" readonly spellcheck="false"></textarea>
     <span class="hint" id="b64-meta"></span>
   </div>
 
   <div class="row">
-    <button class="btn primary" type="button" data-copy="#b64-output">複製結果</button>
-    <button class="btn" type="button" id="b64-swap">用結果反向轉換</button>
-    <button class="btn ghost" type="button" id="b64-clear">清除</button>
+    <button class="btn primary" type="button" data-copy="#b64-output">{s.copy}</button>
+    <button class="btn" type="button" id="b64-swap">{s.swap}</button>
+    <button class="btn ghost" type="button" id="b64-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { formatInteger } from '../../lib/format';
+  import { plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import { decodeText, encodeText, toHex } from './logic';
+  import type { Strings } from './i18n';
 
   type Mode = 'encode' | 'decode';
   interface Prefs {
@@ -42,6 +53,7 @@
   }
 
   const root = $('[data-tool="base64"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const input = $<HTMLTextAreaElement>('#b64-input', root);
   const output = $<HTMLTextAreaElement>('#b64-output', root);
   const inputLabel = $('#b64-input-label', root);
@@ -65,9 +77,9 @@
     const m = mode();
     savePref('base64', { mode: m, urlSafe: urlSafe.checked, noPadding: noPadding.checked } satisfies Prefs);
     encOpts.forEach((el) => (el.style.display = m === 'encode' ? '' : 'none'));
-    inputLabel.textContent = m === 'encode' ? '要編碼的文字' : '要解碼的 Base64';
-    outputLabel.textContent = m === 'encode' ? 'Base64 結果' : '解碼後的文字';
-    input.placeholder = m === 'encode' ? '輸入任何文字，支援中文與表情符號' : '貼上 Base64 字串，標準或 URL-safe 格式皆可';
+    inputLabel.textContent = m === 'encode' ? s.inputEncode : s.inputDecode;
+    outputLabel.textContent = m === 'encode' ? s.outputEncode : s.outputDecode;
+    input.placeholder = m === 'encode' ? s.placeholderEncode : s.placeholderDecode;
     input.classList.toggle('mono', m === 'decode');
     error.hidden = true;
     hex.hidden = true;
@@ -80,21 +92,24 @@
 
     if (m === 'encode') {
       output.value = encodeText(input.value, { urlSafe: urlSafe.checked, noPadding: noPadding.checked });
-      meta.textContent = `原文 ${formatInteger(encoder.encode(input.value).length)} 位元組（UTF-8）→ ${formatInteger(output.value.length)} 個字元`;
+      meta.textContent = t(s.metaEncode, {
+        bytes: plural(locale, encoder.encode(input.value).length, s.bytes),
+        chars: plural(locale, output.value.length, s.chars),
+      });
       return;
     }
 
     const result = decodeText(input.value);
     if (result.ok) {
       output.value = result.text;
-      meta.textContent = `解碼為 ${formatInteger(result.bytes.length)} 位元組（UTF-8）`;
+      meta.textContent = t(s.metaDecode, { bytes: plural(locale, result.bytes.length, s.bytes) });
     } else {
       output.value = '';
       meta.textContent = '';
-      error.textContent = result.error;
+      error.textContent = t(s.errors[result.reason], { n: result.bytes?.length ?? 0 });
       error.hidden = false;
       if (result.bytes) {
-        hex.textContent = `前 64 位元組（十六進位）：\n${toHex(result.bytes)}`;
+        hex.textContent = `${s.hexHead}\n${toHex(result.bytes)}`;
         hex.hidden = false;
       }
     }

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  describeJsonError,
   errorExcerpt,
+  jsonKind,
   formatValue,
   minifyValue,
   offsetToLineColumn,
   parseJson,
   sortKeysDeep,
   summarize,
+  ZH_ERROR_MESSAGES,
+  type JsonErrorMessages,
 } from './logic';
 
 function errorOf(text: string) {
@@ -105,5 +109,44 @@ describe('helpers', () => {
 
   it('builds an excerpt with a caret', () => {
     expect(errorExcerpt('{\n  "a": x\n}', 2, 8)).toBe('  "a": x\n       ^');
+  });
+});
+
+describe('error codes', () => {
+  it('tags each error with a code and expectation', () => {
+    expect(errorOf('   ').code).toBe('empty');
+    expect(errorOf('[1, 2, ]').code).toBe('trailing-comma-array');
+    expect(errorOf('{"a": 1,}').code).toBe('trailing-comma-object');
+    expect(errorOf("{'a': 1}").code).toBe('single-quote');
+    expect(errorOf('{"a" 1}')).toMatchObject({ code: 'unexpected', expected: 'colon', found: '1' });
+    expect(errorOf('{"a": [1, 2')).toMatchObject({ code: 'eof', expected: 'comma-or-bracket' });
+    expect(errorOf('[01]').code).toBe('number-format');
+    expect(errorOf('{} {}').code).toBe('extra');
+  });
+
+  it('keeps the zh message equal to the zh table', () => {
+    const e = errorOf('[NaN]');
+    expect(e.message).toBe(describeJsonError(e, ZH_ERROR_MESSAGES));
+    expect(e.message).toBe('預期為值（物件、陣列、字串、數字、true、false 或 null），但遇到「N」');
+  });
+
+  it('describes errors with another language table', () => {
+    const en: JsonErrorMessages = {
+      codes: { ...ZH_ERROR_MESSAGES.codes, unexpected: 'Expected {expected} but found "{found}"' },
+      expected: { ...ZH_ERROR_MESSAGES.expected, colon: 'a colon' },
+    };
+    expect(describeJsonError(errorOf('{"a" $}'), en)).toBe('Expected a colon but found "$"');
+    expect(describeJsonError({ code: 'native', message: 'boom' }, en)).toBe('boom');
+  });
+});
+
+describe('jsonKind', () => {
+  it('classifies values', () => {
+    expect(jsonKind({})).toBe('object');
+    expect(jsonKind([])).toBe('array');
+    expect(jsonKind('a')).toBe('string');
+    expect(jsonKind(1)).toBe('number');
+    expect(jsonKind(false)).toBe('boolean');
+    expect(jsonKind(null)).toBe('null');
   });
 });

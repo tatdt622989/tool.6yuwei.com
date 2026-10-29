@@ -44,18 +44,46 @@ export interface LoanResult {
   totalCost: number;
 }
 
-export function validateLoan(input: LoanInput): string | null {
+/** Machine-readable input problems; localized messages live in i18n.ts (zh-TW text in LOAN_PROBLEM_ZH). */
+export type LoanProblem =
+  | 'incomplete'
+  | 'amount'
+  | 'months'
+  | 'noRate'
+  | 'rate'
+  | 'stageMonths'
+  | 'feesNegative'
+  | 'feesTooHigh';
+
+export const LOAN_PROBLEM_ZH: Record<LoanProblem, string> = {
+  incomplete: '請輸入完整的數字。',
+  amount: '貸款金額需大於 0。',
+  months: '貸款期數請輸入 1 到 480 個月。',
+  noRate: '請輸入利率。',
+  rate: '年利率請輸入 0% 到 30%。',
+  stageMonths: '分段期數請輸入 0 或正整數。',
+  feesNegative: '費用不可為負數。',
+  feesTooHigh: '費用不可大於或等於貸款金額。',
+};
+
+export function loanProblem(input: LoanInput): LoanProblem | null {
   const { principal, months, stages, fees } = input;
   if (![principal, months, fees].every(Number.isFinite) || stages.some((s) => !Number.isFinite(s.ratePct) || !Number.isFinite(s.months)))
-    return '請輸入完整的數字。';
-  if (principal <= 0) return '貸款金額需大於 0。';
-  if (!Number.isInteger(months) || months < 1 || months > 480) return '貸款期數請輸入 1 到 480 個月。';
-  if (stages.length === 0) return '請輸入利率。';
-  if (stages.some((s) => s.ratePct < 0 || s.ratePct > 30)) return '年利率請輸入 0% 到 30%。';
-  if (stages.some((s) => s.months < 0 || !Number.isInteger(s.months))) return '分段期數請輸入 0 或正整數。';
-  if (fees < 0) return '費用不可為負數。';
-  if (fees >= principal) return '費用不可大於或等於貸款金額。';
+    return 'incomplete';
+  if (principal <= 0) return 'amount';
+  if (!Number.isInteger(months) || months < 1 || months > 480) return 'months';
+  if (stages.length === 0) return 'noRate';
+  if (stages.some((s) => s.ratePct < 0 || s.ratePct > 30)) return 'rate';
+  if (stages.some((s) => s.months < 0 || !Number.isInteger(s.months))) return 'stageMonths';
+  if (fees < 0) return 'feesNegative';
+  if (fees >= principal) return 'feesTooHigh';
   return null;
+}
+
+/** zh-TW message for the first input problem, or null. */
+export function validateLoan(input: LoanInput): string | null {
+  const problem = loanProblem(input);
+  return problem ? LOAN_PROBLEM_ZH[problem] : null;
 }
 
 export function annuityPayment(principal: number, r: number, n: number): number {

@@ -79,11 +79,17 @@ export interface UuidInfo {
   uuid: string;
   /** 0 for Nil, 15 for Max, otherwise the version nibble. */
   version: number;
+  /** zh-TW variant label; see `variantKind` for a language-neutral value. */
   variant: string;
+  variantKind: UuidVariant;
   /** Unix milliseconds for time-based versions (1, 6, 7). */
   timestamp?: number;
+  /** zh-TW version label. */
   label: string;
 }
+
+/** Variant field of a UUID; 'none' for the Nil and Max UUIDs. */
+export type UuidVariant = 'ncs' | 'rfc' | 'microsoft' | 'future' | 'none';
 
 const VERSION_LABEL: Record<number, string> = {
   1: '版本 1（時間＋節點）',
@@ -101,6 +107,14 @@ const GREGORIAN_OFFSET = 122192928000000000n;
 
 export type ParseResult = { ok: true; info: UuidInfo } | { ok: false; error: string };
 
+const VARIANT_LABEL: Record<UuidVariant, string> = {
+  ncs: 'NCS 保留（舊格式）',
+  rfc: 'RFC 9562（標準）',
+  microsoft: 'Microsoft 保留（GUID 舊格式）',
+  future: '未來保留',
+  none: '—',
+};
+
 export function parseUuid(input: string): ParseResult {
   const raw = input
     .trim()
@@ -111,13 +125,17 @@ export function parseUuid(input: string): ParseResult {
   if (!shaped) return { ok: false, error: '格式不正確：UUID 應為 32 個十六進位字元，通常寫成 8-4-4-4-12 的形式。' };
 
   const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-  if (/^0+$/.test(hex)) return { ok: true, info: { uuid, version: 0, variant: '—', label: 'Nil UUID（全部為 0）' } };
-  if (/^f+$/.test(hex)) return { ok: true, info: { uuid, version: 15, variant: '—', label: 'Max UUID（全部為 F）' } };
+  if (/^0+$/.test(hex)) {
+    return { ok: true, info: { uuid, version: 0, variant: '—', variantKind: 'none', label: 'Nil UUID（全部為 0）' } };
+  }
+  if (/^f+$/.test(hex)) {
+    return { ok: true, info: { uuid, version: 15, variant: '—', variantKind: 'none', label: 'Max UUID（全部為 F）' } };
+  }
 
   const version = parseInt(hex[12], 16);
   const v = parseInt(hex[16], 16);
-  const variant =
-    v < 8 ? 'NCS 保留（舊格式）' : v < 12 ? 'RFC 9562（標準）' : v < 14 ? 'Microsoft 保留（GUID 舊格式）' : '未來保留';
+  const variantKind: UuidVariant = v < 8 ? 'ncs' : v < 12 ? 'rfc' : v < 14 ? 'microsoft' : 'future';
+  const variant = VARIANT_LABEL[variantKind];
 
   let timestamp: number | undefined;
   if (v >= 8 && v < 12) {
@@ -133,6 +151,6 @@ export function parseUuid(input: string): ParseResult {
 
   return {
     ok: true,
-    info: { uuid, version, variant, timestamp, label: VERSION_LABEL[version] ?? `未定義的版本 ${version}` },
+    info: { uuid, version, variant, variantKind, timestamp, label: VERSION_LABEL[version] ?? `未定義的版本 ${version}` },
   };
 }

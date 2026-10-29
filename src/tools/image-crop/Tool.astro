@@ -1,24 +1,28 @@
-<div class="tool" data-tool="image-crop">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="image-crop" {...i18nAttrs(locale, s.client)}>
   <p class="notice ok cr-privacy">
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
-    <span><strong>圖片不會上傳</strong>：裁切完全在你的瀏覽器中進行，圖片不會離開你的裝置。</span>
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
   </p>
 
   <label class="dropzone cr-drop" id="cr-drop" tabindex="0">
     <input type="file" id="cr-file" accept="image/*" hidden />
-    <strong>點擊選擇圖片，或拖曳到這裡</strong>
-    <span class="hint">支援 JPG、PNG、WebP 等格式，也可以按 Ctrl/Cmd + V 貼上截圖。下方先以範例圖片示範。</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="field">
-    <span class="label">裁切比例</span>
-    <div class="seg" role="radiogroup" aria-label="裁切比例">
-      <label><input type="radio" name="cr-aspect" value="free" checked /><span>自由</span></label>
-      <label><input type="radio" name="cr-aspect" value="1:1" /><span>1:1</span></label>
-      <label><input type="radio" name="cr-aspect" value="4:3" /><span>4:3</span></label>
-      <label><input type="radio" name="cr-aspect" value="16:9" /><span>16:9</span></label>
-      <label><input type="radio" name="cr-aspect" value="9:16" /><span>9:16</span></label>
-      <label><input type="radio" name="cr-aspect" value="4:5" /><span>4:5 IG</span></label>
+    <span class="label">{s.aspectLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.aspectLabel}>
+      {s.aspects.map((a, i) => <Fragment>{' '}<label><input type="radio" name="cr-aspect" value={a.value} checked={i === 0} /><span>{a.label}</span></label></Fragment>)}
     </div>
   </div>
 
@@ -26,7 +30,7 @@
     <div class="cr-stage" id="cr-stage">
       <canvas id="cr-canvas" width="1" height="1"></canvas>
       <div class="cr-mask" aria-hidden="true"><div class="cr-hole" id="cr-hole"></div></div>
-      <div class="cr-box" id="cr-box" tabindex="0" role="group" aria-label="裁切範圍：拖曳移動，拖曳邊角調整大小，或用方向鍵移動">
+      <div class="cr-box" id="cr-box" tabindex="0" role="group" aria-label={s.boxAria}>
         <span class="cr-h" data-h="nw"></span>
         <span class="cr-h" data-h="n"></span>
         <span class="cr-h" data-h="ne"></span>
@@ -40,31 +44,31 @@
   </div>
 
   <div class="row">
-    <button class="btn small" type="button" id="cr-rot-l">向左轉 90°</button>
-    <button class="btn small" type="button" id="cr-rot-r">向右轉 90°</button>
-    <button class="btn small" type="button" id="cr-flip-h">水平翻轉</button>
-    <button class="btn small" type="button" id="cr-flip-v">垂直翻轉</button>
-    <button class="btn small ghost" type="button" id="cr-reset">重設</button>
+    <button class="btn small" type="button" id="cr-rot-l">{s.rotateLeft}</button>
+    <button class="btn small" type="button" id="cr-rot-r">{s.rotateRight}</button>
+    <button class="btn small" type="button" id="cr-flip-h">{s.flipH}</button>
+    <button class="btn small" type="button" id="cr-flip-v">{s.flipV}</button>
+    <button class="btn small ghost" type="button" id="cr-reset">{s.reset}</button>
   </div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value" id="cr-size">—</span><span class="stat-label">裁切後尺寸（px）</span></div>
-    <div class="stat"><span class="stat-value" id="cr-ratio">—</span><span class="stat-label">比例</span></div>
-    <div class="stat"><span class="stat-value" id="cr-orig">—</span><span class="stat-label">原圖尺寸（px）</span></div>
+    <div class="stat"><span class="stat-value" id="cr-size">—</span><span class="stat-label">{s.statSize}</span></div>
+    <div class="stat"><span class="stat-value" id="cr-ratio">—</span><span class="stat-label">{s.statRatio}</span></div>
+    <div class="stat"><span class="stat-value" id="cr-orig">—</span><span class="stat-label">{s.statOrig}</span></div>
   </div>
 
   <div class="grid-2">
     <div class="field">
-      <span class="label">輸出格式</span>
-      <div class="seg" role="radiogroup" aria-label="輸出格式">
-        <label><input type="radio" name="cr-format" value="keep" checked /><span>原格式</span></label>
+      <span class="label">{s.formatLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.formatLabel}>
+        <label><input type="radio" name="cr-format" value="keep" checked /><span>{s.keep}</span></label>
         <label><input type="radio" name="cr-format" value="jpeg" /><span>JPG</span></label>
         <label><input type="radio" name="cr-format" value="png" /><span>PNG</span></label>
         <label><input type="radio" name="cr-format" value="webp" /><span>WebP</span></label>
       </div>
     </div>
     <div class="field" id="cr-quality-field">
-      <label for="cr-quality">品質：<output id="cr-quality-out">92</output></label>
+      <label for="cr-quality">{s.qualityBefore}<output id="cr-quality-out">92</output></label>
       <input id="cr-quality" type="range" min="10" max="100" step="1" value="92" />
     </div>
   </div>
@@ -72,13 +76,15 @@
   <p class="notice error" id="cr-error" hidden></p>
 
   <div class="row">
-    <button class="btn primary" type="button" id="cr-download">裁切並下載</button>
+    <button class="btn primary" type="button" id="cr-download">{s.download}</button>
     <span class="hint" id="cr-name"></span>
   </div>
 </div>
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import {
     aspectValue,
     flipRect,
@@ -115,6 +121,7 @@
   }
 
   const root = $('[data-tool="image-crop"]');
+  const { s: str } = readI18n<Strings['client']>(root);
   const drop = $('#cr-drop', root);
   const fileInput = $<HTMLInputElement>('#cr-file', root);
   const workspace = $('#cr-workspace', root);
@@ -148,6 +155,8 @@
   }
   function applyPrefs(p: Prefs) {
     for (const r of aspectRadios) r.checked = r.value === p.aspect;
+    // A ratio saved on another language version may not be offered here.
+    if (!aspectRadios.some((r) => r.checked)) aspectRadios[0].checked = true;
     for (const r of formatRadios) r.checked = r.value === p.format;
     quality.value = String(p.quality);
   }
@@ -248,14 +257,14 @@
 
   async function loadFile(file: File) {
     if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(file.name)) {
-      showError('這不是圖片檔，請選擇 JPG、PNG 或 WebP 等格式的圖片。');
+      showError(str.notImage);
       return;
     }
     try {
       const decoded = await decode(file);
       setSource({ ...decoded, name: file.name || 'image.png', type: file.type });
     } catch {
-      showError('無法讀取這張圖片，可能是瀏覽器不支援此格式（例如 HEIC 請先用「HEIC 轉 JPG」轉檔）或檔案已損毀。');
+      showError(str.readError);
     }
   }
 
@@ -293,8 +302,8 @@
     ridge('#3a3150', 640, [[220, 560], [420, 620], [640, 520], [880, 640], [1060, 560], [1200, 600]]);
     ridge('#211d30', 720, [[300, 690], [600, 730], [900, 680], [1200, 720]]);
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '600 32px -apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
-    ctx.fillText('範例圖片 1200 × 800', 40, 64);
+    ctx.font = str.sampleFont;
+    ctx.fillText(str.sampleText, 40, 64);
     return { image: c, width: 1200, height: 800, name: 'sample.png', type: 'image/png', close: () => {} };
   }
 
@@ -419,7 +428,7 @@
       const blob = await canvasToBlob(out, type, type === 'image/png' ? undefined : Number(quality.value) / 100);
       downloadBlob(blob, outputFilename(src.name, blob.type || type));
     } catch {
-      showError('無法輸出圖片，裁切範圍可能超過瀏覽器的畫布上限（手機約 1600 萬像素），請縮小裁切範圍後再試。');
+      showError(str.exportError);
     } finally {
       out.width = out.height = 0;
       downloadBtn.disabled = false;

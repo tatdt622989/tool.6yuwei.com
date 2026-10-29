@@ -44,16 +44,33 @@ export interface LoanResult {
 
 export const MAX_YEARS = 40;
 
-/** Returns a user-facing problem with the input, or null when it can be computed. */
-export function validateLoan(input: LoanInput): string | null {
+/** Machine-readable input problems; localized messages live in i18n.ts (zh-TW text in MORTGAGE_PROBLEM_ZH). */
+export type MortgageProblem = 'incomplete' | 'amount' | 'rate' | 'years' | 'grace' | 'graceTooLong';
+
+export const MORTGAGE_PROBLEM_ZH: Record<MortgageProblem, string> = {
+  incomplete: '請輸入完整的數字。',
+  amount: '貸款金額需大於 0。',
+  rate: '年利率請輸入 0 到 30 之間的百分比。',
+  years: `貸款年限請輸入 1 到 ${MAX_YEARS} 的整數。`,
+  grace: '寬限期請輸入 0 或正整數。',
+  graceTooLong: '寬限期必須短於貸款年限。',
+};
+
+export function mortgageProblem(input: LoanInput): MortgageProblem | null {
   const { principal, annualRate, years, graceYears } = input;
-  if (![principal, annualRate, years, graceYears].every(Number.isFinite)) return '請輸入完整的數字。';
-  if (principal <= 0) return '貸款金額需大於 0。';
-  if (annualRate < 0 || annualRate > 30) return '年利率請輸入 0 到 30 之間的百分比。';
-  if (!Number.isInteger(years) || years < 1 || years > MAX_YEARS) return `貸款年限請輸入 1 到 ${MAX_YEARS} 的整數。`;
-  if (!Number.isInteger(graceYears) || graceYears < 0) return '寬限期請輸入 0 或正整數。';
-  if (graceYears >= years) return '寬限期必須短於貸款年限。';
+  if (![principal, annualRate, years, graceYears].every(Number.isFinite)) return 'incomplete';
+  if (principal <= 0) return 'amount';
+  if (annualRate < 0 || annualRate > 30) return 'rate';
+  if (!Number.isInteger(years) || years < 1 || years > MAX_YEARS) return 'years';
+  if (!Number.isInteger(graceYears) || graceYears < 0) return 'grace';
+  if (graceYears >= years) return 'graceTooLong';
   return null;
+}
+
+/** Returns a user-facing (zh-TW) problem with the input, or null when it can be computed. */
+export function validateLoan(input: LoanInput): string | null {
+  const problem = mortgageProblem(input);
+  return problem ? MORTGAGE_PROBLEM_ZH[problem] : null;
 }
 
 /** Fixed monthly payment that repays `principal` over `months` at monthly rate `r`. */
@@ -117,4 +134,26 @@ export function summarizeByYear(months: MonthRow[]): YearRow[] {
 /** 萬元 → 元. */
 export function wanToYuan(wan: number): number {
   return wan * 10_000;
+}
+
+// ---- US-style inputs (en): home price, down payment and monthly housing costs ----
+
+/** Loan amount after a down payment given as a percentage of the price. NaN for invalid input. */
+export function loanFromPrice(price: number, downPct: number): number {
+  if (!Number.isFinite(price) || !Number.isFinite(downPct) || price <= 0 || downPct < 0 || downPct > 100) return Number.NaN;
+  return price * (1 - downPct / 100);
+}
+
+export interface HousingCosts {
+  /** Annual property tax. */
+  propertyTaxYear: number;
+  /** Annual homeowners insurance. */
+  insuranceYear: number;
+  /** Monthly HOA dues. */
+  hoaMonth: number;
+}
+
+/** Monthly PITI(+HOA): principal & interest plus 1/12 of yearly tax and insurance plus HOA dues. */
+export function monthlyHousingPayment(principalAndInterest: number, costs: HousingCosts): number {
+  return principalAndInterest + costs.propertyTaxYear / 12 + costs.insuranceYear / 12 + costs.hoaMonth;
 }

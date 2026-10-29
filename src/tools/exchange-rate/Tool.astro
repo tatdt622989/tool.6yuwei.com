@@ -1,30 +1,35 @@
 ---
-import { CURRENCIES } from './logic';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 ---
 
-<div class="tool" data-tool="exchange-rate">
+<div class="tool" data-tool="exchange-rate" {...i18nAttrs(locale, s.client)}>
   <div class="field">
-    <label for="fx-amount">金額</label>
+    <label for="fx-amount">{s.amountLabel}</label>
     <input id="fx-amount" type="text" inputmode="decimal" autocomplete="off" value="1000" class="fx-amount" />
   </div>
 
   <div class="fx-pair">
     <div class="field">
-      <label for="fx-from">從</label>
+      <label for="fx-from">{s.fromLabel}</label>
       <select id="fx-from">
-        {CURRENCIES.map((c) => <option value={c.code} selected={c.code === 'USD'}>{c.code} {c.name}</option>)}
+        {s.currencies.map((c) => <option value={c.code} selected={c.code === s.defaultFrom}>{c.code} {c.name}</option>)}
       </select>
     </div>
-    <button type="button" class="btn ghost fx-swap" id="fx-swap" aria-label="交換幣別">⇄</button>
+    <button type="button" class="btn ghost fx-swap" id="fx-swap" aria-label={s.swapAria}>⇄</button>
     <div class="field">
-      <label for="fx-to">換成</label>
+      <label for="fx-to">{s.toLabel}</label>
       <select id="fx-to">
-        {CURRENCIES.map((c) => <option value={c.code} selected={c.code === 'TWD'}>{c.code} {c.name}</option>)}
+        {s.currencies.map((c) => <option value={c.code} selected={c.code === s.defaultTo}>{c.code} {c.name}</option>)}
       </select>
     </div>
   </div>
 
-  <p class="notice" id="fx-status">正在取得最新匯率…</p>
+  <p class="notice" id="fx-status">{s.loading}</p>
 
   <div id="fx-output" hidden>
     <div class="result" aria-live="polite">
@@ -33,11 +38,11 @@ import { CURRENCIES } from './logic';
     </div>
     <div class="row between fx-meta">
       <span class="hint" id="fx-updated"></span>
-      <button type="button" class="btn small ghost" data-copy="#fx-result">複製結果</button>
+      <button type="button" class="btn small ghost" data-copy="#fx-result">{s.copyResult}</button>
     </div>
 
     <div class="field">
-      <span class="label" id="fx-quick-title">快速對照</span>
+      <span class="label" id="fx-quick-title">{s.quickTitle}</span>
       <div class="table-wrap">
         <table class="table" aria-labelledby="fx-quick-title">
           <thead><tr><th class="num" id="fx-quick-from">—</th><th class="num" id="fx-quick-to">—</th></tr></thead>
@@ -47,10 +52,10 @@ import { CURRENCIES } from './logic';
     </div>
 
     <div class="field">
-      <span class="label" id="fx-common-title">常用貨幣兌新台幣（中價參考）</span>
+      <span class="label" id="fx-common-title">{s.commonTitle}</span>
       <div class="table-wrap">
         <table class="table" aria-labelledby="fx-common-title">
-          <thead><tr><th>幣別</th><th class="num">1 單位 = 新台幣</th><th class="num">1 新台幣 =</th></tr></thead>
+          <thead><tr><th>{s.commonHead[0]}</th><th class="num">{s.commonHead[1]}</th><th class="num">{s.commonHead[2]}</th></tr></thead>
           <tbody id="fx-common"></tbody>
         </table>
       </div>
@@ -58,16 +63,19 @@ import { CURRENCIES } from './logic';
   </div>
 
   <p class="hint">
-    匯率為國際市場中價參考匯率，每日更新，資料來源：<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a>。銀行實際買賣的即期與現金匯率會加上價差，換匯前請以銀行牌告為準。輸入的金額只在你的瀏覽器內計算。
+    {s.hintBefore}<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a>{s.hintAfter}
   </p>
 </div>
 
 <script>
   import { $, loadPref, savePref } from '../../lib/client';
   import { formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
   import {
     convert,
-    currencyName,
     decimalsFor,
     isFresh,
     parseRateResponse,
@@ -77,11 +85,13 @@ import { CURRENCIES } from './logic';
     type CachedRates,
   } from './logic';
 
-  const KEY = 'exchange-rate';
   const CACHE_KEY = 'exchange-rate:cache';
-  const COMMON = ['USD', 'JPY', 'EUR', 'CNY', 'HKD', 'KRW', 'GBP', 'AUD', 'SGD', 'THB', 'VND', 'MYR', 'PHP', 'CAD'];
 
   const root = $('[data-tool="exchange-rate"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const KEY = s.prefKey;
+  const HOME = s.home;
+  const currencyName = (code: string) => s.names[code] ?? code;
   const amount = $<HTMLInputElement>('#fx-amount', root);
   const from = $<HTMLSelectElement>('#fx-from', root);
   const to = $<HTMLSelectElement>('#fx-to', root);
@@ -96,14 +106,22 @@ import { CURRENCIES } from './logic';
   let cache: CachedRates | null = loadPref<CachedRates | null>(CACHE_KEY, null);
   if (cache && !parseRateResponse({ result: 'success', base_code: 'TWD', rates: cache.data?.rates })) cache = null;
 
-  const fmt = (v: number) => formatNumber(v, decimalsFor(v));
+  const fmt = (v: number) => formatNumber(v, decimalsFor(v), locale);
   const set = (id: string, text: string) => {
     $(id, root).textContent = text;
   };
   const timeText = (unix: number) =>
     unix > 0
-      ? new Date(unix * 1000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : '未知';
+      ? new Date(unix * 1000).toLocaleString(LOCALE_INFO[locale].intl, {
+          ...(s.timeZone ? { timeZone: s.timeZone } : {}),
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          ...(s.timeZoneName ? { timeZoneName: 'short' as const } : {}),
+        })
+      : s.unknown;
 
   function showStatus(text: string, kind: '' | 'error' | 'ok' = '') {
     status.textContent = text;
@@ -125,33 +143,49 @@ import { CURRENCIES } from './logic';
     output.hidden = false;
     const a = amount.value.trim() === '' ? 1 : parseNumber(amount.value);
     const f = from.value;
-    const t = to.value;
+    const to_ = to.value;
 
-    if (!rates[f] || !rates[t]) {
+    if (!rates[f] || !rates[to_]) {
       set('#fx-result', '—');
-      set('#fx-rate', '暫無此幣別的匯率資料。');
+      set('#fx-rate', s.noRate);
       return;
     }
-    const value = convert(a, f, t, rates);
-    set('#fx-result', Number.isFinite(value) ? `${fmt(value)} ${t}` : '請輸入數字');
-    set('#fx-rate', `${formatNumber(a, 4)} ${currencyName(f)} ＝ ${Number.isFinite(value) ? fmt(value) : '—'} ${currencyName(t)}｜1 ${f} = ${fmt(unitRate(f, t, rates))} ${t}，1 ${t} = ${fmt(unitRate(t, f, rates))} ${f}`);
-    set('#fx-updated', `匯率更新時間：${timeText(cache.data.updatedUnix)}（台灣時間）`);
+    const value = convert(a, f, to_, rates);
+    set('#fx-result', Number.isFinite(value) ? `${fmt(value)} ${to_}` : s.enterNumber);
+    set(
+      '#fx-rate',
+      t(s.rateLine, {
+        a: formatNumber(a, 4, locale),
+        fromName: currencyName(f),
+        value: Number.isFinite(value) ? fmt(value) : '—',
+        toName: currencyName(to_),
+        from: f,
+        to: to_,
+        r1: fmt(unitRate(f, to_, rates)),
+        r2: fmt(unitRate(to_, f, rates)),
+      }),
+    );
+    set('#fx-updated', t(s.updated, { time: timeText(cache.data.updatedUnix) }));
 
-    set('#fx-quick-from', `${currencyName(f)}（${f}）`);
-    set('#fx-quick-to', `${currencyName(t)}（${t}）`);
+    set('#fx-quick-from', t(s.quickHead, { name: currencyName(f), code: f }));
+    set('#fx-quick-to', t(s.quickHead, { name: currencyName(to_), code: to_ }));
     $('#fx-quick', root).replaceChildren(
       ...quickAmounts(f).map((n) => {
         const tr = document.createElement('tr');
-        const v = convert(n, f, t, rates);
-        tr.append(cell(formatNumber(n, 0)), cell(fmt(v)));
+        const v = convert(n, f, to_, rates);
+        tr.append(cell(formatNumber(n, 0, locale)), cell(fmt(v)));
         return tr;
       }),
     );
 
     $('#fx-common', root).replaceChildren(
-      ...COMMON.filter((c) => rates[c]).map((c) => {
+      ...s.common.filter((c) => rates[c] && rates[HOME]).map((c) => {
         const tr = document.createElement('tr');
-        tr.append(cell(`${currencyName(c)} ${c}`, false), cell(fmt(unitRate(c, 'TWD', rates))), cell(`${fmt(rates[c])} ${c}`));
+        tr.append(
+          cell(t(s.commonCell, { name: currencyName(c), code: c }), false),
+          cell(fmt(unitRate(c, HOME, rates))),
+          cell(`${fmt(unitRate(HOME, c, rates))} ${c}`),
+        );
         return tr;
       }),
     );
@@ -177,11 +211,11 @@ import { CURRENCIES } from './logic';
       render();
     } catch {
       if (cache) {
-        showStatus(`目前無法連線取得最新匯率，以下使用 ${timeText(cache.data.updatedUnix)} 的快取資料。`);
+        showStatus(t(s.cached, { time: timeText(cache.data.updatedUnix) }));
         render();
       } else {
         output.hidden = true;
-        showStatus('目前無法取得匯率資料，可能是網路離線。請確認連線後重新整理頁面。', 'error');
+        showStatus(s.offline, 'error');
       }
     } finally {
       window.clearTimeout(timer);

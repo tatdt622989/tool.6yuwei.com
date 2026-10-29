@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluate, factorial, formatResult, groupDigits, normalizeExpression, pushHistory, roundSignificant, type EvalOptions } from './logic';
+import { ERROR_MESSAGES, evaluate, factorial, formatResult, groupDigits, normalizeExpression, pushHistory, roundSignificant, type EvalOptions } from './logic';
 
 const deg: EvalOptions = { angle: 'deg' };
 const rad: EvalOptions = { angle: 'rad' };
@@ -219,6 +219,44 @@ describe('errors', () => {
   it('never executes code', () => {
     expect(error('alert(1)')).toContain('無法辨識');
     expect(error('constructor')).toContain('無法辨識');
+  });
+});
+
+describe('error codes (for localized messages)', () => {
+  function code(expr: string, opts: EvalOptions = deg) {
+    const r = evaluate(expr, opts);
+    if (r.ok) throw new Error(`${expr} unexpectedly = ${r.value}`);
+    return r;
+  }
+
+  it.each([
+    ['', 'empty'],
+    ['1/0', 'divideByZero'],
+    ['1+', 'incomplete'],
+    ['(1+2))', 'extraRightParen'],
+    ['()', 'emptyParens'],
+    ['1.2.3', 'multipleDots'],
+    ['%', 'missingValueBeforeOperator'],
+    ['10^400', 'tooLarge'],
+    ['tan(90)', 'tanUndefined90'],
+    ['2.5!', 'factorialDomain'],
+    ['log(0)', 'logDomain'],
+    ['√(-4)', 'sqrtNegative'],
+    ['(-4)^0.5', 'negativeFractionalPower'],
+  ] as const)('%s → %s', (expr, c) => {
+    expect(code(expr).code).toBe(c);
+  });
+
+  it('carries template variables and keeps the zh-TW message', () => {
+    const unknown = code('2$3');
+    expect(unknown.code).toBe('unknownChar');
+    expect(unknown.vars).toEqual({ ch: '$' });
+    expect(unknown.error).toBe('無法辨識的字元「$」');
+    const asin = code('asin(2)');
+    expect(asin.code).toBe('inverseTrigDomain');
+    expect(asin.vars).toEqual({ fn: 'sin⁻¹' });
+    expect(asin.error).toBe('sin⁻¹ 的輸入必須介於 -1 到 1');
+    expect(code('1/0').error).toBe(ERROR_MESSAGES.divideByZero);
   });
 });
 

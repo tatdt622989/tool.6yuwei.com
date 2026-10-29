@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import i18n, { type RatingId } from './i18n';
 import {
+  RATINGS,
   LOCK_MS,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
@@ -129,5 +131,21 @@ describe('stats', () => {
   it('sanitises stored data', () => {
     expect(sanitizeBest({ bestAverage: 230, bestSingle: 'x' })).toEqual({ bestAverage: 230, bestSingle: null });
     expect(sanitizeBest(undefined)).toEqual({ bestAverage: null, bestSingle: null });
+  });
+});
+
+describe('i18n', () => {
+  it('has a label and note for every rating in every locale', () => {
+    expect(Object.keys(i18n).sort()).toEqual(['en', 'ja', 'zh-TW']);
+    for (const strings of Object.values(i18n)) {
+      for (const r of RATINGS) {
+        expect(strings!.client.ratings[r.id as RatingId]?.label, r.id).toBeTruthy();
+        expect(strings!.client.ratings[r.id as RatingId]?.note, r.id).toBeTruthy();
+      }
+    }
+  });
+
+  it('keeps the zh-TW rating text identical to logic', () => {
+    for (const r of RATINGS) expect(i18n['zh-TW']!.client.ratings[r.id as RatingId]).toEqual({ label: r.label, note: r.note });
   });
 });

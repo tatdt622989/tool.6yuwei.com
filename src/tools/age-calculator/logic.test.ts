@@ -4,9 +4,14 @@ import {
   birthdayInYear,
   calcAge,
   constellationOf,
+  kanshiOf,
   nominalAge,
   rocLabel,
   rocToAD,
+  SIGN_IDS,
+  signOf,
+  warekiLabel,
+  warekiOf,
   zodiacOf,
   type YMD,
 } from './logic';
@@ -108,5 +113,58 @@ describe('constellationOf', () => {
     expect(constellationOf(10, 29)).toBe('天蠍座');
     expect(constellationOf(12, 22)).toBe('摩羯座');
     expect(constellationOf(2, 29)).toBe('雙魚座');
+  });
+});
+
+describe('locale-neutral sign ids', () => {
+  it('agrees with constellationOf on every boundary', () => {
+    const zh = ['摩羯座', '水瓶座', '雙魚座', '牡羊座', '金牛座', '雙子座', '巨蟹座', '獅子座', '處女座', '天秤座', '天蠍座', '射手座'];
+    for (let m = 1; m <= 12; m++) {
+      for (const d of [1, 18, 19, 20, 21, 22, 23, 24, 28]) {
+        expect(zh[SIGN_IDS.indexOf(signOf(m, d))]).toBe(constellationOf(m, d));
+      }
+    }
+    expect(signOf(12, 22)).toBe('capricorn');
+    expect(signOf(1, 19)).toBe('capricorn');
+    expect(signOf(3, 21)).toBe('aries');
+  });
+});
+
+describe('Japan: 干支 and 和暦', () => {
+  it('computes 十二支 and 六十干支', () => {
+    expect(kanshiOf(1984)).toEqual({ shi: '子', shiKana: 'ね', kanshi: '甲子', kanshiKana: 'きのえね' });
+    expect(kanshiOf(1990).kanshi).toBe('庚午');
+    expect(kanshiOf(1990).kanshiKana).toBe('かのえうま');
+    expect(kanshiOf(2026).kanshi).toBe('丙午');
+    expect(kanshiOf(2024).shi).toBe('辰');
+    expect(kanshiOf(1923).kanshi).toBe('癸亥');
+  });
+
+  it('converts dates to 和暦 at the exact era boundaries', () => {
+    expect(warekiOf(ymd(2019, 4, 30))).toEqual({ era: '平成', year: 31 });
+    expect(warekiOf(ymd(2019, 5, 1))).toEqual({ era: '令和', year: 1 });
+    expect(warekiOf(ymd(1989, 1, 7))).toEqual({ era: '昭和', year: 64 });
+    expect(warekiOf(ymd(1989, 1, 8))).toEqual({ era: '平成', year: 1 });
+    expect(warekiOf(ymd(1926, 12, 24))).toEqual({ era: '大正', year: 15 });
+    expect(warekiOf(ymd(1926, 12, 25))).toEqual({ era: '昭和', year: 1 });
+    expect(warekiOf(ymd(1912, 7, 29))).toEqual({ era: '明治', year: 45 });
+    expect(warekiOf(ymd(1912, 7, 30))).toEqual({ era: '大正', year: 1 });
+    expect(warekiOf(ymd(1873, 1, 1))).toEqual({ era: '明治', year: 6 });
+    expect(warekiOf(ymd(1872, 12, 31))).toBeNull();
+  });
+
+  it('labels 元年 and falls back to 西暦', () => {
+    expect(warekiLabel(ymd(1990, 6, 15))).toBe('平成2年6月15日');
+    expect(warekiLabel(ymd(2019, 5, 1))).toBe('令和元年5月1日');
+    expect(warekiLabel(ymd(2026, 10, 29))).toBe('令和8年10月29日');
+    expect(warekiLabel(ymd(1850, 1, 1))).toBe('1850年1月1日');
+  });
+});
+
+describe('extra result fields', () => {
+  it('reports age in whole months and the sign id', () => {
+    const r = calcAge(ymd(1990, 6, 15), ymd(2026, 10, 29))!;
+    expect(r.totalMonths).toBe(36 * 12 + 4);
+    expect(r.sign).toBe('gemini');
   });
 });

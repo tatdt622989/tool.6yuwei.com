@@ -29,6 +29,15 @@ export interface DepositInput {
   ratePct: number;
   months: number;
   compound: boolean;
+  /**
+   * How `ratePct` is quoted. 'apr' (default, zh) = nominal annual rate compounded `periodsPerYear` times;
+   * 'apy' (US savings / CDs) = annual percentage yield, the effective rate after a year of compounding.
+   */
+  rateKind?: 'apr' | 'apy';
+  /** Compounding periods per year for an APR: 12 (default), 365 daily, 4 quarterly, 1 annually. */
+  periodsPerYear?: number;
+  /** Recurring mode only: balance already in the account before the first monthly deposit. Default 0. */
+  initial?: number;
 }
 
 export interface DepositRow {
@@ -54,14 +63,51 @@ export interface DepositResult {
   rows: DepositRow[];
 }
 
-export function validateDeposit(input: DepositInput): string | null {
+export type DepositProblem = 'incomplete' | 'amount' | 'tooLarge' | 'rate' | 'months' | 'initial';
+
+/** Locale-neutral validation; UI maps the code to a message. */
+export function depositProblem(input: Pick<DepositInput, 'amount' | 'ratePct' | 'months' | 'initial'>): DepositProblem | null {
   const { amount, ratePct, months } = input;
-  if (![amount, ratePct, months].every(Number.isFinite)) return '請輸入完整的數字。';
-  if (amount <= 0) return '金額需大於 0。';
-  if (amount > 1e11) return '金額過大。';
-  if (ratePct < 0 || ratePct > 20) return '年利率請輸入 0% 到 20%。';
-  if (!Number.isInteger(months) || months < 1 || months > 600) return '存款期間請輸入 1 到 600 個月。';
+  if (![amount, ratePct, months].every(Number.isFinite)) return 'incomplete';
+  if (amount <= 0) return 'amount';
+  if (amount > 1e11) return 'tooLarge';
+  if (ratePct < 0 || ratePct > 20) return 'rate';
+  if (!Number.isInteger(months) || months < 1 || months > 600) return 'months';
+  if (input.initial !== undefined && (!Number.isFinite(input.initial) || input.initial < 0 || input.initial > 1e11)) return 'initial';
   return null;
+}
+
+const ZH_PROBLEMS: Record<DepositProblem, string> = {
+  incomplete: '請輸入完整的數字。',
+  amount: '金額需大於 0。',
+  tooLarge: '金額過大。',
+  rate: '年利率請輸入 0% 到 20%。',
+  months: '存款期間請輸入 1 到 600 個月。',
+  initial: '請輸入 0 以上的金額。',
+};
+
+/** zh-TW message for the first problem, or null. */
+export function validateDeposit(input: DepositInput): string | null {
+  const problem = depositProblem(input);
+  return problem ? ZH_PROBLEMS[problem] : null;
+}
+
+/**
+ * Monthly rate used for the month-by-month schedule.
+ * APR compounded monthly → APR ÷ 12 (zh default, exact). Other frequencies → the monthly rate with the same
+ * effective yield, so balances match the true compounding at each compounding date.
+ * APY → (1 + APY)^(1/12) − 1, so 12 months grow by exactly the APY.
+ */
+export function monthlyRate(ratePct: number, rateKind: 'apr' | 'apy' = 'apr', periodsPerYear = 12): number {
+  const r = ratePct / 100;
+  if (rateKind === 'apy') return (1 + r) ** (1 / 12) - 1;
+  if (periodsPerYear === 12) return r / 12;
+  return (1 + r / periodsPerYear) ** (periodsPerYear / 12) - 1;
+}
+
+/** Effective annual yield (APY, %) of a monthly rate. */
+export function effectiveApyPct(monthly: number): number {
+  return ((1 + monthly) ** 12 - 1) * 100;
 }
 
 /** 補充保費：單次給付達門檻才扣，費率 2.11%，單次上限 1,000 萬元。四捨五入至元。 */
@@ -80,7 +126,8 @@ export function withholdingTax(payment: number): number {
 export function calculateDeposit(input: DepositInput): DepositResult | null {
   if (validateDeposit(input)) return null;
   const { mode, amount, ratePct, months, compound } = input;
-  const i = ratePct / 100 / 12;
+  const i = monthlyRate(ratePct, input.rateKind, input.periodsPerYear);
+  const initial = mode === 'recurring' ? (input.initial ?? 0) : 0;
   const rows: DepositRow[] = [];
   let deposited = 0;
   let balance = 0;
@@ -96,7 +143,8 @@ export function calculateDeposit(input: DepositInput): DepositResult | null {
     balance = amount;
   } else {
     if (mode === 'lump') deposited = amount;
-    balance = mode === 'lump' ? amount : 0;
+    else deposited = initial;
+    balance = mode === 'lump' ? amount : initial;
     for (let m = 1; m <= months; m++) {
       if (mode === 'recurring') {
         deposited += amount;
@@ -123,5 +171,78 @@ export function calculateDeposit(input: DepositInput): DepositResult | null {
     withholding: withholdingTax(singlePayment) * payments,
     annualInterest: (accrued / months) * 12,
     rows,
+  };
+}
+
+// ---- Japan: 定期預金 (ja) ----
+
+/**
+ * 利子所得の源泉分離課税（2037 年まで）：所得税 15% + 復興特別所得税 0.315%（＝15.315%）、住民税（利子割）5%、計 20.315%。
+ * 銀行は国税と地方税をそれぞれ 1 円未満切り捨てで計算して差し引く。
+ */
+export const JP_INTEREST_TAX = { nationalPct: 15.315, localPct: 5 } as const;
+
+export interface JpInterestTax {
+  /** 所得税及び復興特別所得税（15.315%） */
+  national: number;
+  /** 住民税（5%） */
+  local: number;
+  total: number;
+}
+
+/** Tax withheld on a yen interest amount: each part truncated to the yen. */
+export function jpInterestTax(grossYen: number): JpInterestTax {
+  const gross = Math.max(0, Math.floor(grossYen));
+  const national = Math.floor((gross * 15_315) / 100_000);
+  const local = Math.floor((gross * 5) / 100);
+  return { national, local, total: national + local };
+}
+
+/** 単利型 (most 定期預金) or 半年複利型 (期間 3 年以上の個人向けに多い). */
+export type JpDepositType = 'simple' | 'semiannual';
+
+export interface JpDepositInput {
+  principal: number;
+  /** 年利率（%、税引前）。 */
+  ratePct: number;
+  months: number;
+  type: JpDepositType;
+}
+
+export interface JpDepositResult {
+  /** 税引前利息（円、1 円未満切り捨て）。 */
+  gross: number;
+  tax: JpInterestTax;
+  /** 税引後利息。 */
+  net: number;
+  /** 満期受取額（元本 + 税引後利息）。 */
+  maturity: number;
+  /** 税引後の実質年利回り（%、単利換算）。 */
+  netYieldPct: number;
+}
+
+/**
+ * 定期預金の満期利息。期間は月数 ÷ 12 年で近似（銀行は実際の預入日数 ÷ 365 で日割り計算）。
+ * 半年複利型は 6 か月ごとに利息（1 円未満切り捨て）を元本に組み入れ、端数月は単利。税は満期時にまとめて源泉徴収。
+ */
+export function calculateJpTimeDeposit(input: JpDepositInput): JpDepositResult | null {
+  const { principal, ratePct, months, type } = input;
+  if (depositProblem({ amount: principal, ratePct, months })) return null;
+  const r = ratePct / 100;
+  const eps = 1e-6;
+  let balance = principal;
+  let rest = months;
+  if (type === 'semiannual') {
+    for (; rest >= 6; rest -= 6) balance += Math.floor((balance * r) / 2 + eps);
+  }
+  const gross = Math.floor(balance - principal + (balance * r * rest) / 12 + eps);
+  const tax = jpInterestTax(gross);
+  const net = gross - tax.total;
+  return {
+    gross,
+    tax,
+    net,
+    maturity: principal + net,
+    netYieldPct: (net / principal / (months / 12)) * 100,
   };
 }

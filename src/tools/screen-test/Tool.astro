@@ -1,19 +1,25 @@
 ---
-import { PATTERNS, SET_NAMES, type PatternSet } from './logic';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { t } from '../../i18n/format';
+import i18n from './i18n';
+import { PATTERNS, type PatternSet } from './logic';
 
-const sets: { id: PatternSet; desc: string }[] = [
-  { id: 'pixels', desc: '黑、白、紅、綠、藍、灰六種純色，找出亮點與暗點。' },
-  { id: 'gradient', desc: '灰階與 RGB 漸層，檢查色彩斷層與暗部細節。' },
-  { id: 'uniformity', desc: '全黑與多階灰，在暗室檢查漏光、雲紋與亮度不均。' },
-];
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const str = pickStrings(i18n, locale);
+const sets: { id: PatternSet; desc: string }[] = (['pixels', 'gradient', 'uniformity'] as const).map((id) => ({
+  id,
+  desc: str.setDesc[id],
+}));
+const patternName = (id: string) => str.client.patterns[id]?.name ?? id;
 ---
 
-<div class="tool" data-tool="screen-test">
+<div class="tool" data-tool="screen-test" {...i18nAttrs(locale, str.client)}>
   <div class="stats" aria-live="polite">
-    <div class="stat"><span class="stat-value" id="sc-res">—</span><span class="stat-label">螢幕解析度（CSS 像素）</span></div>
-    <div class="stat"><span class="stat-value" id="sc-phys">—</span><span class="stat-label">實際像素（估算）</span></div>
-    <div class="stat"><span class="stat-value" id="sc-dpr">—</span><span class="stat-label">縮放比 devicePixelRatio</span></div>
-    <div class="stat"><span class="stat-value" id="sc-depth">—</span><span class="stat-label">色彩深度</span></div>
+    <div class="stat"><span class="stat-value" id="sc-res">—</span><span class="stat-label">{str.statRes}</span></div>
+    <div class="stat"><span class="stat-value" id="sc-phys">—</span><span class="stat-label">{str.statPhys}</span></div>
+    <div class="stat"><span class="stat-value" id="sc-dpr">—</span><span class="stat-label">{str.statDpr}</span></div>
+    <div class="stat"><span class="stat-value" id="sc-depth">—</span><span class="stat-label">{str.statDepth}</span></div>
   </div>
 
   <div class="sc-sets">
@@ -21,7 +27,7 @@ const sets: { id: PatternSet; desc: string }[] = [
       sets.map((s) => (
         <section class="sc-set" data-set={s.id}>
           <div class="sc-set-head">
-            <h3 class="sc-set-title">{SET_NAMES[s.id]}</h3>
+            <h3 class="sc-set-title">{str.setNames[s.id]}</h3>
             <p class="hint">{s.desc}</p>
           </div>
           <div class="sc-swatches">
@@ -32,30 +38,28 @@ const sets: { id: PatternSet; desc: string }[] = [
                 data-set={s.id}
                 data-index={i}
                 style={`background:${p.background}`}
-                title={p.name}
-                aria-label={`從「${p.name}」開始全螢幕測試`}
+                title={patternName(p.id)}
+                aria-label={t(str.swatchAria, { name: patternName(p.id) })}
               />
             ))}
           </div>
           <button type="button" class="btn sc-start" data-set={s.id} data-index="0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
-            全螢幕開始
-          </button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>{`\n${str.start}\n`}</button>
         </section>
       ))
     }
   </div>
 
   <div class="row between">
-    <label class="check"><input type="checkbox" id="sc-tips" checked /> 切換畫面時短暫顯示說明</label>
-    <span class="hint">操作：點擊或按 → 下一個，← 上一個，Esc 離開</span>
+    <label class="check"><input type="checkbox" id="sc-tips" checked /> {str.tipsToggle}</label>
+    <span class="hint">{str.controls}</span>
   </div>
 
   <p class="notice" id="sc-note" hidden></p>
 
-  <p class="hint">測試前請先擦乾淨螢幕，灰塵很容易被誤認為壞點。所有畫面都在你的瀏覽器中產生，不會上傳任何資料。</p>
+  <p class="hint">{str.footnote}</p>
 
-  <div class="sc-stage" id="sc-stage" hidden tabindex="-1" role="dialog" aria-modal="true" aria-label="全螢幕螢幕測試">
+  <div class="sc-stage" id="sc-stage" hidden tabindex="-1" role="dialog" aria-modal="true" aria-label={str.stageAria}>
     <div class="sc-hud" id="sc-hud">
       <div class="sc-hud-text">
         <strong id="sc-name"></strong>
@@ -63,13 +67,13 @@ const sets: { id: PatternSet; desc: string }[] = [
         <span class="sc-tip" id="sc-tip"></span>
       </div>
       <div class="sc-hud-actions">
-        <button type="button" class="sc-icon" id="sc-prev" aria-label="上一個">
+        <button type="button" class="sc-icon" id="sc-prev" aria-label={str.prev}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
         </button>
-        <button type="button" class="sc-icon" id="sc-next" aria-label="下一個">
+        <button type="button" class="sc-icon" id="sc-next" aria-label={str.next}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
         </button>
-        <button type="button" class="sc-icon" id="sc-exit" aria-label="離開全螢幕測試">
+        <button type="button" class="sc-icon" id="sc-exit" aria-label={str.exit}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
         </button>
       </div>
@@ -80,6 +84,8 @@ const sets: { id: PatternSet; desc: string }[] = [
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatInteger } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import { isPatternSet, keyAction, nextIndex, PATTERNS, physicalResolution, prevIndex, tapAction, type PatternSet } from './logic';
 
   interface Prefs {
@@ -90,6 +96,7 @@ const sets: { id: PatternSet; desc: string }[] = [
   type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
 
   const root = $('[data-tool="screen-test"]');
+  const { locale, s: str } = readI18n<Strings['client']>(root);
   const stage = $<FsElement>('#sc-stage', root);
   const hud = $('#sc-hud', root);
   const nameOut = $('#sc-name', root);
@@ -116,8 +123,8 @@ const sets: { id: PatternSet; desc: string }[] = [
     const { width, height } = window.screen;
     const dpr = window.devicePixelRatio || 1;
     const phys = physicalResolution({ cssWidth: width, cssHeight: height, dpr });
-    $('#sc-res', root).textContent = `${formatInteger(width)} × ${formatInteger(height)}`;
-    $('#sc-phys', root).textContent = `${formatInteger(phys.width)} × ${formatInteger(phys.height)}`;
+    $('#sc-res', root).textContent = `${formatInteger(width, locale)} × ${formatInteger(height, locale)}`;
+    $('#sc-phys', root).textContent = `${formatInteger(phys.width, locale)} × ${formatInteger(phys.height, locale)}`;
     $('#sc-dpr', root).textContent = `${Number(dpr.toFixed(2))}x`;
     $('#sc-depth', root).textContent = `${window.screen.colorDepth} bit`;
   }
@@ -126,9 +133,10 @@ const sets: { id: PatternSet; desc: string }[] = [
     const list = PATTERNS[set];
     const p = list[index];
     stage.style.background = p.background;
-    nameOut.textContent = p.name;
+    const text = str.patterns?.[p.id];
+    nameOut.textContent = text?.name ?? p.name;
     posOut.textContent = `${index + 1} / ${list.length}`;
-    tipOut.textContent = p.tip;
+    tipOut.textContent = text?.tip ?? p.tip;
     wake();
   }
 
@@ -169,7 +177,7 @@ const sets: { id: PatternSet; desc: string }[] = [
     }
     wasFullscreen = fullscreenElement() !== null;
     if (!wasFullscreen) {
-      note.textContent = '這個瀏覽器不支援網頁全螢幕，已改用覆蓋整個視窗的模式。iPhone 可先把網頁「加入主畫面」再開啟，或橫放手機以減少瀏覽器工具列。';
+      note.textContent = str.noFullscreen;
     }
     try {
       wakeLock = (await navigator.wakeLock?.request('screen')) ?? null;

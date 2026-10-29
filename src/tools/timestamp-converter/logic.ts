@@ -24,16 +24,33 @@ export function detectUnit(value: number): Unit {
   return 'ns';
 }
 
+/** Validation messages from parseTimestamp (zh defaults; the UI passes its locale's copy). */
+export interface TimestampMessages {
+  empty: string;
+  notNumber: string;
+  outOfRange: string;
+}
+
+export const ZH_MESSAGES: TimestampMessages = {
+  empty: '請輸入時間戳',
+  notNumber: '時間戳只能包含數字，可帶負號或小數點。',
+  outOfRange: '超出可表示的日期範圍（約西元前 271821 年到西元 275760 年）。',
+};
+
 export type TimestampResult = { ok: true; ms: number; unit: Unit } | { ok: false; error: string };
 
-export function parseTimestamp(input: string, unit: Unit | 'auto' = 'auto'): TimestampResult {
+export function parseTimestamp(
+  input: string,
+  unit: Unit | 'auto' = 'auto',
+  messages: TimestampMessages = ZH_MESSAGES,
+): TimestampResult {
   const clean = input.trim().replace(/[,_\s]/g, '');
-  if (clean === '') return { ok: false, error: '請輸入時間戳' };
-  if (!/^-?\d+(\.\d+)?$/.test(clean)) return { ok: false, error: '時間戳只能包含數字，可帶負號或小數點。' };
+  if (clean === '') return { ok: false, error: messages.empty };
+  if (!/^-?\d+(\.\d+)?$/.test(clean)) return { ok: false, error: messages.notNumber };
   const value = Number(clean);
   const u = unit === 'auto' ? detectUnit(value) : unit;
   const ms = value * UNIT_TO_MS[u];
-  if (Math.abs(ms) > MAX_MS) return { ok: false, error: '超出可表示的日期範圍（約西元前 271821 年到西元 275760 年）。' };
+  if (Math.abs(ms) > MAX_MS) return { ok: false, error: messages.outOfRange };
   return { ok: true, ms, unit: u };
 }
 
@@ -117,8 +134,37 @@ export function toIsoWithOffset(ms: number, timeZone: string): string {
   return `${formatDateTime(ms, timeZone).replace(' ', 'T')}${formatOffset(offset)}`;
 }
 
-export function weekday(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat('zh-TW', { timeZone, weekday: 'long' }).format(new Date(ms));
+/** Weekday name in the given zone; `intl` is a BCP 47 tag (zh-TW by default). */
+export function weekday(ms: number, timeZone: string, intl = 'zh-TW'): string {
+  return new Intl.DateTimeFormat(intl, { timeZone, weekday: 'long' }).format(new Date(ms));
+}
+
+/** Full human-readable date and time for a locale, e.g. "Thursday, October 29, 2026 at 3:30:00 PM". */
+export function longDateTime(ms: number, timeZone: string, intl: string): string {
+  return new Intl.DateTimeFormat(intl, { timeZone, dateStyle: 'full', timeStyle: 'medium' }).format(new Date(ms));
+}
+
+/** First instant of the Japanese era calendar as used by Intl (Meiji 6 = 1873-01-01, Gregorian adoption). */
+const WAREKI_START_MS = Date.UTC(1872, 11, 31, 15); // 1873-01-01 00:00 JST
+
+/**
+ * Japanese era date (和暦) such as "令和8年10月29日（木）", or null before 1873 when Japan still used
+ * the lunisolar calendar and a Gregorian-based era date would be misleading.
+ */
+export function wareki(ms: number, timeZone: string): string | null {
+  if (ms < WAREKI_START_MS) return null;
+  const fmt = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {
+    timeZone,
+    era: 'long',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    weekday: 'short',
+  });
+  const parts: Record<string, string> = {};
+  for (const p of fmt.formatToParts(new Date(ms))) parts[p.type] = p.value;
+  const year = parts.year === '1' ? '元' : parts.year;
+  return `${parts.era}${year}年${parts.month}月${parts.day}日（${parts.weekday}）`;
 }
 
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -130,9 +176,9 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['second', 1],
 ];
 
-export function relativeTime(ms: number, nowMs: number): string {
+export function relativeTime(ms: number, nowMs: number, intl = 'zh-TW'): string {
   const diff = (ms - nowMs) / 1000;
-  const rtf = new Intl.RelativeTimeFormat('zh-TW', { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat(intl, { numeric: 'auto' });
   for (const [unit, size] of RELATIVE_UNITS) {
     if (Math.abs(diff) >= size || unit === 'second') return rtf.format(Math.round(diff / size), unit);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_MARKDOWN, buildHtmlDocument, escapeHtml, extractTitle, toFilename } from './logic';
+import { SAMPLE_MARKDOWN, SAMPLE_MARKDOWN_EN, SAMPLE_MARKDOWN_JA, buildHtmlDocument, escapeHtml, extractTitle, toFilename } from './logic';
 
 describe('extractTitle', () => {
   it('reads the first ATX h1 and strips inline markup', () => {
@@ -20,6 +20,8 @@ describe('extractTitle', () => {
 
   it('finds the sample title', () => {
     expect(extractTitle(SAMPLE_MARKDOWN)).toBe('Markdown 預覽範例');
+    expect(extractTitle(SAMPLE_MARKDOWN_EN)).toBe('Markdown preview example');
+    expect(extractTitle(SAMPLE_MARKDOWN_JA)).toBe('Markdown プレビューのサンプル');
   });
 });
 
@@ -41,6 +43,14 @@ describe('buildHtmlDocument', () => {
     expect(doc).toContain('<title>A &lt;b&gt; &amp; C</title>');
     expect(doc).toContain('<body>\n<p>hi</p>\n</body>');
     expect(doc).toContain('<meta charset="utf-8">');
+    expect(doc).toContain('<html lang="zh-Hant-TW">');
+    expect(doc).toContain('"PingFang TC"');
+  });
+
+  it('uses the given document language and fonts', () => {
+    const doc = buildHtmlDocument('<p>hi</p>', 'T', { lang: 'ja', fonts: '"Hiragino Sans", sans-serif' });
+    expect(doc).toContain('<html lang="ja">');
+    expect(doc).toContain('font: 16px/1.75 "Hiragino Sans", sans-serif; }');
   });
 
   it('uses a default title', () => {

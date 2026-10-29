@@ -160,3 +160,13 @@ export function convertAll(text: string): { style: FancyStyle; output: string }[
 export function hasUnconvertible(text: string): boolean {
   return /[^\x00-\x7f]/.test(text.replace(/[\s　]/g, ''));
 }
+
+/**
+ * Full-width ASCII (Ａ–Ｚ, ａ–ｚ, ０–９, ！–～) and the ideographic space → half-width, so text typed
+ * with a Japanese IME in full-width mode can still be styled. Everything else is left as is.
+ */
+export function toHalfwidthAscii(text: string): string {
+  return text
+    .replace(/[\uff01-\uff5e]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/\u3000/g, ' ');
+}

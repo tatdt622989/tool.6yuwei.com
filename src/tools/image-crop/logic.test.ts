@@ -35,6 +35,8 @@ describe('aspectValue', () => {
     expect(aspectValue('1:1')).toBe(1);
     expect(aspectValue('16:9')).toBeCloseTo(16 / 9);
     expect(aspectValue('4:5')).toBeCloseTo(0.8);
+    expect(aspectValue('3:4')).toBeCloseTo(0.75);
+    expect(aspectValue('3:2')).toBeCloseTo(1.5);
     expect(aspectValue('bogus')).toBeNull();
   });
 });

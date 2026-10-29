@@ -1,18 +1,27 @@
-<div class="tool" data-tool="pdf-split">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="pdf-split" {...i18nAttrs(locale, s.client)}>
   <p class="ps-privacy">
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
-    <span><strong>檔案不會上傳。</strong>PDF 分割與擷取全程在你的瀏覽器中完成，檔案不會傳到任何伺服器，機密文件也能安心處理。</span>
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
   </p>
 
   <label class="dropzone" id="ps-drop" tabindex="0">
     <input type="file" id="ps-file" accept="application/pdf,.pdf" hidden />
-    <strong>點擊選擇 PDF，或拖曳到這裡</strong>
-    <span class="hint">選好後會顯示每一頁的縮圖，點選要擷取或刪除的頁面</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="row" id="ps-try">
-    <span class="hint">手邊沒有 PDF？</span>
-    <button class="btn small ghost" type="button" id="ps-sample">用 8 頁範例檔試試</button>
+    <span class="hint">{s.tryHint}</span>
+    <button class="btn small ghost" type="button" id="ps-sample">{s.sample}</button>
   </div>
 
   <p class="notice error" id="ps-note" hidden></p>
@@ -23,54 +32,54 @@
         <strong id="ps-filename"></strong>
         <span class="hint" id="ps-fileinfo"></span>
       </div>
-      <button class="btn small ghost" type="button" id="ps-replace">換一個檔案</button>
+      <button class="btn small ghost" type="button" id="ps-replace">{s.replace}</button>
     </div>
 
     <div class="field">
-      <span class="label">分割方式</span>
-      <div class="seg" role="radiogroup" aria-label="分割方式">
-        <label><input type="radio" name="ps-mode" value="extract" checked /><span>擷取選取頁面</span></label>
-        <label><input type="radio" name="ps-mode" value="delete" /><span>刪除選取頁面</span></label>
-        <label><input type="radio" name="ps-mode" value="each" /><span>每頁存成一個檔</span></label>
-        <label><input type="radio" name="ps-mode" value="every" /><span>每 N 頁分割</span></label>
+      <span class="label">{s.modeLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.modeLabel}>
+        <label><input type="radio" name="ps-mode" value="extract" checked /><span>{s.modeExtract}</span></label>
+        <label><input type="radio" name="ps-mode" value="delete" /><span>{s.modeDelete}</span></label>
+        <label><input type="radio" name="ps-mode" value="each" /><span>{s.modeEach}</span></label>
+        <label><input type="radio" name="ps-mode" value="every" /><span>{s.modeEvery}</span></label>
       </div>
     </div>
 
     <div class="field" id="ps-range-field">
-      <label for="ps-range">頁面範圍</label>
-      <input id="ps-range" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="例如 1-3,5,8-10" />
-      <span class="hint" id="ps-range-hint">輸入頁碼與範圍，或直接點選下方縮圖；按住 Shift 點選可一次選取連續頁面。</span>
+      <label for="ps-range">{s.rangeLabel}</label>
+      <input id="ps-range" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder={s.rangePlaceholder} />
+      <span class="hint" id="ps-range-hint">{s.rangeHint}</span>
       <div class="row">
-        <button class="btn small ghost" type="button" data-select="all">全選</button>
-        <button class="btn small ghost" type="button" data-select="odd">奇數頁</button>
-        <button class="btn small ghost" type="button" data-select="even">偶數頁</button>
-        <button class="btn small ghost" type="button" data-select="invert">反向選取</button>
-        <button class="btn small ghost" type="button" data-select="none">清除選取</button>
+        <button class="btn small ghost" type="button" data-select="all">{s.selAll}</button>
+        <button class="btn small ghost" type="button" data-select="odd">{s.selOdd}</button>
+        <button class="btn small ghost" type="button" data-select="even">{s.selEven}</button>
+        <button class="btn small ghost" type="button" data-select="invert">{s.selInvert}</button>
+        <button class="btn small ghost" type="button" data-select="none">{s.selNone}</button>
       </div>
     </div>
 
     <div class="field" id="ps-every-field" hidden>
-      <label for="ps-every">每幾頁分成一個檔案</label>
+      <label for="ps-every">{s.everyLabel}</label>
       <input id="ps-every" type="number" inputmode="numeric" min="1" step="1" value="2" />
     </div>
 
     <div class="row between">
-      <span class="hint">點縮圖右下角的箭頭可旋轉該頁，輸出時套用。</span>
-      <button class="btn small ghost" type="button" id="ps-rotate-all">全部向右轉 90°</button>
+      <span class="hint">{s.rotateHint}</span>
+      <button class="btn small ghost" type="button" id="ps-rotate-all">{s.rotateAll}</button>
     </div>
 
-    <ol class="ps-grid" id="ps-grid" aria-label="頁面縮圖"></ol>
+    <ol class="ps-grid" id="ps-grid" aria-label={s.gridAria}></ol>
 
     <p class="notice" id="ps-plan" aria-live="polite"></p>
 
     <div class="row">
-      <button class="btn primary" type="button" id="ps-run" disabled>擷取並下載</button>
+      <button class="btn primary" type="button" id="ps-run" disabled>{s.run}</button>
     </div>
 
     <div class="ps-results" id="ps-results" hidden>
       <div class="row between">
         <strong id="ps-results-title"></strong>
-        <button class="btn small" type="button" id="ps-zip">全部下載（ZIP）</button>
+        <button class="btn small" type="button" id="ps-zip">{s.zip}</button>
       </div>
       <ul class="ps-files" id="ps-files"></ul>
     </div>
@@ -80,7 +89,9 @@
 <script>
   import type { PDFDocumentProxy } from 'pdfjs-dist';
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes, formatInteger } from '../../lib/format';
+  import { formatBytes, formatInteger, plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import { addRotation, baseName, formatPageRanges, isPdf, parsePageRanges, planOutputs, type OutputPlan, type SplitMode } from './logic';
   import { createZip } from './zip';
   import { OpenError, openForRender, renderPage } from './pdfjs';
@@ -102,6 +113,7 @@
     '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 10.5l3.2 3L15 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   const root = $('[data-tool="pdf-split"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#ps-drop', root);
   const fileInput = $<HTMLInputElement>('#ps-file', root);
   const note = $('#ps-note', root);
@@ -203,7 +215,7 @@
       const li = document.createElement('li');
       li.className = 'ps-tile';
       li.dataset.page = String(p);
-      li.innerHTML = `<button type="button" class="ps-pick" aria-pressed="false" aria-label="第 ${p} 頁"><span class="ps-thumb"><canvas width="1" height="1"></canvas></span><span class="ps-check">${CHECK_ICON}</span><span class="ps-num">${p}</span><span class="ps-group"></span></button><button type="button" class="ps-rot" aria-label="第 ${p} 頁向右旋轉 90 度" title="向右旋轉 90°">${ROTATE_ICON}</button>`;
+      li.innerHTML = `<button type="button" class="ps-pick" aria-pressed="false" aria-label="${t(s.pageAria, { p })}"><span class="ps-thumb"><canvas width="1" height="1"></canvas></span><span class="ps-check">${CHECK_ICON}</span><span class="ps-num">${p}</span><span class="ps-group"></span></button><button type="button" class="ps-rot" aria-label="${t(s.rotateAria, { p })}" title="${s.rotateTitle}">${ROTATE_ICON}</button>`;
       frag.append(li);
       observer.observe(li);
     }
@@ -230,7 +242,7 @@
       pick.setAttribute('aria-pressed', String(on));
       pick.disabled = !selecting;
       const group = tile.querySelector('.ps-group')!;
-      group.textContent = m === 'every' ? `第 ${Math.ceil(p / n)} 份` : m === 'each' ? `第 ${p} 份` : '';
+      group.textContent = m === 'every' ? t(s.part, { n: Math.ceil(p / n) }) : m === 'each' ? t(s.part, { n: p }) : '';
       const rot = rotations[p] ?? 0;
       tile.style.setProperty('--rot', `${rot}deg`);
       tile.classList.toggle('is-rotated', rot !== 0);
@@ -240,15 +252,21 @@
     const pages = plans.reduce((s, x) => s + x.pages.length, 0);
     let text = '';
     if (!pageCount) text = '';
-    else if (m === 'extract') text = plans.length ? `將輸出 1 個 PDF，包含第 ${formatPageRanges(plans[0].pages)} 頁，共 ${formatInteger(pages)} 頁。` : '尚未選取頁面：點選縮圖或在上方輸入頁碼。';
+    else if (m === 'extract')
+      text = plans.length ? plural(locale, pages, s.planExtract, { ranges: formatPageRanges(plans[0].pages) }) : s.noSelectionExtract;
     else if (m === 'delete')
-      text = selected.size === 0 ? '尚未選取要刪除的頁面：點選縮圖或在上方輸入頁碼。' : plans.length ? `將刪除 ${formatInteger(selected.size)} 頁，輸出剩下的 ${formatInteger(pages)} 頁。` : '不能刪除全部頁面，請至少保留一頁。';
-    else text = `將輸出 ${formatInteger(plans.length)} 個 PDF${plans.length > 1 ? '，打包成一個 ZIP 下載' : ''}。`;
+      text =
+        selected.size === 0
+          ? s.noSelectionDelete
+          : plans.length
+            ? plural(locale, selected.size, s.planDelete, { kept: plural(locale, pages, s.pageCount) })
+            : s.deleteAll;
+    else text = t(plans.length > 1 ? s.planSplitMany : s.planSplitOne, { n: formatInteger(plans.length, locale) });
     plan.textContent = text;
     plan.hidden = !text;
 
     runBtn.disabled = busy || !editable || plans.length === 0;
-    if (!busy) runBtn.textContent = m === 'extract' ? '擷取並下載' : m === 'delete' ? '刪除頁面並下載' : plans.length > 1 ? '分割並下載 ZIP' : '分割並下載';
+    if (!busy) runBtn.textContent = m === 'extract' ? s.runExtract : m === 'delete' ? s.runDelete : plans.length > 1 ? s.runSplitZip : s.runSplit;
   }
 
   function invalidate() {
@@ -289,7 +307,7 @@
     work.hidden = false;
     fileName = file.name;
     $('#ps-filename', root).textContent = file.name;
-    $('#ps-fileinfo', root).textContent = `${formatBytes(file.size)}・讀取中…`;
+    $('#ps-fileinfo', root).textContent = t(s.reading, { size: formatBytes(file.size, locale) });
     plan.hidden = true;
     runBtn.disabled = true;
     try {
@@ -302,14 +320,10 @@
     } catch (err) {
       if (token !== loadToken) return;
       reset();
-      showNote(
-        err instanceof OpenError && err.code === 'encrypted'
-          ? '這份 PDF 需要密碼才能開啟，無法在瀏覽器中分割。請先用原本的軟體輸入密碼並另存一份沒有密碼的 PDF，再重新選擇。'
-          : '無法讀取這個檔案，可能不是 PDF 或檔案已損毀。',
-      );
+      showNote(err instanceof OpenError && err.code === 'encrypted' ? s.openEncrypted : s.openInvalid);
       return;
     }
-    $('#ps-fileinfo', root).textContent = `共 ${formatInteger(pageCount)} 頁・${formatBytes(file.size)}`;
+    $('#ps-fileinfo', root).textContent = t(s.fileInfo, { pages: plural(locale, pageCount, s.pageCount), size: formatBytes(file.size, locale) });
     buildGrid();
     syncRangeInput();
     refresh();
@@ -321,8 +335,8 @@
     } catch (err) {
       if (token !== loadToken) return;
       editable = false;
-      const { errorText } = await ops();
-      showNote(errorText(err));
+      const { errorCode } = await ops();
+      showNote(s.errors[errorCode(err)]);
       refresh();
     }
   }
@@ -371,9 +385,9 @@
   rangeInput.addEventListener(
     'input',
     debounce(() => {
-      const { pages, errors } = parsePageRanges(rangeInput.value, pageCount);
+      const { pages, errors } = parsePageRanges(rangeInput.value, pageCount, s.range);
       selected = new Set(pages);
-      rangeHint.textContent = errors.length ? errors.join('；') : RANGE_HINT;
+      rangeHint.textContent = errors.length ? errors.join(s.errorSep) : RANGE_HINT;
       rangeHint.classList.toggle('ps-bad', errors.length > 0);
       invalidate();
       refresh();
@@ -413,17 +427,17 @@
       name.textContent = out.plan.filename;
       const meta = document.createElement('div');
       meta.className = 'hint';
-      meta.textContent = `${formatInteger(out.plan.pages.length)} 頁・${formatBytes(out.blob.size)}`;
+      meta.textContent = t(s.outMeta, { pages: plural(locale, out.plan.pages.length, s.pageCount), size: formatBytes(out.blob.size, locale) });
       info.append(name, meta);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn small';
-      btn.textContent = '下載';
+      btn.textContent = s.download;
       btn.addEventListener('click', () => downloadBlob(out.blob, out.plan.filename));
       li.append(info, btn);
       filesList.append(li);
     }
-    $('#ps-results-title', root).textContent = `已產生 ${formatInteger(outputs.length)} 個 PDF`;
+    $('#ps-results-title', root).textContent = plural(locale, outputs.length, s.resultsTitle);
     $<HTMLButtonElement>('#ps-zip', root).hidden = outputs.length < 2;
     results.hidden = outputs.length === 0;
   }
@@ -439,14 +453,14 @@
     if (!plans.length) return;
     busy = true;
     runBtn.disabled = true;
-    runBtn.textContent = '處理中…';
+    runBtn.textContent = s.processing;
     try {
       const { buildFromPages } = await ops();
       const made = await buildFromPages(
         bytes,
         plans.map((p) => p.pages),
         rotations,
-        (n, total) => total > 1 && (runBtn.textContent = `處理中…（${n}/${total}）`),
+        (n, total) => total > 1 && (runBtn.textContent = t(s.processingProgress, { n, total })),
       );
       outputs = made.map((data, i) => ({
         plan: plans[i],
@@ -457,8 +471,8 @@
       if (outputs.length === 1) downloadBlob(outputs[0].blob, outputs[0].plan.filename);
       else downloadZip();
     } catch (err) {
-      const { errorText } = await ops();
-      showNote(`處理失敗：${errorText(err)}`);
+      const { errorCode } = await ops();
+      showNote(t(s.failed, { error: s.errors[errorCode(err)] }));
     } finally {
       busy = false;
       refresh();
@@ -481,11 +495,11 @@
   function pick(files: File[]) {
     const pdfFile = files.find((f) => isPdf(f.type, f.name));
     if (!pdfFile) {
-      showNote('請選擇 PDF 檔案。若要把圖片轉成 PDF，請使用「圖片轉 PDF」工具。');
+      showNote(s.notPdf);
       return;
     }
     void load(pdfFile).then(() => {
-      if (files.length > 1 && pdf) showNote('一次只能分割一個 PDF，已開啟第一個檔案。要把多個 PDF 合成一份，請使用「PDF 合併」。');
+      if (files.length > 1 && pdf) showNote(s.multiple);
     });
   }
   fileInput.addEventListener('change', () => {

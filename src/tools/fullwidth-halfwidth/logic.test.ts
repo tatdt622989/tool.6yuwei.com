@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   convertWidth,
   enToZhPunctuation,
+  kanaStats,
+  kanaToFullwidth,
+  kanaToHalfwidth,
   toFullwidth,
   toHalfwidth,
   widthStats,
@@ -119,5 +122,44 @@ describe('convertWidth', () => {
 describe('widthStats', () => {
   it('counts full-width characters by class', () => {
     expect(widthStats('ＡＢ１！　ab')).toEqual({ fullAlnum: 3, fullSymbols: 1, fullSpaces: 1, halfAlnum: 2 });
+  });
+});
+
+describe('katakana', () => {
+  it('converts half-width kana to full-width, joining voiced marks', () => {
+    expect(kanaToFullwidth('ｶﾞｷﾞｸﾞ ﾊﾟﾋﾟﾌﾟ ｳﾞｧｲｵﾘﾝ')).toEqual({ text: 'ガギグ パピプ ヴァイオリン', changed: 12 });
+    expect(kanaToFullwidth('ｺｰﾋｰ｡｢ｱｲｳ｣､ﾃｽﾄ･ﾃﾞｰﾀ').text).toBe('コーヒー。「アイウ」、テスト・データ');
+    expect(kanaToFullwidth('ﾜﾞ').text).toBe('ヷ');
+  });
+
+  it('keeps marks that cannot combine as spacing marks', () => {
+    expect(kanaToFullwidth('ｱﾞ').text).toBe('ア゛');
+    expect(kanaToFullwidth('ﾞﾟ').text).toBe('゛゜');
+  });
+
+  it('converts full-width katakana to half-width, splitting voiced marks', () => {
+    expect(kanaToHalfwidth('ガギグ パピプ ヴァイオリン')).toEqual({ text: 'ｶﾞｷﾞｸﾞ ﾊﾟﾋﾟﾌﾟ ｳﾞｧｲｵﾘﾝ', changed: 12 });
+    expect(kanaToHalfwidth('「コーヒー」、テスト・データ。').text).toBe('｢ｺｰﾋｰ｣､ﾃｽﾄ･ﾃﾞｰﾀ｡');
+  });
+
+  it('leaves hiragana, kanji and kana without a half-width form alone', () => {
+    expect(kanaToHalfwidth('ひらがな漢字ヵヶヰヱ')).toEqual({ text: 'ひらがな漢字ヵヶヰヱ', changed: 0 });
+  });
+
+  it('round-trips every half-width kana letter', () => {
+    const half = Array.from({ length: 0xff9d - 0xff61 + 1 }, (_, i) => String.fromCharCode(0xff61 + i)).join('');
+    expect(kanaToHalfwidth(kanaToFullwidth(half).text).text).toBe(half);
+  });
+
+  it('is applied by convertWidth only when the kana class is on', () => {
+    const opts = { direction: 'toFull' as const, classes: { ...all, kana: true }, punctuation: 'none' as const };
+    expect(convertWidth('ｶﾀｶﾅ ABC', opts).text).toBe('カタカナ　ＡＢＣ');
+    expect(convertWidth('ｶﾀｶﾅ ABC', { ...opts, classes: { letters: false, digits: false, symbols: false, space: false, kana: true } }).text).toBe('カタカナ ABC');
+    expect(convertWidth('ｶﾀｶﾅ', { ...opts, classes: all }).text).toBe('ｶﾀｶﾅ');
+    expect(convertWidth('バッグ　ＡＢＣ', { ...opts, direction: 'toHalf' }).text).toBe('ﾊﾞｯｸﾞ ABC');
+  });
+
+  it('counts kana', () => {
+    expect(kanaStats('ｶﾞｰ カタカナ ひら')).toEqual({ halfKana: 2, fullKatakana: 4 });
   });
 });

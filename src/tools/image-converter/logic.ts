@@ -30,10 +30,10 @@ export function looksLikeImage(type: string, name: string): boolean {
 }
 
 /** Short format name for display, e.g. image/jpeg → JPG, falling back to the file extension. */
-export function formatLabel(type: string, name = ''): string {
+export function formatLabel(type: string, name = '', unknown = '未知'): string {
   if (INPUT_LABEL[type]) return INPUT_LABEL[type];
   const ext = name.match(/\.([a-z0-9]+)$/i)?.[1];
-  return ext ? ext.toUpperCase() : '未知';
+  return ext ? ext.toUpperCase() : unknown;
 }
 
 /** photo.HEIC + webp → photo.webp */

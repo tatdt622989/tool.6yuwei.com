@@ -3,6 +3,21 @@
 
 export type SplitMode = 'extract' | 'each' | 'every' | 'delete';
 
+/** Templates for parse problems: {token} is the user's text, {count} the page count. */
+export interface RangeMessages {
+  unreadable: string;
+  outOfRange: string;
+}
+
+/** Default (zh-TW) messages; localized UIs pass their own. */
+export const ZH_RANGE_MESSAGES: RangeMessages = {
+  unreadable: '看不懂「{token}」',
+  outOfRange: '「{token}」超出範圍（共 {count} 頁）',
+};
+
+const fill = (template: string, vars: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+
 export interface RangeParse {
   /** Sorted, unique, 1-based page numbers inside 1..pageCount. */
   pages: number[];
@@ -10,11 +25,11 @@ export interface RangeParse {
   errors: string[];
 }
 
-/** Full-width digits and common Chinese separators people type on phones. */
+/** Full-width digits and common Chinese / Japanese separators people type on phones. */
 function normalize(input: string): string {
   return input
     .replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
-    .replace(/[－–—~～至到]/g, '-')
+    .replace(/[－–—~～〜至到]/g, '-')
     .replace(/\s*-\s*/g, '-')
     .replace(/[，、；;\s]+/g, ',');
 }
@@ -23,7 +38,7 @@ function normalize(input: string): string {
  * Parses "1-3,5,8-10". Also accepts "8-" (to the last page), "-3" (from page 1),
  * reversed ranges "10-8", full-width digits and 、，；as separators.
  */
-export function parsePageRanges(input: string, pageCount: number): RangeParse {
+export function parsePageRanges(input: string, pageCount: number, messages: RangeMessages = ZH_RANGE_MESSAGES): RangeParse {
   const set = new Set<number>();
   const errors: string[] = [];
   const tokens = normalize(input)
@@ -41,11 +56,11 @@ export function parsePageRanges(input: string, pageCount: number): RangeParse {
       to = m[2] ? Number(m[2]) : pageCount;
       if (from > to) [from, to] = [to, from];
     } else {
-      errors.push(`看不懂「${token}」`);
+      errors.push(fill(messages.unreadable, { token }));
       continue;
     }
     if (from < 1 || to > pageCount) {
-      errors.push(`「${token}」超出範圍（共 ${pageCount} 頁）`);
+      errors.push(fill(messages.outOfRange, { token, count: pageCount }));
       from = Math.max(1, from);
       to = Math.min(pageCount, to);
     }

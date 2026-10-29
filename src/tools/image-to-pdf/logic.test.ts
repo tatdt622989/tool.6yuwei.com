@@ -3,6 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import { imagesToPdf } from './build';
 import { JPEG_8x4, JPEG_8x4_ORIENT6, PNG_3x2 } from './fixtures';
 import {
+  defaultLayout,
   displaySize,
   isImageFile,
   isPureRotation,
@@ -14,6 +15,20 @@ import {
   sniffImage,
   type Box,
 } from './logic';
+
+describe('defaultLayout', () => {
+  it('defaults to A4 and accepts Letter for the US market', () => {
+    expect(defaultLayout()).toEqual({ size: 'a4', orientation: 'auto', margin: 'small' });
+    expect(defaultLayout('letter')).toEqual({ size: 'letter', orientation: 'auto', margin: 'small' });
+  });
+  it('puts a portrait photo on a Letter page when Letter is the default', () => {
+    const l = layoutPage(3000, 4000, defaultLayout('letter'));
+    expect(l.pageWidth).toBe(612);
+    expect(l.pageHeight).toBe(792);
+    // 3:4 is taller than Letter's printable area, so the height is the limit.
+    expect(l.box.height).toBeCloseTo(792 - 2 * mmToPt(10), 5);
+  });
+});
 
 describe('layoutPage', () => {
   it('fits a portrait photo on A4 inside the margins, centred', () => {

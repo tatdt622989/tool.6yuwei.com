@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dayEvent,
   finalSeconds,
+  fixedOffsetClock,
   formatDate,
   formatParts,
+  localClock,
   lunarNewYearInfo,
+  shogatsuInfo,
+  TAIPEI_CLOCK,
+  TOKYO_CLOCK,
+  yearGanzhiOf,
   newYearState,
   splitRemaining,
   taipeiDate,
@@ -121,5 +128,109 @@ describe('除夕／春節倒數', () => {
     expect(info.year).toBe(2030);
     expect(info.chunjie.date).toEqual({ y: 2030, m: 2, d: 3 });
     expect(info.chuxi.date).toEqual({ y: 2030, m: 2, d: 2 });
+  });
+});
+
+const jst = (y: number, m: number, d: number, h = 0, min = 0, s = 0) => Date.UTC(y, m - 1, d, h - 9, min, s);
+
+describe('clocks', () => {
+  it('fixed-offset clocks match the Taipei helpers', () => {
+    const t = Date.UTC(2026, 11, 31, 15, 59, 59);
+    expect(fixedOffsetClock(8 * 3_600_000).dateOf(t)).toEqual(taipeiDate(t));
+    expect(TAIPEI_CLOCK.midnight(2027, 1, 1)).toBe(taipeiMidnight(2027, 1, 1));
+  });
+
+  it('Japan time: 2027-01-01 00:00 JST is 15:00 UTC on New Year’s Eve', () => {
+    expect(TOKYO_CLOCK.midnight(2027, 1, 1)).toBe(Date.UTC(2026, 11, 31, 15));
+    expect(TOKYO_CLOCK.dateOf(Date.UTC(2026, 11, 31, 15))).toEqual({ y: 2027, m: 1, d: 1 });
+    expect(TOKYO_CLOCK.dateOf(Date.UTC(2026, 11, 31, 14, 59, 59))).toEqual({ y: 2026, m: 12, d: 31 });
+  });
+
+  it('the local clock follows the runtime time zone', () => {
+    const local = localClock();
+    expect(local.midnight(2027, 1, 1)).toBe(new Date(2027, 0, 1).getTime());
+    expect(local.dateOf(new Date(2026, 11, 31, 23, 59).getTime())).toEqual({ y: 2026, m: 12, d: 31 });
+  });
+});
+
+describe('newYearState in Japan time', () => {
+  it('counts down to JST midnight and celebrates on 元日', () => {
+    const s = newYearState(jst(2026, 12, 31, 23, 59, 0), TOKYO_CLOCK);
+    expect(s).toMatchObject({ phase: 'final', targetYear: 2027, remaining: 60_000 });
+    const c = newYearState(jst(2027, 1, 1, 0, 0, 1), TOKYO_CLOCK);
+    expect(c).toMatchObject({ phase: 'celebrate', celebrating: 2027, targetYear: 2028 });
+    // Already 2027 in Tokyo while still 2026 in Taipei.
+    expect(newYearState(jst(2027, 1, 1, 0, 30), TAIPEI_CLOCK).phase).toBe('countdown');
+    expect(newYearState(jst(2027, 1, 2), TOKYO_CLOCK).phase).toBe('countdown');
+  });
+
+  it('measures the year in Japan time', () => {
+    expect(yearProgress(jst(2026, 1, 1), TOKYO_CLOCK)).toBe(0);
+    expect(yearProgress(jst(2026, 7, 2, 12), TOKYO_CLOCK)).toBeCloseTo(0.5, 2);
+  });
+
+  it('works in the viewer zone too', () => {
+    const local = localClock();
+    const s = newYearState(new Date(2026, 9, 29, 12).getTime(), local);
+    expect(s.targetYear).toBe(2027);
+    expect(s.target).toBe(new Date(2027, 0, 1).getTime());
+  });
+});
+
+describe('formatParts with a locale day word', () => {
+  it('uses the given day wording', () => {
+    const p = { days: 1, hours: 2, minutes: 3, seconds: 4 };
+    expect(formatParts(p, (n) => `${n} day`)).toBe('1 day 02:03:04');
+    expect(formatParts({ ...p, days: 0 }, (n) => `${n}日`)).toBe('02:03:04');
+  });
+});
+
+describe('shogatsuInfo (大晦日・三が日)', () => {
+  it('points at this year’s 大晦日 and next 元日 in autumn', () => {
+    const info = shogatsuInfo(jst(2026, 10, 29, 12));
+    expect(info.omisoka).toMatchObject({ date: { y: 2026, m: 12, d: 31 }, status: 'upcoming', daysUntil: 63 });
+    expect(info.ganjitsu).toMatchObject({ date: { y: 2027, m: 1, d: 1 }, status: 'upcoming', daysUntil: 64 });
+    expect(info.sanganichiDay).toBeNull();
+  });
+
+  it('marks 大晦日 as today on 31 December', () => {
+    const info = shogatsuInfo(jst(2026, 12, 31, 20));
+    expect(info.omisoka.status).toBe('today');
+    expect(info.ganjitsu.daysUntil).toBe(1);
+  });
+
+  it('reports the day of 三が日 and moves on afterwards', () => {
+    expect(shogatsuInfo(jst(2027, 1, 1, 0, 0, 1)).sanganichiDay).toBe(1);
+    const third = shogatsuInfo(jst(2027, 1, 3, 23));
+    expect(third.sanganichiDay).toBe(3);
+    expect(third.ganjitsu.date).toEqual({ y: 2027, m: 1, d: 1 });
+    expect(third.omisoka.date).toEqual({ y: 2027, m: 12, d: 31 });
+    const fourth = shogatsuInfo(jst(2027, 1, 4));
+    expect(fourth.sanganichiDay).toBeNull();
+    expect(fourth.ganjitsu.date).toEqual({ y: 2028, m: 1, d: 1 });
+  });
+
+  it('uses Japan time, not the device zone', () => {
+    // 2026-12-31 16:00 UTC is already 元日 in Tokyo.
+    expect(shogatsuInfo(Date.UTC(2026, 11, 31, 16)).sanganichiDay).toBe(1);
+  });
+});
+
+describe('dayEvent and lunarNewYearInfo with another clock', () => {
+  it('computes status in the given zone', () => {
+    const e = dayEvent({ y: 2027, m: 2, d: 6 }, jst(2027, 2, 6, 0, 30), TOKYO_CLOCK);
+    expect(e.status).toBe('today');
+    expect(dayEvent({ y: 2027, m: 2, d: 6 }, jst(2027, 2, 6, 0, 30), TAIPEI_CLOCK).status).toBe('upcoming');
+  });
+
+  it('finds Lunar New Year 2027 (Feb 6, Goat) from autumn 2026', () => {
+    const info = lunarNewYearInfo(jst(2026, 10, 29), TOKYO_CLOCK)!;
+    expect(info.chunjie.date).toEqual({ y: 2027, m: 2, d: 6 });
+    expect(info.chuxi.date).toEqual({ y: 2027, m: 2, d: 5 });
+    expect(info.animal).toBe('羊');
+  });
+
+  it('names the Japanese 干支 of a year', () => {
+    expect(yearGanzhiOf(2027)).toBe('丁未');
   });
 });

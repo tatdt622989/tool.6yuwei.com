@@ -92,6 +92,11 @@ describe('buildVCard', () => {
     expect(buildVCard({ ...empty, firstName: 'Amy', lastName: 'Lin' })).toContain('FN:Amy Lin');
   });
 
+  it('orders Japanese names family-name first, including kana-only names', () => {
+    expect(buildVCard({ ...empty, firstName: '花子', lastName: '山田' })).toContain('FN:山田花子');
+    expect(buildVCard({ ...empty, firstName: 'さくら', lastName: 'たなか' })).toContain('FN:たなかさくら');
+  });
+
   it('returns empty when there is no name or organization', () => {
     expect(buildVCard({ ...empty, phone: '0912' })).toBe('');
   });

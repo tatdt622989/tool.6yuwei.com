@@ -1,69 +1,83 @@
-<div class="tool" data-tool="cps-test">
+---
+import { t } from '../../i18n/format';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const c = s.client;
+---
+
+<div class="tool" data-tool="cps-test" {...i18nAttrs(locale, c)}>
   <div class="row between">
-    <div class="seg" role="radiogroup" aria-label="測試時間">
-      <label><input type="radio" name="cps-mode" value="1" /><span>1 秒</span></label>
-      <label><input type="radio" name="cps-mode" value="5" checked /><span>5 秒</span></label>
-      <label><input type="radio" name="cps-mode" value="10" /><span>10 秒</span></label>
-      <label><input type="radio" name="cps-mode" value="30" /><span>30 秒</span></label>
-      <label><input type="radio" name="cps-mode" value="60" /><span>60 秒</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+      <label><input type="radio" name="cps-mode" value="1" /><span>{t(c.sec, { n: 1 })}</span></label>
+      <label><input type="radio" name="cps-mode" value="5" checked /><span>{t(c.sec, { n: 5 })}</span></label>
+      <label><input type="radio" name="cps-mode" value="10" /><span>{t(c.sec, { n: 10 })}</span></label>
+      <label><input type="radio" name="cps-mode" value="30" /><span>{t(c.sec, { n: 30 })}</span></label>
+      <label><input type="radio" name="cps-mode" value="60" /><span>{t(c.sec, { n: 60 })}</span></label>
     </div>
-    <button class="btn small ghost" type="button" id="cps-reset">重新開始</button>
+    <button class="btn small ghost" type="button" id="cps-reset">{s.reset}</button>
   </div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value" id="cps-time">5.0</span><span class="stat-label">剩餘秒數</span></div>
-    <div class="stat"><span class="stat-value" id="cps-count">0</span><span class="stat-label">點擊次數</span></div>
-    <div class="stat"><span class="stat-value" id="cps-live">0.0</span><span class="stat-label">即時 CPS</span></div>
-    <div class="stat"><span class="stat-value" id="cps-best">—</span><span class="stat-label" id="cps-best-label">5 秒最佳紀錄</span></div>
+    <div class="stat"><span class="stat-value" id="cps-time">5.0</span><span class="stat-label">{s.statTime}</span></div>
+    <div class="stat"><span class="stat-value" id="cps-count">0</span><span class="stat-label">{s.statClicks}</span></div>
+    <div class="stat"><span class="stat-value" id="cps-live">0.0</span><span class="stat-label">{s.statLive}</span></div>
+    <div class="stat"><span class="stat-value" id="cps-best">—</span><span class="stat-label" id="cps-best-label">{t(c.bestLabel, { s: t(c.sec, { n: 5 }) })}</span></div>
   </div>
 
-  <div class="cps-pad" id="cps-pad" role="button" tabindex="0" data-phase="idle" aria-label="點擊區，點擊或按空白鍵計分">
+  <div class="cps-pad" id="cps-pad" role="button" tabindex="0" data-phase="idle" aria-label={s.padAria}>
     <span class="cps-progress" aria-hidden="true"><span id="cps-progress-bar"></span></span>
     <svg class="cps-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M9 3.5v3M4.5 8H7.5M5.6 4.6l2 2M12.4 4.6l-2 2" />
       <path d="M10 10l9.5 3.6-4.1 1.6-1.6 4.3z" />
     </svg>
-    <span class="cps-main" id="cps-main">點這裡開始</span>
-    <span class="cps-sub" id="cps-sub">第一下點擊就開始計時，也可以按空白鍵</span>
+    <span class="cps-main" id="cps-main">{c.idleMain}</span>
+    <span class="cps-sub" id="cps-sub">{c.idleSub}</span>
   </div>
 
   <section class="result cps-result" id="cps-result" hidden aria-live="polite">
     <div class="cps-result-head">
       <div>
-        <span class="result-label">你的點擊速度</span>
+        <span class="result-label">{s.resultLabel}</span>
         <div class="result-value"><span id="cps-final">0</span> <small>CPS</small></div>
       </div>
       <div class="cps-rank">
-        <span class="cps-badge" id="cps-rank">兔子</span>
+        <span class="cps-badge" id="cps-rank">{c.ranks.rabbit.label}</span>
         <span class="cps-rank-note" id="cps-rank-note"></span>
       </div>
     </div>
     <p class="cps-summary" id="cps-summary"></p>
-    <ol class="cps-ladder" id="cps-ladder" aria-label="等級"></ol>
+    <ol class="cps-ladder" id="cps-ladder" aria-label={s.ladderAria}></ol>
     <div class="cps-chart" id="cps-chart-wrap">
-      <span class="label">每秒點擊次數</span>
+      <span class="label">{s.chartLabel}</span>
       <div class="cps-bars" id="cps-bars" role="img"></div>
     </div>
   </section>
 
   <div class="field">
     <div class="row between">
-      <span class="label">各模式最佳紀錄</span>
-      <button class="btn small ghost" type="button" id="cps-clear">清除紀錄</button>
+      <span class="label">{s.bestsLabel}</span>
+      <button class="btn small ghost" type="button" id="cps-clear">{s.clear}</button>
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>測試時間</th><th class="num">最佳 CPS</th><th>等級</th></tr></thead>
+        <thead><tr><th>{s.thMode}</th><th class="num">{s.thBest}</th><th>{s.thRank}</th></tr></thead>
         <tbody id="cps-table"></tbody>
       </table>
     </div>
-    <span class="hint">紀錄只保存在這台裝置的瀏覽器中，不會上傳。</span>
+    <span class="hint">{s.hint}</span>
   </div>
 </div>
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
   import { formatNumber } from '../../lib/format';
+  import { plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import {
     COOLDOWN_MS,
     MODES,
@@ -90,6 +104,9 @@
   }
 
   const root = $('[data-tool="cps-test"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const rankText = (id: string) => s.ranks[id as keyof typeof s.ranks];
+  const fmt2 = (n: number) => formatNumber(n, 2, locale);
   const pad = $('#cps-pad', root);
   const main = $('#cps-main', root);
   const sub = $('#cps-sub', root);
@@ -129,13 +146,13 @@
 
   function renderBest() {
     const best = prefs.best[`${session.duration}`];
-    bestEl.textContent = best === undefined ? '—' : formatNumber(best, 2);
-    bestLabel.textContent = `${session.duration} 秒最佳紀錄`;
+    bestEl.textContent = best === undefined ? '—' : fmt2(best);
+    bestLabel.textContent = t(s.bestLabel, { s: t(s.sec, { n: session.duration }) });
     table.replaceChildren(
       ...MODES.map((mode) => {
         const tr = document.createElement('tr');
         const value = prefs.best[`${mode}`];
-        const cells = [`${mode} 秒`, value === undefined ? '—' : formatNumber(value, 2), value === undefined ? '—' : rankFor(value).label];
+        const cells = [t(s.sec, { n: mode }), value === undefined ? '—' : fmt2(value), value === undefined ? '—' : rankText(rankFor(value).id).label];
         cells.forEach((text, i) => {
           const td = document.createElement('td');
           td.textContent = text;
@@ -159,8 +176,8 @@
 
   function renderIdle() {
     pad.dataset.phase = 'idle';
-    main.textContent = '點這裡開始';
-    sub.textContent = '第一下點擊就開始計時，也可以按空白鍵';
+    main.textContent = s.idleMain;
+    sub.textContent = s.idleSub;
     result.hidden = true;
     renderLive(0);
     renderBest();
@@ -187,6 +204,7 @@
     stopLoop();
     const cps = finalCps(session);
     const rank = rankFor(cps);
+    const label = rankText(rank.id).label;
     const merged = mergeBest(prefs.best, session.duration, cps);
     prefs.best = merged.best;
     persist();
@@ -194,28 +212,30 @@
     renderBest();
 
     pad.dataset.phase = 'done';
-    main.textContent = `${formatNumber(cps, 2)} CPS`;
-    sub.textContent = `${rank.label}｜稍等一下即可再測一次`;
+    main.textContent = `${fmt2(cps)} CPS`;
+    sub.textContent = t(s.doneSubWait, { rank: label });
     window.clearTimeout(cooldownTimer);
     cooldownTimer = window.setTimeout(() => {
-      if (session.phase === 'done') sub.textContent = `${rank.label}｜點擊或按空白鍵再測一次`;
+      if (session.phase === 'done') sub.textContent = t(s.doneSubReady, { rank: label });
     }, COOLDOWN_MS);
 
-    finalEl.textContent = formatNumber(cps, 2);
-    rankEl.textContent = rank.label;
+    finalEl.textContent = fmt2(cps);
+    rankEl.textContent = label;
     rankEl.dataset.rank = rank.id;
-    rankNote.textContent = rank.note;
+    rankNote.textContent = rankText(rank.id).note;
     const n = session.clicks.length;
     const best = prefs.best[`${session.duration}`];
+    const secs = plural(locale, session.duration, s.secs);
+    const vars = { s: session.duration, n, cps: fmt2(cps), clicks: plural(locale, n, s.clicks), secs };
     summary.textContent =
-      `${session.duration} 秒內點擊 ${n} 下，平均每秒 ${formatNumber(cps, 2)} 下。` +
-      (merged.isNew ? `這是你目前的 ${session.duration} 秒最佳紀錄。` : best !== undefined ? `你的 ${session.duration} 秒最佳紀錄是 ${formatNumber(best, 2)} CPS。` : '');
+      t(s.summary, vars) +
+      (merged.isNew ? t(s.summaryNew, vars) : best !== undefined ? t(s.summaryBest, { ...vars, best: fmt2(best) }) : '');
 
     ladder.replaceChildren(
       ...RANKS.map((r) => {
         const li = document.createElement('li');
-        li.textContent = r.label;
-        li.title = `${r.min} CPS 以上`;
+        li.textContent = rankText(r.id).label;
+        li.title = t(s.ladderTitle, { min: r.min });
         if (r.id === rank.id) {
           li.className = 'is-current';
           li.setAttribute('aria-current', 'true');
@@ -232,13 +252,13 @@
         ...perSecond.map((v, i) => {
           const b = document.createElement('span');
           b.style.height = `${Math.max(2, (v / max) * 100)}%`;
-          b.title = `第 ${i + 1} 秒：${v} 下`;
+          b.title = t(s.barTitle, { i: i + 1, v });
           return b;
         }),
       );
       const fastest = Math.max(...perSecond);
       const slowest = Math.min(...perSecond);
-      bars.setAttribute('aria-label', `每秒點擊次數，最快的一秒 ${fastest} 下，最慢的一秒 ${slowest} 下`);
+      bars.setAttribute('aria-label', t(s.barsAria, { fast: fastest, slow: slowest }));
     }
     result.hidden = false;
   }
@@ -269,7 +289,7 @@
       window.clearTimeout(cooldownTimer);
       result.hidden = true;
       pad.dataset.phase = 'running';
-      sub.textContent = '繼續點，越快越好';
+      sub.textContent = s.runningSub;
       stopLoop();
       frame = requestAnimationFrame(loop);
     }

@@ -7,6 +7,8 @@ import {
   parseOptions,
   pickWeighted,
   PRESETS,
+  presetsFor,
+  rotatesInVertical,
   probabilities,
   randomFloat,
   removeOptionLine,
@@ -198,5 +200,29 @@ describe('colors and labels', () => {
   it('presets parse into non-empty wheels', () => {
     for (const p of PRESETS) expect(parseOptions(p.options.join('\n')).length).toBeGreaterThanOrEqual(2);
     expect(probabilities(parseOptions(PRESETS.find((p) => p.id === 'prize')!.options.join('\n')))[0]).toBeCloseTo(1 / 40);
+  });
+});
+
+describe('localized presets', () => {
+  it('keeps the zh-TW presets as the default', () => {
+    expect(presetsFor()).toBe(PRESETS);
+    expect(presetsFor('zh-TW')[0].name).toBe('午餐吃什麼');
+  });
+
+  it('offers local starter wheels for en and ja', () => {
+    expect(presetsFor('en')[0].options).toContain('Pizza');
+    expect(presetsFor('ja')[0].options).toContain('ラーメン');
+    for (const locale of ['en', 'ja'] as const) {
+      const presets = presetsFor(locale);
+      expect(new Set(presets.map((p) => p.id)).size).toBe(presets.length);
+      for (const p of presets) expect(parseOptions(p.options.join('\n')).length).toBeGreaterThanOrEqual(2);
+      const prize = presets.find((p) => p.id === 'prize')!;
+      expect(probabilities(parseOptions(prize.options.join('\n')))[0]).toBeCloseTo(1 / 40);
+    }
+  });
+
+  it('turns the long-vowel mark sideways in vertical labels', () => {
+    expect(Array.from('ラーメン').filter(rotatesInVertical)).toEqual(['ー']);
+    expect(rotatesInVertical('麵')).toBe(false);
   });
 });

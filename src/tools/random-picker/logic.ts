@@ -33,18 +33,31 @@ export function shuffle<T>(items: readonly T[], random: RandomSource = defaultRa
   return out;
 }
 
+/**
+ * How a pasted list is split into entries.
+ * - `lines`: one entry per line (zh-TW, en).
+ * - `ja`: lines, plus 読点「、」, full-width comma「，」 and tabs (lists pasted from LINE / Excel).
+ *   Spaces are never separators, so 「佐藤　太郎」 stays one entry.
+ */
+export type SplitMode = 'lines' | 'ja';
+
+const SPLITTERS: Record<SplitMode, RegExp> = {
+  lines: /\r\n|\r|\n/,
+  ja: /\r\n|\r|\n|\t|、|，/,
+};
+
 /** One entry per line; trims, drops blank lines and optionally removes duplicates (first one wins). */
-export function parseEntries(text: string, dedupe = false): string[] {
+export function parseEntries(text: string, dedupe = false, split: SplitMode = 'lines'): string[] {
   const entries = text
-    .split(/\r\n|\r|\n/)
+    .split(SPLITTERS[split])
     .map((line) => line.trim())
     .filter(Boolean);
   const list = dedupe ? Array.from(new Set(entries)) : entries;
   return list.slice(0, MAX_ENTRIES);
 }
 
-export function countDuplicates(text: string): number {
-  const entries = parseEntries(text);
+export function countDuplicates(text: string, split: SplitMode = 'lines'): number {
+  const entries = parseEntries(text, false, split);
   return entries.length - new Set(entries).size;
 }
 
@@ -97,6 +110,11 @@ export function formatWinners(winners: readonly string[]): string {
   return winners.map((name, i) => `${i + 1}. ${name}`).join('\n');
 }
 
-export function formatGroups(groups: readonly string[][]): string {
-  return groups.map((g, i) => `第 ${i + 1} 組（${g.length} 人）：${g.join('、')}`).join('\n');
+/** One line of copied group output; `index` is zero-based. */
+export type GroupLineFormat = (members: readonly string[], index: number) => string;
+
+const zhGroupLine: GroupLineFormat = (g, i) => `第 ${i + 1} 組（${g.length} 人）：${g.join('、')}`;
+
+export function formatGroups(groups: readonly string[][], line: GroupLineFormat = zhGroupLine): string {
+  return groups.map((g, i) => line(g, i)).join('\n');
 }

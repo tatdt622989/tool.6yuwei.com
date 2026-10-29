@@ -1,60 +1,73 @@
-<div class="tool" data-tool="text-diff">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="text-diff" {...i18nAttrs(locale, s.client)}>
   <div class="grid-2">
     <div class="field">
-      <label for="td-old">原始文字</label>
-      <textarea id="td-old" class="mono" rows="10" spellcheck="false" placeholder="貼上修改前的版本"></textarea>
+      <label for="td-old">{s.oldLabel}</label>
+      <textarea id="td-old" class="mono" rows="10" spellcheck="false" placeholder={s.oldPlaceholder}></textarea>
     </div>
     <div class="field">
-      <label for="td-new">修改後文字</label>
-      <textarea id="td-new" class="mono" rows="10" spellcheck="false" placeholder="貼上修改後的版本"></textarea>
+      <label for="td-new">{s.newLabel}</label>
+      <textarea id="td-new" class="mono" rows="10" spellcheck="false" placeholder={s.newPlaceholder}></textarea>
     </div>
   </div>
 
   <div class="row">
-    <label class="check"><input type="checkbox" id="td-ws" /> 忽略空白差異</label>
-    <label class="check"><input type="checkbox" id="td-case" /> 忽略大小寫</label>
-    <label class="check"><input type="checkbox" id="td-collapse" checked /> 隱藏相同的行</label>
+    <label class="check"><input type="checkbox" id="td-ws" /> {s.ignoreWhitespace}</label>
+    <label class="check"><input type="checkbox" id="td-case" /> {s.ignoreCase}</label>
+    <label class="check"><input type="checkbox" id="td-collapse" checked /> {s.collapse}</label>
   </div>
 
   <div class="row between">
     <div class="field">
-      <span class="label">行內差異</span>
-      <div class="seg" role="radiogroup" aria-label="行內差異">
-        <label><input type="radio" name="td-inline" value="word" checked /><span>字詞</span></label>
-        <label><input type="radio" name="td-inline" value="char" /><span>字元</span></label>
-        <label><input type="radio" name="td-inline" value="none" /><span>關閉</span></label>
+      <span class="label">{s.inlineLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.inlineLabel}>
+        <label><input type="radio" name="td-inline" value="word" checked /><span>{s.inlineWord}</span></label>
+        <label><input type="radio" name="td-inline" value="char" /><span>{s.inlineChar}</span></label>
+        <label><input type="radio" name="td-inline" value="none" /><span>{s.inlineNone}</span></label>
       </div>
     </div>
     <div class="field">
-      <span class="label">檢視方式</span>
-      <div class="seg" role="radiogroup" aria-label="檢視方式">
-        <label><input type="radio" name="td-view" value="split" checked /><span>左右並排</span></label>
-        <label><input type="radio" name="td-view" value="unified" /><span>單欄</span></label>
+      <span class="label">{s.viewLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.viewLabel}>
+        <label><input type="radio" name="td-view" value="split" checked /><span>{s.viewSplit}</span></label>
+        <label><input type="radio" name="td-view" value="unified" /><span>{s.viewUnified}</span></label>
       </div>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value td-stat-add" id="td-added">0</span><span class="stat-label">新增行</span></div>
-    <div class="stat"><span class="stat-value td-stat-del" id="td-removed">0</span><span class="stat-label">刪除行</span></div>
-    <div class="stat"><span class="stat-value" id="td-unchanged">0</span><span class="stat-label">相同行</span></div>
+    <div class="stat"><span class="stat-value td-stat-add" id="td-added">0</span><span class="stat-label">{s.statAdded}</span></div>
+    <div class="stat"><span class="stat-value td-stat-del" id="td-removed">0</span><span class="stat-label">{s.statRemoved}</span></div>
+    <div class="stat"><span class="stat-value" id="td-unchanged">0</span><span class="stat-label">{s.statUnchanged}</span></div>
   </div>
 
-  <p class="notice" id="td-msg" aria-live="polite">在上方兩個欄位貼上文字，差異會自動標示在這裡。</p>
+  <p class="notice" id="td-msg" aria-live="polite">{s.client.empty}</p>
   <div class="table-wrap td-wrap" id="td-result" hidden></div>
 
   <div class="row">
-    <button class="btn" type="button" id="td-swap">左右交換</button>
-    <button class="btn ghost" type="button" id="td-clear">清除</button>
+    <button class="btn" type="button" id="td-swap">{s.swap}</button>
+    <button class="btn ghost" type="button" id="td-clear">{s.clear}</button>
   </div>
 </div>
 
 <script>
   import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
-  import { formatInteger } from '../../lib/format';
+  import { formatInteger, plural } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import { collapseRows, diffText, renderSplit, renderUnified, type InlineLevel } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="text-diff"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const skipLabel = (n: number) => plural(locale, n, s.skip);
   const oldInput = $<HTMLTextAreaElement>('#td-old', root);
   const newInput = $<HTMLTextAreaElement>('#td-new', root);
   const ws = $<HTMLInputElement>('#td-ws', root);
@@ -98,13 +111,13 @@
       ignoreCase: ignoreCase.checked,
       inline,
     });
-    $('#td-added', root).textContent = formatInteger(r.added);
-    $('#td-removed', root).textContent = formatInteger(r.removed);
-    $('#td-unchanged', root).textContent = formatInteger(r.unchanged);
+    $('#td-added', root).textContent = formatInteger(r.added, locale);
+    $('#td-removed', root).textContent = formatInteger(r.removed, locale);
+    $('#td-unchanged', root).textContent = formatInteger(r.unchanged, locale);
 
     if (oldInput.value === '' && newInput.value === '') {
       msg.className = 'notice';
-      msg.textContent = '在上方兩個欄位貼上文字，差異會自動標示在這裡。';
+      msg.textContent = s.empty;
       msg.hidden = false;
       result.hidden = true;
       result.innerHTML = '';
@@ -115,11 +128,11 @@
     msg.hidden = !same;
     if (same) {
       msg.className = 'notice ok';
-      msg.textContent = ws.checked || ignoreCase.checked ? '在目前的忽略條件下，兩段文字沒有差異。' : '兩段文字完全相同。';
+      msg.textContent = ws.checked || ignoreCase.checked ? s.sameIgnoring : s.same;
     }
     const rows = collapse.checked ? collapseRows(r.rows, 3) : r.rows;
     // Both renderers escape every piece of user text before it reaches innerHTML.
-    result.innerHTML = checked(viewRadios) === 'unified' ? renderUnified(rows) : renderSplit(rows);
+    result.innerHTML = checked(viewRadios) === 'unified' ? renderUnified(rows, skipLabel) : renderSplit(rows, skipLabel);
     result.hidden = rows.length === 0;
   }
 

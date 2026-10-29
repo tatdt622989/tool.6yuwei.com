@@ -3,12 +3,14 @@ import {
   detectUnit,
   formatDateTime,
   formatOffset,
+  longDateTime,
   offsetMinutes,
   parseTimestamp,
   parseWallTime,
   relativeTime,
   toIsoWithOffset,
   wallTimeToMs,
+  wareki,
   weekday,
 } from './logic';
 
@@ -38,6 +40,8 @@ describe('detectUnit / parseTimestamp', () => {
 
   it('rejects invalid or out-of-range input', () => {
     expect(parseTimestamp('').ok).toBe(false);
+    expect(parseTimestamp('', 'auto', { empty: 'E', notNumber: 'N', outOfRange: 'R' })).toEqual({ ok: false, error: 'E' });
+    expect(parseTimestamp('12abc', 'auto', { empty: 'E', notNumber: 'N', outOfRange: 'R' })).toEqual({ ok: false, error: 'N' });
     expect(parseTimestamp('12abc').ok).toBe(false);
     expect(parseTimestamp('99999999999999999', 's').ok).toBe(false);
   });
@@ -76,6 +80,23 @@ describe('formatting in a time zone', () => {
 
   it('names the weekday', () => {
     expect(weekday(ms, TAIPEI)).toBe('星期四');
+    expect(weekday(ms, TAIPEI, 'en-US')).toBe('Thursday');
+    expect(weekday(ms, TAIPEI, 'ja-JP')).toBe('木曜日');
+  });
+
+  it('formats a long localized date', () => {
+    const t = Date.UTC(2026, 9, 29, 6, 30);
+    expect(longDateTime(t, NY, 'en-US')).toBe('Thursday, October 29, 2026 at 2:30:00 AM');
+    expect(longDateTime(t, 'Asia/Tokyo', 'ja-JP')).toBe('2026年10月29日木曜日 15:30:00');
+  });
+
+  it('formats Japanese era dates (wareki)', () => {
+    expect(wareki(Date.UTC(2026, 9, 29, 6), 'Asia/Tokyo')).toBe('令和8年10月29日（木）');
+    expect(wareki(Date.UTC(2019, 4, 1, 3), 'Asia/Tokyo')).toBe('令和元年5月1日（水）');
+    expect(wareki(Date.UTC(2019, 3, 30, 3), 'Asia/Tokyo')).toBe('平成31年4月30日（火）');
+    expect(wareki(Date.UTC(1989, 0, 7, 3), 'Asia/Tokyo')).toBe('昭和64年1月7日（土）');
+    expect(wareki(Date.UTC(1989, 0, 8, 3), 'Asia/Tokyo')).toBe('平成元年1月8日（日）');
+    expect(wareki(Date.UTC(1872, 0, 1), 'Asia/Tokyo')).toBeNull();
   });
 });
 
@@ -85,6 +106,10 @@ describe('relativeTime', () => {
     expect(relativeTime(now - 3 * 3600_000, now)).toBe('3 小時前');
     expect(relativeTime(now + 2 * 86400_000, now)).toBe('後天');
     expect(relativeTime(now, now)).toBe('現在');
+  });
+  it('uses the requested locale', () => {
+    expect(relativeTime(now - 3 * 3600_000, now, 'en-US')).toBe('3 hours ago');
+    expect(relativeTime(now + 2 * 86400_000, now, 'ja-JP')).toBe('明後日');
   });
 });
 

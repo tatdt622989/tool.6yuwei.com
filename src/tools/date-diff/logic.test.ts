@@ -11,7 +11,9 @@ import {
   formatYMD,
   isLeapYear,
   parseISODate,
+  spanParts,
   toISODate,
+  toUTCDate,
   weekdayOf,
 } from './logic';
 
@@ -139,5 +141,24 @@ describe('formatting', () => {
     expect(formatSpan({ years: 1, months: 0, days: 3 })).toBe('1 年 3 天');
     expect(formatSpan({ years: 0, months: 0, days: 0 })).toBe('0 天');
     expect(formatYMD(d('2026-10-29'))).toBe('2026 年 10 月 29 日（四）');
+  });
+});
+
+describe('locale helpers', () => {
+  it('splits a span into non-zero parts', () => {
+    expect(spanParts({ years: 1, months: 0, days: 3 })).toEqual([
+      { unit: 'years', n: 1 },
+      { unit: 'days', n: 3 },
+    ]);
+    expect(spanParts({ years: 0, months: 0, days: 0 })).toEqual([{ unit: 'days', n: 0 }]);
+    expect(spanParts({ years: 0, months: 2, days: 0 })).toEqual([{ unit: 'months', n: 2 }]);
+  });
+
+  it('builds a UTC date that formats to the same calendar day in any locale', () => {
+    const d = toUTCDate({ y: 2026, m: 10, d: 29 });
+    expect(d.toISOString()).toBe('2026-10-29T00:00:00.000Z');
+    expect(d.toLocaleDateString('en-US', { dateStyle: 'full', timeZone: 'UTC' })).toBe('Thursday, October 29, 2026');
+    expect(d.toLocaleDateString('ja-JP', { dateStyle: 'full', timeZone: 'UTC' })).toBe('2026年10月29日木曜日');
+    expect(toUTCDate({ y: 50, m: 3, d: 1 }).getUTCFullYear()).toBe(50);
   });
 });

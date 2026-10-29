@@ -51,7 +51,31 @@ export interface NumberOptions {
   sort: SortOrder;
 }
 
-export type NumberResult = { ok: true; values: number[] } | { ok: false; error: string };
+/** Machine-readable reason for a failed draw; UIs map it to their own (localized) message. */
+export type NumberErrorCode =
+  | 'invalid-bounds'
+  | 'min-over-max'
+  | 'count-too-small'
+  | 'count-too-large'
+  | 'bad-decimals'
+  | 'range-too-wide'
+  | 'empty-range'
+  | 'not-enough-unique';
+
+export type NumberResult =
+  | { ok: true; values: number[] }
+  | {
+      ok: false;
+      /** zh-TW message, kept for existing callers. */
+      error: string;
+      code: NumberErrorCode;
+      /** Numbers referenced by the message: max (count or decimals limit), size, count. */
+      vars: { max?: number; size?: number; count?: number };
+    };
+
+function fail(code: NumberErrorCode, error: string, vars: { max?: number; size?: number; count?: number } = {}): NumberResult {
+  return { ok: false, error, code, vars };
+}
 
 /** Number of distinct values available between min and max at the given precision. */
 export function rangeSize(min: number, max: number, decimals: number): number {
@@ -71,21 +95,27 @@ export function generateNumbers(options: NumberOptions, random: RandomSource = d
   const { min, max, unique, sort } = options;
   const count = Math.floor(options.count);
   const decimals = Math.floor(options.decimals);
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return { ok: false, error: '請輸入有效的最小值與最大值。' };
-  if (min > max) return { ok: false, error: '最小值不能大於最大值。' };
-  if (!Number.isFinite(count) || count < 1) return { ok: false, error: '數量至少要 1 個。' };
-  if (count > MAX_COUNT) return { ok: false, error: `一次最多產生 ${MAX_COUNT.toLocaleString('zh-TW')} 個。` };
-  if (decimals < 0 || decimals > MAX_DECIMALS) return { ok: false, error: `小數位數需介於 0 到 ${MAX_DECIMALS}。` };
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return fail('invalid-bounds', '請輸入有效的最小值與最大值。');
+  if (min > max) return fail('min-over-max', '最小值不能大於最大值。');
+  if (!Number.isFinite(count) || count < 1) return fail('count-too-small', '數量至少要 1 個。');
+  if (count > MAX_COUNT) return fail('count-too-large', `一次最多產生 ${MAX_COUNT.toLocaleString('zh-TW')} 個。`, { max: MAX_COUNT });
+  if (decimals < 0 || decimals > MAX_DECIMALS) {
+    return fail('bad-decimals', `小數位數需介於 0 到 ${MAX_DECIMALS}。`, { max: MAX_DECIMALS });
+  }
 
   const scale = 10 ** decimals;
   const { lo, hi } = scaledBounds(min, max, scale);
   const size = hi - lo + 1;
   if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || !Number.isSafeInteger(size)) {
-    return { ok: false, error: '範圍太大，請縮小範圍或減少小數位數。' };
+    return fail('range-too-wide', '範圍太大，請縮小範圍或減少小數位數。');
   }
-  if (size < 1) return { ok: false, error: '範圍內沒有符合小數位數的數字。' };
+  if (size < 1) return fail('empty-range', '範圍內沒有符合小數位數的數字。');
   if (unique && count > size) {
-    return { ok: false, error: `範圍內只有 ${size.toLocaleString('zh-TW')} 個不同的數字，無法產生 ${count.toLocaleString('zh-TW')} 個不重複的數字。` };
+    return fail(
+      'not-enough-unique',
+      `範圍內只有 ${size.toLocaleString('zh-TW')} 個不同的數字，無法產生 ${count.toLocaleString('zh-TW')} 個不重複的數字。`,
+      { size, count },
+    );
   }
 
   let scaled: number[];
@@ -116,6 +146,25 @@ export function generateNumbers(options: NumberOptions, random: RandomSource = d
   if (sort === 'asc') values = values.sort((a, b) => a - b);
   else if (sort === 'desc') values = values.sort((a, b) => b - a);
   return { ok: true, values };
+}
+
+export interface Preset {
+  min: number;
+  max: number;
+  count: number;
+  unique: boolean;
+  decimals: number;
+}
+
+/**
+ * Parses a quick-setting string "min,max,count,unique[,decimals]" (unique is 1 or 0), as used by the
+ * preset buttons and the second-zone ("bonus ball") spec of lottery presets. Returns null when malformed.
+ */
+export function parsePreset(spec: string): Preset | null {
+  const parts = spec.split(',').map((p) => Number(p.trim()));
+  if (parts.length < 3 || parts.length > 5 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [min, max, count, unique = 0, decimals = 0] = parts;
+  return { min, max, count, unique: unique === 1, decimals };
 }
 
 export function formatValue(value: number, decimals: number): string {

@@ -1,5 +1,13 @@
 # 隨手 — tool.6yuwei.com
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
+**English** · Free, privacy-first online tools at **https://tool.6yuwei.com** (中文), [/en/](https://tool.6yuwei.com/en/) and [/ja/](https://tool.6yuwei.com/ja/). Every tool runs entirely in your browser: no sign-up, no uploads, no backend. This repository is the complete source of the site, so you can verify that claim yourself. Built with Astro (static output), vanilla TypeScript and Vitest; served by nginx. Each tool lives in `src/tools/<slug>/` (`logic.ts` + tests, `Tool.astro`, localized `meta*.ts`). Issues and pull requests are welcome. Licensed under [AGPL-3.0](LICENSE).
+
+**日本語** · ブラウザだけで動く無料オンラインツール集です。登録不要・データ送信なし。サイトのソースコードをすべて公開しているので、データが外部に送られていないことを誰でも確認できます。ライセンスは [AGPL-3.0](LICENSE) です。
+
+---
+
 免費線上實用工具網站，品牌名「隨手」。設計為固定亮色（不跟系統深色模式）：白底、淺灰區塊、單一珊瑚橘強調色；每個工具在 `meta.ts` 的 `icon` 欄位指定一個 [Lucide](https://lucide.dev/icons) 線條圖示，建置時渲染成 SVG。色彩全部定義在 `src/styles/global.css` 的 CSS 變數。Astro 靜態輸出，每個工具一個預先渲染的 SEO 頁面，工具邏輯全部在瀏覽器執行（無後端、無資料上傳），以 Google AdSense 變現。
 
 ## 開發
@@ -121,3 +129,10 @@ src/
                ads.txt、robots.txt、tools.json、manifest.webmanifest；en/、ja/ 為各語系路由
 docs/i18n.md   多語系做法與工具在地化檢查清單
 ```
+
+## 開源與授權
+
+- 本專案以 [GNU AGPL-3.0](LICENSE) 授權開源：可以自由閱讀、修改、自架，但若把修改後的版本架成網站提供給他人使用，必須同樣以 AGPL-3.0 公開完整原始碼。
+- 「隨手」名稱、Logo 與網域屬於作者，自架衍生站請使用不同名稱。
+- 每個工具頁底部的「查看原始碼」連到 `src/tools/<slug>/`，頁尾也有 GitHub 連結。
+- 回報安全性問題請見 [SECURITY.md](SECURITY.md)。

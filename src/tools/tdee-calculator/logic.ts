@@ -45,13 +45,40 @@ export const AGE_RANGE = { min: 15, max: 100 } as const;
 export const HEIGHT_RANGE = { min: 100, max: 250 } as const;
 export const WEIGHT_RANGE = { min: 25, max: 300 } as const;
 
-export function validateBody(input: BodyInput): string | null {
-  const { age, heightCm, weightKg } = input;
-  if (![age, heightCm, weightKg].every(Number.isFinite)) return '請輸入年齡、身高與體重。';
-  if (age < AGE_RANGE.min || age > AGE_RANGE.max) return `年齡請輸入 ${AGE_RANGE.min} 到 ${AGE_RANGE.max} 歲。`;
-  if (heightCm < HEIGHT_RANGE.min || heightCm > HEIGHT_RANGE.max) return '身高請以公分輸入，例如 165。';
-  if (weightKg < WEIGHT_RANGE.min || weightKg > WEIGHT_RANGE.max) return '體重請以公斤輸入，例如 60。';
+/** Which input is missing or out of range; the UI maps it to a localized message. */
+export type BodyProblem = 'missing' | 'age' | 'height' | 'weight';
+
+export function checkBody({ age, heightCm, weightKg }: BodyInput): BodyProblem | null {
+  if (![age, heightCm, weightKg].every(Number.isFinite)) return 'missing';
+  if (age < AGE_RANGE.min || age > AGE_RANGE.max) return 'age';
+  if (heightCm < HEIGHT_RANGE.min || heightCm > HEIGHT_RANGE.max) return 'height';
+  if (weightKg < WEIGHT_RANGE.min || weightKg > WEIGHT_RANGE.max) return 'weight';
   return null;
+}
+
+/** zh-TW message for checkBody(); localized UIs map the problem code themselves. */
+export function validateBody(input: BodyInput): string | null {
+  switch (checkBody(input)) {
+    case 'missing':
+      return '請輸入年齡、身高與體重。';
+    case 'age':
+      return `年齡請輸入 ${AGE_RANGE.min} 到 ${AGE_RANGE.max} 歲。`;
+    case 'height':
+      return '身高請以公分輸入，例如 165。';
+    case 'weight':
+      return '體重請以公斤輸入，例如 60。';
+    default:
+      return null;
+  }
+}
+
+/** US customary conversions (exact NIST factors). */
+export const KG_PER_LB = 0.45359237;
+export const lbToKg = (lb: number): number => lb * KG_PER_LB;
+export const kgToLb = (kg: number): number => kg / KG_PER_LB;
+/** 5 ft 9 in → 175.26 cm. An empty inches field counts as 0. */
+export function feetInchesToCm(feet: number, inches: number): number {
+  return (feet * 12 + (Number.isFinite(inches) ? inches : 0)) * 2.54;
 }
 
 /** Mifflin-St Jeor (1990): 10w + 6.25h − 5a + 5（男）／ − 161（女）. */
@@ -64,6 +91,45 @@ export function harrisBenedict({ sex, age, heightCm, weightKg }: BodyInput): num
   return sex === 'male'
     ? 88.362 + 13.397 * weightKg + 4.799 * heightCm - 5.677 * age
     : 447.593 + 9.247 * weightKg + 3.098 * heightCm - 4.33 * age;
+}
+
+/**
+ * 国立健康・栄養研究所の式 (Ganpule et al., 2007), derived from Japanese adults:
+ *   (0.0481 × 体重 + 0.0234 × 身長 − 0.0138 × 年齢 − 0.4235（男）／0.9708（女）) × 1000 ÷ 4.186
+ */
+export function ganpule({ sex, age, heightCm, weightKg }: BodyInput): number {
+  const mj = 0.0481 * weightKg + 0.0234 * heightCm - 0.0138 * age - (sex === 'male' ? 0.4235 : 0.9708);
+  return (mj * 1000) / 4.186;
+}
+
+/**
+ * 基礎代謝基準値 (kcal/kg/日) from 厚生労働省「日本人の食事摂取基準」, ages 15 and up.
+ * Each row applies from `minAge` until the next row's minAge.
+ */
+export const JP_BMR_REFERENCE: Record<Sex, readonly { minAge: number; kcalPerKg: number }[]> = {
+  male: [
+    { minAge: 15, kcalPerKg: 27.0 },
+    { minAge: 18, kcalPerKg: 23.7 },
+    { minAge: 30, kcalPerKg: 22.5 },
+    { minAge: 50, kcalPerKg: 21.8 },
+    { minAge: 65, kcalPerKg: 21.6 },
+    { minAge: 75, kcalPerKg: 21.5 },
+  ],
+  female: [
+    { minAge: 15, kcalPerKg: 25.3 },
+    { minAge: 18, kcalPerKg: 22.1 },
+    { minAge: 30, kcalPerKg: 21.9 },
+    { minAge: 50, kcalPerKg: 20.7 },
+    { minAge: 65, kcalPerKg: 20.7 },
+    { minAge: 75, kcalPerKg: 20.7 },
+  ],
+};
+
+/** 基礎代謝量 = 基礎代謝基準値 × 体重. NaN under 15. */
+export function jpReferenceBmr({ sex, age, weightKg }: BodyInput): number {
+  let rate = Number.NaN;
+  for (const row of JP_BMR_REFERENCE[sex]) if (age >= row.minAge) rate = row.kcalPerKg;
+  return rate * weightKg;
 }
 
 export function activityFactor(id: ActivityId): number {
@@ -111,7 +177,7 @@ export function cutTarget(tdee: number, bmr: number, sex: Sex): { kcal: number; 
 }
 
 export function calcTdee(input: BodyInput, activity: ActivityId): TdeeResult | null {
-  if (validateBody(input)) return null;
+  if (checkBody(input)) return null;
   const factor = activityFactor(activity);
   const bmr = mifflinStJeor(input);
   const bmrHarris = harrisBenedict(input);

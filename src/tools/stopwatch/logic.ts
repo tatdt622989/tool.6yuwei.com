@@ -101,10 +101,12 @@ export function formatStopwatch(ms: number): string {
   return main + fraction;
 }
 
+export const ZH_LAP_HEADER = ['圈數', '單圈時間', '累計時間'] as const;
+
 /** Plain-text lap table (tab separated) for pasting into notes or a spreadsheet. */
-export function lapsToText(splits: readonly number[]): string {
+export function lapsToText(splits: readonly number[], header: readonly string[] = ZH_LAP_HEADER): string {
   if (splits.length === 0) return '';
-  const lines = ['圈數\t單圈時間\t累計時間'];
+  const lines = [header.join('\t')];
   for (const row of lapRows(splits)) lines.push(`${row.index}\t${formatStopwatch(row.lap)}\t${formatStopwatch(row.split)}`);
   return lines.join('\n');
 }

@@ -100,6 +100,11 @@ describe('parseUuid', () => {
     expect(parseUuid('FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF')).toMatchObject({ ok: true, info: { version: 15 } });
     const ms = parseUuid('919108f7-52d1-4320-cbac-f847db4148a8');
     expect(ms.ok && ms.info.variant).toContain('Microsoft');
+    expect(ms.ok && ms.info.variantKind).toBe('microsoft');
+    expect(parseUuid('919108f7-52d1-4320-9bac-f847db4148a8')).toMatchObject({ info: { variantKind: 'rfc', variant: 'RFC 9562（標準）' } });
+    expect(parseUuid('919108f7-52d1-4320-1bac-f847db4148a8')).toMatchObject({ info: { variantKind: 'ncs' } });
+    expect(parseUuid('919108f7-52d1-4320-ebac-f847db4148a8')).toMatchObject({ info: { variantKind: 'future' } });
+    expect(parseUuid('00000000-0000-0000-0000-000000000000')).toMatchObject({ info: { variantKind: 'none' } });
   });
 
   it('rejects malformed input', () => {

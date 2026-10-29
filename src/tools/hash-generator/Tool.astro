@@ -1,27 +1,33 @@
 ---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
 import { ALGORITHMS } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
 const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
 ---
 
-<div class="tool" data-tool="hash-generator">
+<div class="tool" data-tool="hash-generator" {...i18nAttrs(locale, s.client)}>
   <div class="row between">
-    <div class="seg" role="radiogroup" aria-label="輸入來源">
-      <label><input type="radio" name="hg-source" value="text" checked /><span>文字</span></label>
-      <label><input type="radio" name="hg-source" value="file" /><span>檔案</span></label>
+    <div class="seg" role="radiogroup" aria-label={s.sourceAria}>
+      <label><input type="radio" name="hg-source" value="text" checked /><span>{s.text}</span></label>
+      <label><input type="radio" name="hg-source" value="file" /><span>{s.file}</span></label>
     </div>
-    <label class="check"><input type="checkbox" id="hg-upper" /> 大寫輸出</label>
+    <label class="check"><input type="checkbox" id="hg-upper" /> {s.uppercase}</label>
   </div>
 
   <div class="field" id="hg-text-panel">
-    <label for="hg-text">輸入文字（以 UTF-8 計算）</label>
-    <textarea id="hg-text" rows="6" spellcheck="false" placeholder="輸入或貼上要計算雜湊的文字"></textarea>
+    <label for="hg-text">{s.textLabel}</label>
+    <textarea id="hg-text" rows="6" spellcheck="false" placeholder={s.textPlaceholder}></textarea>
   </div>
 
   <div id="hg-file-panel" hidden>
     <label class="dropzone" id="hg-drop">
       <input type="file" id="hg-file" hidden />
-      <strong>選擇檔案或拖曳到這裡</strong>
-      <span class="hint" id="hg-file-info">檔案只會在你的裝置上讀取與計算，不會上傳</span>
+      <strong>{s.dropTitle}</strong>
+      <span class="hint" id="hg-file-info">{s.dropHint}</span>
     </label>
   </div>
 
@@ -33,15 +39,15 @@ const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
         <div class="hg-row">
           <label for={idOf(alg)} class="hg-alg">{alg}</label>
           <input id={idOf(alg)} data-alg={alg} type="text" class="mono" readonly spellcheck="false" />
-          <button class="btn small" type="button" data-copy={`#${idOf(alg)}`}>複製</button>
+          <button class="btn small" type="button" data-copy={`#${idOf(alg)}`}>{s.copy}</button>
         </div>
       ))
     }
   </div>
 
   <div class="field">
-    <label for="hg-compare">比對雜湊值（選填）</label>
-    <input id="hg-compare" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder="貼上官方提供的檢查碼，例如 SHA-256 值" />
+    <label for="hg-compare">{s.compareLabel}</label>
+    <input id="hg-compare" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder={s.comparePlaceholder} />
   </div>
   <div id="hg-compare-result" class="notice" aria-live="polite" hidden></div>
 </div>
@@ -49,9 +55,13 @@ const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
 <script>
   import { $, $$, debounce, loadPref, savePref } from '../../lib/client';
   import { formatBytes } from '../../lib/format';
+  import { t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
   import { findMatch, hashAll, toHex, type Algorithm } from './logic';
+  import type { Strings } from './i18n';
 
   const root = $('[data-tool="hash-generator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const text = $<HTMLTextAreaElement>('#hg-text', root);
   const textPanel = $('#hg-text-panel', root);
   const filePanel = $('#hg-file-panel', root);
@@ -90,7 +100,7 @@ const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
     if (!digests || compare.value.trim() === '') return;
     const match = findMatch(compare.value, hex);
     compareResult.className = match ? 'notice ok' : 'notice error';
-    compareResult.textContent = match ? `相符：與 ${match} 雜湊值完全一致` : '不相符：沒有任何演算法的結果與此值相同';
+    compareResult.textContent = match ? t(s.match, { alg: match }) : s.noMatch;
     compareResult.hidden = false;
   }
 
@@ -109,8 +119,8 @@ const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
 
   async function hashFile(file: File) {
     const id = ++run;
-    fileInfo.textContent = `${file.name}（${formatBytes(file.size)}）`;
-    setStatus('', '計算中…');
+    fileInfo.textContent = t(s.fileInfo, { name: file.name, size: formatBytes(file.size, locale) });
+    setStatus('', s.working);
     digests = fileDigests = null;
     show();
     try {
@@ -121,21 +131,21 @@ const idOf = (alg: string) => `hg-${alg.toLowerCase().replace('-', '')}`;
       setStatus('', '');
     } catch {
       if (id !== run) return;
-      setStatus('error', '無法讀取這個檔案，可能是檔案太大超出瀏覽器記憶體，或檔案已被移動。');
+      setStatus('error', s.readError);
     }
     show();
   }
 
   function switchSource() {
-    const s = source();
-    savePref('hash-generator', { source: s, upper: upper.checked });
-    textPanel.hidden = s !== 'text';
-    filePanel.hidden = s !== 'file';
+    const src = source();
+    savePref('hash-generator', { source: src, upper: upper.checked });
+    textPanel.hidden = src !== 'text';
+    filePanel.hidden = src !== 'file';
     run++;
     setStatus('', '');
-    digests = s === 'text' ? textDigests : fileDigests;
+    digests = src === 'text' ? textDigests : fileDigests;
     show();
-    if (s === 'text') void hashText();
+    if (src === 'text') void hashText();
   }
 
   const prefs = loadPref('hash-generator', { source: 'text', upper: false });

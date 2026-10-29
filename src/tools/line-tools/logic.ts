@@ -1,12 +1,24 @@
 // Pure per-line text operations. Every operation takes and returns an array of lines.
 
 export type ZhCollation = 'stroke' | 'zhuyin';
+/** Chinese stroke / Zhuyin order (zh-TW page), or plain English / Japanese order (en / ja pages). */
+export type Collation = ZhCollation | 'en' | 'ja';
+
+const COLLATION_LOCALES: Record<Collation, string> = {
+  stroke: 'zh-Hant-TW',
+  zhuyin: 'zh-TW-u-co-zhuyin',
+  en: 'en-US',
+  ja: 'ja-JP',
+};
 
 export interface CompareOptions {
   /** Treat "Apple" and "apple" as different lines (dedupe) / sort uppercase separately. */
   caseSensitive: boolean;
-  /** How Chinese text is ordered: by stroke count (Taiwan default) or by Zhuyin (Bopomofo). */
-  collation: ZhCollation;
+  /**
+   * How text is ordered: Chinese by stroke count (Taiwan default) or by Zhuyin (Bopomofo);
+   * 'en' for English dictionary order; 'ja' for Japanese order (kana in gojūon order).
+   */
+  collation: Collation;
 }
 
 /** Returns a random number in [0, 1). Injected for testability. */
@@ -25,7 +37,7 @@ export function joinLines(lines: string[]): string {
 }
 
 function collator(options: CompareOptions, numeric: boolean): Intl.Collator {
-  const locale = options.collation === 'zhuyin' ? 'zh-TW-u-co-zhuyin' : 'zh-Hant-TW';
+  const locale = COLLATION_LOCALES[options.collation] ?? COLLATION_LOCALES.stroke;
   return new Intl.Collator(locale, {
     numeric,
     sensitivity: options.caseSensitive ? 'variant' : 'accent',

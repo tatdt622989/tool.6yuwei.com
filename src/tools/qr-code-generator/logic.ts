@@ -91,8 +91,8 @@ export function buildVCard(data: VCardData): string {
   const last = data.lastName.trim();
   const org = data.org.trim();
   if (!first && !last && !org) return '';
-  // Chinese names read family name first without a space; Latin names read given name first.
-  const isCjk = /\p{Script=Han}/u.test(first + last);
+  // Chinese and Japanese names read family name first without a space; Latin names read given name first.
+  const isCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(first + last);
   const fullName = (isCjk ? `${last}${first}` : `${first} ${last}`).trim() || org;
   const lines = ['BEGIN:VCARD', 'VERSION:3.0', `N:${escapeVCard(last)};${escapeVCard(first)};;;`, `FN:${escapeVCard(fullName)}`];
   if (org) lines.push(`ORG:${escapeVCard(org)}`);

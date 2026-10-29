@@ -1,17 +1,26 @@
-<div class="tool" data-tool="mic-test">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="mic-test" {...i18nAttrs(locale, s.client)}>
   <div class="row between">
     <div class="row">
       <button class="btn primary" type="button" id="mt-start">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0014 0M12 18v3"></path></svg>
-        <span id="mt-start-label">開始測試麥克風</span>
+        <span id="mt-start-label">{s.start}</span>
       </button>
-      <button class="btn" type="button" id="mt-stop" hidden>停止</button>
+      <button class="btn" type="button" id="mt-stop" hidden>{s.stop}</button>
     </div>
-    <span class="mt-state" id="mt-state" data-state="idle"><span class="mt-dot" aria-hidden="true"></span><span id="mt-state-text">未啟動</span></span>
+    <span class="mt-state" id="mt-state" data-state="idle"><span class="mt-dot" aria-hidden="true"></span><span id="mt-state-text">{s.stateIdle}</span></span>
   </div>
 
   <div class="field" id="mt-device-field" hidden>
-    <label for="mt-device">輸入裝置</label>
+    <label for="mt-device">{s.device}</label>
     <select id="mt-device"></select>
   </div>
 
@@ -22,8 +31,8 @@
   </div>
 
   <div class="mt-verdict" id="mt-verdict" data-level="idle" aria-live="polite">
-    <strong id="mt-verdict-title">按「開始測試麥克風」並允許瀏覽器使用麥克風</strong>
-    <span id="mt-verdict-detail">開始後對著麥克風說話，下方的音量條與波形會即時跳動。</span>
+    <strong id="mt-verdict-title">{s.verdictTitle}</strong>
+    <span id="mt-verdict-detail">{s.verdictDetail}</span>
   </div>
 
   <div class="mt-meter" aria-hidden="true">
@@ -34,41 +43,41 @@
     <div class="mt-scale"><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
   </div>
 
-  <canvas class="mt-wave" id="mt-wave" height="120" aria-label="即時聲音波形"></canvas>
+  <canvas class="mt-wave" id="mt-wave" height="120" aria-label={s.waveAria}></canvas>
 
   <div class="stats">
-    <div class="stat"><span class="stat-value" id="mt-now">—</span><span class="stat-label">目前音量（dBFS）</span></div>
-    <div class="stat"><span class="stat-value" id="mt-max">—</span><span class="stat-label">本次最高峰值</span></div>
-    <div class="stat"><span class="stat-value" id="mt-rate">—</span><span class="stat-label">取樣率</span></div>
-    <div class="stat"><span class="stat-value" id="mt-ch">—</span><span class="stat-label">聲道</span></div>
+    <div class="stat"><span class="stat-value" id="mt-now">—</span><span class="stat-label">{s.statNow}</span></div>
+    <div class="stat"><span class="stat-value" id="mt-max">—</span><span class="stat-label">{s.statMax}</span></div>
+    <div class="stat"><span class="stat-value" id="mt-rate">—</span><span class="stat-label">{s.statRate}</span></div>
+    <div class="stat"><span class="stat-value" id="mt-ch">—</span><span class="stat-label">{s.statChannels}</span></div>
   </div>
 
   <div class="mt-rec">
     <div class="row between">
       <div class="row">
         <button class="btn" type="button" id="mt-rec">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-          錄音 5 秒並回放
-        </button>
-        <span class="hint" id="mt-rec-status">錄一段自己的聲音，聽聽看別人聽到的效果</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>{`\n${s.record}\n`}</button>
+        <span class="hint" id="mt-rec-status">{s.recordHint}</span>
       </div>
     </div>
     <div class="mt-progress" id="mt-progress" hidden><div class="mt-progress-bar" id="mt-progress-bar"></div></div>
     <div class="mt-playback" id="mt-playback" hidden>
       <audio id="mt-audio" controls preload="auto"></audio>
-      <button class="btn small ghost" type="button" id="mt-download">下載錄音</button>
+      <button class="btn small ghost" type="button" id="mt-download">{s.download}</button>
     </div>
   </div>
 
-  <label class="check"><input type="checkbox" id="mt-raw" /> 關閉降噪、回音消除與自動增益（聽原始收音）</label>
+  <label class="check"><input type="checkbox" id="mt-raw" /> {s.raw}</label>
 
-  <p class="hint">聲音只在你的瀏覽器中分析與錄製，不會上傳到任何伺服器；關閉或離開頁面時會自動停止麥克風。</p>
+  <p class="hint">{s.footnote}</p>
 </div>
 
 <script>
   import { $, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { t as fill } from '../../i18n/format';
+  import type { Strings } from './i18n';
   import {
-    VERDICT_TEXT,
     dbToPercent,
     describeMediaError,
     detectEnv,
@@ -93,6 +102,7 @@
   const RECORD_MS = 5000;
 
   const root = $('[data-tool="mic-test"]');
+  const { s } = readI18n<Strings['client']>(root);
   const startBtn = $<HTMLButtonElement>('#mt-start', root);
   const startLabel = $('#mt-start-label', root);
   const stopBtn = $<HTMLButtonElement>('#mt-stop', root);
@@ -153,11 +163,11 @@
   }
 
   function showError(name: string) {
-    const problem = describeMediaError(name, 'mic');
+    const problem = describeMediaError(name, 'mic', s.media);
     errTitle.textContent = problem.title;
     errDetail.textContent = problem.detail;
     errHelp.replaceChildren(
-      ...(problem.showPermissionHelp ? permissionHelp(env, 'mic') : []).map((step) => {
+      ...(problem.showPermissionHelp ? permissionHelp(env, 'mic', s.media) : []).map((step) => {
         const li = document.createElement('li');
         li.textContent = step;
         return li;
@@ -172,12 +182,12 @@
     currentVerdict = level;
     verdict.dataset.level = level;
     if (level === 'idle') {
-      verdictTitle.textContent = '麥克風已停止';
-      verdictDetail.textContent = '按「開始測試麥克風」可以再測一次。';
+      verdictTitle.textContent = s.stoppedTitle;
+      verdictDetail.textContent = s.stoppedDetail;
       return;
     }
-    verdictTitle.textContent = VERDICT_TEXT[level].title;
-    verdictDetail.textContent = VERDICT_TEXT[level].detail;
+    verdictTitle.textContent = s.verdicts[level].title;
+    verdictDetail.textContent = s.verdicts[level].detail;
   }
 
   const fmtDb = (db: number) => (db <= -99 ? '—' : `${Math.round(db)} dB`);
@@ -255,7 +265,7 @@
     if (recorder && recorder.state === 'recording') {
       const elapsed = performance.now() - recordStart;
       progressBar.style.transform = `scaleX(${Math.min(1, elapsed / RECORD_MS)})`;
-      recStatus.textContent = `錄音中，剩 ${Math.max(0, (RECORD_MS - elapsed) / 1000).toFixed(1)} 秒`;
+      recStatus.textContent = fill(s.recording, { s: Math.max(0, (RECORD_MS - elapsed) / 1000).toFixed(1) });
     }
   }
 
@@ -268,7 +278,7 @@
       ...devices.map((d, i) => {
         const opt = document.createElement('option');
         opt.value = d.deviceId;
-        opt.textContent = deviceLabel(d.label, i, 'mic');
+        opt.textContent = deviceLabel(d.label, i, 'mic', s.media);
         return opt;
       }),
     );
@@ -296,9 +306,9 @@
     nowOut.textContent = '—';
     drawWave(null);
     setVerdict('idle');
-    setState('idle', '已停止');
+    setState('idle', s.stopped);
     stopBtn.hidden = true;
-    startLabel.textContent = '重新開始測試';
+    startLabel.textContent = s.restart;
   }
 
   async function start(deviceId?: string, exact = false): Promise<boolean> {
@@ -351,14 +361,14 @@
       source.connect(analyser);
       await ctx.resume();
       rateOut.textContent = `${(ctx.sampleRate / 1000).toFixed(1)} kHz`;
-      chOut.textContent = settings.channelCount === 2 ? '立體聲' : settings.channelCount ? '單聲道' : '—';
+      chOut.textContent = settings.channelCount === 2 ? s.stereo : settings.channelCount ? s.mono : '—';
       heldPeakDb = heldRmsDb = sessionMaxDb = -100;
       maxOut.textContent = '—';
       currentVerdict = 'idle';
       setVerdict('silent');
-      setState('live', '收音中');
+      setState('live', s.live);
       stopBtn.hidden = false;
-      startLabel.textContent = '重新開始測試';
+      startLabel.textContent = s.restart;
       lastFrame = 0;
       if (!raf) raf = requestAnimationFrame(frame);
       await refreshDevices();
@@ -376,7 +386,7 @@
   function record() {
     if (!stream) return;
     if (typeof MediaRecorder === 'undefined') {
-      recStatus.textContent = '這個瀏覽器不支援錄音功能，請改用最新版 Chrome、Edge、Safari 或 Firefox。';
+      recStatus.textContent = s.recUnsupported;
       return;
     }
     const type = pickRecorderType((t) => MediaRecorder.isTypeSupported(t));
@@ -384,7 +394,7 @@
     try {
       rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
     } catch {
-      recStatus.textContent = '無法啟動錄音，請重新開始測試後再試一次。';
+      recStatus.textContent = s.recFailed;
       return;
     }
     const chunks: Blob[] = [];
@@ -395,9 +405,9 @@
       recorder = null;
       recBtn.disabled = false;
       progress.hidden = true;
-      if (stream) setState('live', '收音中');
+      if (stream) setState('live', s.live);
       if (!chunks.length) {
-        recStatus.textContent = '沒有錄到內容，請再試一次。';
+        recStatus.textContent = s.recEmpty;
         return;
       }
       recordBlob = new Blob(chunks, { type: rec.mimeType || type || 'audio/webm' });
@@ -405,7 +415,7 @@
       recordUrl = URL.createObjectURL(recordBlob);
       audio.src = recordUrl;
       playback.hidden = false;
-      recStatus.textContent = '錄好了，按播放鍵聽聽看';
+      recStatus.textContent = s.recDone;
       void audio.play().catch(() => undefined);
     });
     recorder = rec;
@@ -414,7 +424,7 @@
     recBtn.disabled = true;
     progress.hidden = false;
     progressBar.style.transform = 'scaleX(0)';
-    setState('rec', '錄音中');
+    setState('rec', s.recState);
     window.setTimeout(() => {
       if (rec.state === 'recording') rec.stop();
     }, RECORD_MS);

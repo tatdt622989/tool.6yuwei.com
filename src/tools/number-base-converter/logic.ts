@@ -5,6 +5,29 @@ export const DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz';
 export const MIN_BASE = 2;
 export const MAX_BASE = 36;
 
+/** Validation messages from parseInBase (zh defaults; the UI passes its locale's copy). */
+export interface ParseMessages {
+  badBase: string;
+  empty: string;
+  /** {ch} {base} {allowed} */
+  badDigit: string;
+  /** {max} — allowed digits for bases up to 10 */
+  allowedDigits: string;
+  /** {max} — allowed digits for bases above 10 */
+  allowedLetters: string;
+}
+
+export const ZH_MESSAGES: ParseMessages = {
+  badBase: '進位必須介於 2 到 36',
+  empty: '請輸入數字',
+  badDigit: '「{ch}」不是 {base} 進位的數字（只能用 {allowed}）',
+  allowedDigits: '0–{max}',
+  allowedLetters: '0–9 與 A–{max}',
+};
+
+const fill = (template: string, vars: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+
 export type ParseResult = { ok: true; value: bigint } | { ok: false; error: string };
 
 const PREFIX: Record<string, number> = { '0b': 2, '0o': 8, '0x': 16 };
@@ -18,10 +41,10 @@ export function stripSeparators(input: string): string {
  * Parses a signed integer written in `base` (2–36). Accepts an optional sign, a 0b / 0o / 0x
  * prefix matching the base, separators, and upper- or lower-case letters.
  */
-export function parseInBase(input: string, base: number): ParseResult {
-  if (!Number.isInteger(base) || base < MIN_BASE || base > MAX_BASE) return { ok: false, error: '進位必須介於 2 到 36' };
+export function parseInBase(input: string, base: number, messages: ParseMessages = ZH_MESSAGES): ParseResult {
+  if (!Number.isInteger(base) || base < MIN_BASE || base > MAX_BASE) return { ok: false, error: messages.badBase };
   let s = stripSeparators(input).toLowerCase();
-  if (s === '') return { ok: false, error: '請輸入數字' };
+  if (s === '') return { ok: false, error: messages.empty };
   let negative = false;
   if (s[0] === '-' || s[0] === '+') {
     negative = s[0] === '-';
@@ -29,15 +52,18 @@ export function parseInBase(input: string, base: number): ParseResult {
   }
   const prefix = s.slice(0, 2);
   if (PREFIX[prefix] === base && s.length > 2) s = s.slice(2);
-  if (s === '') return { ok: false, error: '請輸入數字' };
+  if (s === '') return { ok: false, error: messages.empty };
 
   const big = BigInt(base);
   let value = 0n;
   for (const ch of s) {
     const d = DIGITS.indexOf(ch);
     if (d < 0 || d >= base) {
-      const allowed = base <= 10 ? `0–${base - 1}` : `0–9 與 A–${DIGITS[base - 1].toUpperCase()}`;
-      return { ok: false, error: `「${ch.toUpperCase()}」不是 ${base} 進位的數字（只能用 ${allowed}）` };
+      const allowed =
+        base <= 10
+          ? fill(messages.allowedDigits, { max: base - 1 })
+          : fill(messages.allowedLetters, { max: DIGITS[base - 1].toUpperCase() });
+      return { ok: false, error: fill(messages.badDigit, { ch: ch.toUpperCase(), base, allowed }) };
     }
     value = value * big + BigInt(d);
   }

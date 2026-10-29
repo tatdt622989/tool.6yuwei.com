@@ -1,49 +1,92 @@
-<div class="tool" data-tool="split-bill">
-  <div class="seg" role="radiogroup" aria-label="分帳方式">
-    <label><input type="radio" name="sb-mode" value="equal" checked /><span>平均分攤</span></label>
-    <label><input type="radio" name="sb-mode" value="items" /><span>各付各的</span></label>
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const d = s.client.defaults;
+---
+
+<div class="tool" data-tool="split-bill" {...i18nAttrs(locale, s.client)}>
+  <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+    <label><input type="radio" name="sb-mode" value="equal" checked /><span>{s.modeEqual}</span></label>
+    <label><input type="radio" name="sb-mode" value="items" /><span>{s.modeItems}</span></label>
   </div>
 
   <div class="grid-2" id="sb-equal">
     <div class="field">
-      <label for="sb-total">消費金額（元）</label>
-      <input id="sb-total" type="text" inputmode="decimal" autocomplete="off" value="3280" />
+      <label for="sb-total">{s.totalLabel}</label>
+      <input id="sb-total" type="text" inputmode="decimal" autocomplete="off" value={d.total} />
     </div>
     <div class="field">
-      <label for="sb-people">人數</label>
-      <input id="sb-people" type="text" inputmode="numeric" autocomplete="off" value="4" />
+      <label for="sb-people">{s.peopleLabel}</label>
+      <input id="sb-people" type="text" inputmode="numeric" autocomplete="off" value={d.people} />
     </div>
   </div>
 
   <div class="field" id="sb-items" hidden>
-    <span class="label">每個人自己點的金額（元）</span>
+    <span class="label">{s.itemsLabel}</span>
     <div class="sb-list" id="sb-list"></div>
     <div class="row">
-      <button class="btn small" type="button" id="sb-add">新增一人</button>
+      <button class="btn small" type="button" id="sb-add">{s.addPerson}</button>
     </div>
-    <label class="label" for="sb-shared">共同分攤金額（合菜、飲料等，平均分給所有人）</label>
-    <input id="sb-shared" type="text" inputmode="decimal" autocomplete="off" value="600" />
+    <label class="label" for="sb-shared">{s.sharedLabel}</label>
+    <input id="sb-shared" type="text" inputmode="decimal" autocomplete="off" value={d.shared} />
   </div>
 
-  <div class="grid-2">
-    <div class="field">
-      <label for="sb-service">服務費（%）</label>
-      <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value="10" />
-      <span class="hint">台灣餐廳常見 10%，沒有收就填 0。</span>
-    </div>
-    <div class="field">
-      <label for="sb-tip">小費（%，選填）</label>
-      <input id="sb-tip" type="text" inputmode="decimal" autocomplete="off" value="0" />
-      <span class="hint">以消費金額計算，出國用餐時常用。</span>
-    </div>
-  </div>
+  {
+    s.tip ? (
+      <div class="grid-2">
+        <div class="field">
+          <label for="sb-service">{s.serviceLabel}</label>
+          <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value={d.service} />
+          <span class="hint">{s.serviceHint}</span>
+        </div>
+        <div class="field">
+          <label for="sb-tip">{s.tip.label}</label>
+          <input id="sb-tip" type="text" inputmode="decimal" autocomplete="off" value={d.tip} />
+          {s.tip.presets && (
+            <div class="row sb-tips" role="group" aria-label={s.tip.presetsAria}>
+              {s.tip.presets.map((pct) => (
+                <button class="btn small" type="button" data-tip={pct} aria-pressed="false">
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          )}
+          <span class="hint">{s.tip.hint}</span>
+        </div>
+      </div>
+    ) : (
+      <div class="field">
+        <label for="sb-service">{s.serviceLabel}</label>
+        <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value={d.service} />
+        <span class="hint">{s.serviceHint}</span>
+      </div>
+    )
+  }
 
   <div class="field" id="sb-round-wrap">
-    <span class="label">進位方式</span>
-    <div class="seg" role="radiogroup" aria-label="進位方式">
-      <label><input type="radio" name="sb-round" value="1" checked /><span>精確到 1 元</span></label>
-      <label><input type="radio" name="sb-round" value="10" /><span>每人進位到 10 元</span></label>
+    <span class="label">{s.roundLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.roundLabel}>
+      {
+        s.roundOptions.map((o, i) => (
+          <label><input type="radio" name="sb-round" value={String(o.value)} checked={i === 0} /><span>{o.label}</span></label>
+        ))
+      }
     </div>
+    {
+      s.roundMode && (
+        <div class="sb-round-mode" id="sb-round-mode">
+          <span class="label">{s.roundMode.label}</span>
+          <div class="seg" role="radiogroup" aria-label={s.roundMode.label}>
+            <label><input type="radio" name="sb-round-mode" value="up" checked /><span>{s.roundMode.up}</span></label>
+            <label><input type="radio" name="sb-round-mode" value="down" /><span>{s.roundMode.down}</span></label>
+          </div>
+        </div>
+      )
+    }
   </div>
 
   <p class="notice error" id="sb-error" hidden></p>
@@ -51,14 +94,14 @@
   <div id="sb-results">
     <div class="result">
       <div class="result-value" id="sb-main">—</div>
-      <div class="result-label" id="sb-main-label">每人應付</div>
+      <div class="result-label" id="sb-main-label">{s.client.mainLabel}</div>
     </div>
 
     <div class="stats">
-      <div class="stat"><span class="stat-value" id="sb-subtotal">—</span><span class="stat-label">消費小計</span></div>
-      <div class="stat"><span class="stat-value" id="sb-service-out">—</span><span class="stat-label">服務費</span></div>
-      <div class="stat"><span class="stat-value" id="sb-tip-out">—</span><span class="stat-label">小費</span></div>
-      <div class="stat"><span class="stat-value" id="sb-grand">—</span><span class="stat-label">應付總額（四捨五入）</span></div>
+      <div class="stat"><span class="stat-value" id="sb-subtotal">—</span><span class="stat-label">{s.statSubtotal}</span></div>
+      <div class="stat"><span class="stat-value" id="sb-service-out">—</span><span class="stat-label">{s.statService}</span></div>
+      {s.statTip && <div class="stat"><span class="stat-value" id="sb-tip-out">—</span><span class="stat-label">{s.statTip}</span></div>}
+      <div class="stat"><span class="stat-value" id="sb-grand">—</span><span class="stat-label">{s.statGrand}</span></div>
     </div>
 
     <p class="notice" id="sb-note"></p>
@@ -66,14 +109,14 @@
     <div class="table-wrap" id="sb-table-wrap" hidden>
       <table class="table">
         <thead>
-          <tr><th>姓名</th><th class="num">個人</th><th class="num">共同分攤</th><th class="num">服務費＋小費</th><th class="num">應付</th></tr>
+          <tr><th>{s.tableHead[0]}</th><th class="num">{s.tableHead[1]}</th><th class="num">{s.tableHead[2]}</th><th class="num">{s.tableHead[3]}</th><th class="num">{s.tableHead[4]}</th></tr>
         </thead>
         <tbody id="sb-table"></tbody>
       </table>
     </div>
 
     <div class="row">
-      <button class="btn small" type="button" data-copy="#sb-summary">複製分帳結果</button>
+      <button class="btn small" type="button" data-copy="#sb-summary">{s.copyResult}</button>
     </div>
     <textarea id="sb-summary" hidden readonly aria-hidden="true"></textarea>
   </div>
@@ -81,8 +124,11 @@
 
 <script>
   import { $, $$, loadPref, savePref } from '../../lib/client';
-  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
-  import { splitEqually, splitItemized } from './logic';
+  import { formatFixed, formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { splitEqually, splitItemized, type RoundMode } from './logic';
+  import type { Strings } from './i18n';
 
   type Mode = 'equal' | 'items';
   interface Prefs {
@@ -91,38 +137,31 @@
     people: string;
     service: string;
     tip: string;
-    roundTo: '1' | '10';
+    roundTo: string;
+    roundMode?: RoundMode;
     shared: string;
     persons: { name: string; amount: string }[];
   }
 
-  const defaults: Prefs = {
-    mode: 'equal',
-    total: '3280',
-    people: '4',
-    service: '10',
-    tip: '0',
-    roundTo: '1',
-    shared: '600',
-    persons: [
-      { name: '小明', amount: '320' },
-      { name: '小華', amount: '450' },
-      { name: '小美', amount: '280' },
-    ],
-  };
-
   const root = $('[data-tool="split-bill"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const defaults: Prefs = s.defaults;
+  const scale = s.digits === 2 ? 100 : 1;
+
   const modeRadios = $$<HTMLInputElement>('input[name="sb-mode"]', root);
   const roundRadios = $$<HTMLInputElement>('input[name="sb-round"]', root);
+  const roundModeRadios = $$<HTMLInputElement>('input[name="sb-round-mode"]', root);
+  const tipButtons = $$<HTMLButtonElement>('[data-tip]', root);
   const total = $<HTMLInputElement>('#sb-total', root);
   const people = $<HTMLInputElement>('#sb-people', root);
   const service = $<HTMLInputElement>('#sb-service', root);
-  const tip = $<HTMLInputElement>('#sb-tip', root);
+  const tip = root.querySelector<HTMLInputElement>('#sb-tip');
   const shared = $<HTMLInputElement>('#sb-shared', root);
   const list = $('#sb-list', root);
   const equalPanel = $('#sb-equal', root);
   const itemsPanel = $('#sb-items', root);
   const roundWrap = $('#sb-round-wrap', root);
+  const roundModeWrap = root.querySelector<HTMLElement>('#sb-round-mode');
   const error = $('#sb-error', root);
   const results = $('#sb-results', root);
   const main = $('#sb-main', root);
@@ -132,30 +171,36 @@
   const table = $('#sb-table', root);
   const summary = $<HTMLTextAreaElement>('#sb-summary', root);
 
-  const yuan = (n: number) => `${formatInteger(n)} 元`;
+  /** Amount without currency, in the currency's minor-unit precision. */
+  const amountText = (n: number) => (s.digits === 2 ? formatFixed(n, 2, locale) : formatInteger(n, locale));
+  const money = (n: number) => t(s.money, { n: amountText(n) });
+  /** Plain number for table cells (and zh stats). */
+  const num = (n: number) => (s.digits === 2 ? formatFixed(n, 2, locale) : formatNumber(n, s.numDigits, locale));
+  const stat = (n: number) => (s.statMoney ? money(n) : num(n));
   const mode = (): Mode => (modeRadios.find((r) => r.checked)?.value as Mode) ?? 'equal';
-  const roundTo = (): 1 | 10 => (roundRadios.find((r) => r.checked)?.value === '10' ? 10 : 1);
+  const roundTo = (): number => Number(roundRadios.find((r) => r.checked)?.value ?? '1') || 1;
+  const roundMode = (): RoundMode => (roundModeRadios.find((r) => r.checked)?.value === 'down' ? 'down' : 'up');
 
   function addPersonRow(name = '', amount = '') {
     const row = document.createElement('div');
     row.className = 'sb-person';
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
-    nameInput.placeholder = `第 ${list.children.length + 1} 位`;
+    nameInput.placeholder = t(s.nthPerson, { n: list.children.length + 1 });
     nameInput.value = name;
-    nameInput.setAttribute('aria-label', '姓名');
+    nameInput.setAttribute('aria-label', s.nameAria);
     nameInput.dataset.role = 'name';
     const amountInput = document.createElement('input');
     amountInput.type = 'text';
     amountInput.inputMode = 'decimal';
-    amountInput.placeholder = '金額';
+    amountInput.placeholder = s.amountPlaceholder;
     amountInput.value = amount;
-    amountInput.setAttribute('aria-label', '個人消費金額');
+    amountInput.setAttribute('aria-label', s.amountAria);
     amountInput.dataset.role = 'amount';
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'btn small ghost';
-    remove.textContent = '移除';
+    remove.textContent = s.remove;
     remove.addEventListener('click', () => {
       if (list.children.length <= 1) return;
       row.remove();
@@ -169,7 +214,7 @@
     return $$<HTMLElement>('.sb-person', list).map((row, i) => {
       const name = $<HTMLInputElement>('[data-role="name"]', row).value.trim();
       const amount = $<HTMLInputElement>('[data-role="amount"]', row).value;
-      return { name: name || `第 ${i + 1} 位`, rawName: name, amount };
+      return { name: name || t(s.nthPerson, { n: i + 1 }), rawName: name, amount };
     });
   }
 
@@ -182,13 +227,14 @@
   function render() {
     const m = mode();
     const persons = readPersons();
-    savePref('split-bill', {
+    savePref(s.prefKey, {
       mode: m,
       total: total.value,
       people: people.value,
       service: service.value,
-      tip: tip.value,
-      roundTo: roundTo() === 10 ? '10' : '1',
+      tip: tip?.value ?? '0',
+      roundTo: String(roundTo()),
+      ...(roundModeWrap ? { roundMode: roundMode() } : {}),
       shared: shared.value,
       persons: persons.map((p) => ({ name: p.rawName, amount: p.amount })),
     } satisfies Prefs);
@@ -197,40 +243,58 @@
     itemsPanel.hidden = m !== 'items';
     roundWrap.hidden = m !== 'equal';
     tableWrap.hidden = m !== 'items';
+    if (roundModeWrap) roundModeWrap.hidden = roundTo() === 1;
 
     const servicePct = service.value.trim() === '' ? 0 : parseNumber(service.value);
-    const tipPct = tip.value.trim() === '' ? 0 : parseNumber(tip.value);
+    const tipPct = !tip || tip.value.trim() === '' ? 0 : parseNumber(tip.value);
+    for (const b of tipButtons) b.setAttribute('aria-pressed', String(Number(b.dataset.tip) === tipPct));
 
     if (m === 'equal') {
+      const step = roundTo();
       const r = splitEqually({
         subtotal: parseNumber(total.value),
         people: parseNumber(people.value),
         servicePct,
         tipPct,
-        roundTo: roundTo(),
+        roundTo: step,
+        roundMode: roundMode(),
+        scale,
       });
-      if (!r) return showError('請輸入大於 0 的消費金額、至少 1 人（整數），服務費與小費不可為負數。');
+      if (!r) return showError(s.errorEqual);
       error.hidden = true;
       results.hidden = false;
       fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
       const n = parseNumber(people.value);
-      if (roundTo() === 10) {
-        main.textContent = yuan(r.roundedPerPerson);
-        mainLabel.textContent = '每人應付（進位到 10 元）';
+      if (step > 1) {
+        const unit = t(s.money, { n: formatNumber(step / scale, 2, locale) });
+        const down = r.surplus < 0;
+        main.textContent = money(r.roundedPerPerson);
+        mainLabel.textContent = t(roundMode() === 'down' && s.labelRoundedDown ? s.labelRoundedDown : s.labelRounded, { unit });
+        const vars = { per: money(r.roundedPerPerson), n, collected: money(r.collected) };
         note.textContent =
           r.surplus > 0
-            ? `每人付 ${yuan(r.roundedPerPerson)}，${n} 人共收 ${yuan(r.collected)}，比應付總額多 ${yuan(r.surplus)}，可留給結帳的人找零或當作公基金。`
-            : `每人付 ${yuan(r.roundedPerPerson)}，剛好等於應付總額。`;
+            ? t(s.noteSurplus, { ...vars, surplus: money(r.surplus) })
+            : down && s.noteShortfall
+              ? t(s.noteShortfall, { ...vars, shortfall: money(-r.surplus) })
+              : t(s.noteRoundedExact, vars);
       } else if (r.extraCount > 0) {
-        main.textContent = `${formatInteger(r.basePerPerson)}–${yuan(r.basePerPerson + 1)}`;
-        mainLabel.textContent = `每人應付（精確值 ${formatNumber(r.exactPerPerson, 2)} 元）`;
-        note.textContent = `總額 ${yuan(r.grandTotal)} 無法被 ${n} 人整除：${r.extraCount} 人付 ${yuan(r.basePerPerson + 1)}，${n - r.extraCount} 人付 ${yuan(r.basePerPerson)}，合計剛好 ${yuan(r.grandTotal)}。`;
+        const high = r.basePerPerson + 1 / scale;
+        main.textContent = t(s.mainRange, { low: amountText(r.basePerPerson), high: amountText(high) });
+        mainLabel.textContent = t(s.labelExact, { exact: formatNumber(r.exactPerPerson, s.exactDigits, locale) });
+        note.textContent = t(s.noteUneven, {
+          total: money(r.grandTotal),
+          n,
+          extra: r.extraCount,
+          rest: n - r.extraCount,
+          high: money(high),
+          low: money(r.basePerPerson),
+        });
       } else {
-        main.textContent = yuan(r.basePerPerson);
-        mainLabel.textContent = '每人應付';
-        note.textContent = `總額 ${yuan(r.grandTotal)} 由 ${n} 人平分，每人 ${yuan(r.basePerPerson)}，剛好整除。`;
+        main.textContent = money(r.basePerPerson);
+        mainLabel.textContent = s.mainLabel;
+        note.textContent = t(s.noteEven, { total: money(r.grandTotal), n, per: money(r.basePerPerson) });
       }
-      summary.value = `${main.textContent}（${mainLabel.textContent}）\n${note.textContent}`;
+      summary.value = t(s.summaryEqual, { main: main.textContent, label: mainLabel.textContent, note: note.textContent });
       return;
     }
 
@@ -239,18 +303,19 @@
       shared: shared.value.trim() === '' ? 0 : parseNumber(shared.value),
       servicePct,
       tipPct,
+      scale,
     });
-    if (!r) return showError('請確認每個金額都是不為負的數字，且總消費大於 0。');
+    if (!r) return showError(s.errorItems);
     error.hidden = true;
     results.hidden = false;
     fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
-    main.textContent = yuan(r.grandTotal);
-    mainLabel.textContent = `應付總額（${r.shares.length} 人）`;
-    note.textContent = '服務費與小費依每個人的消費比例分攤；四捨五入後的零頭已分配好，所有人加總剛好等於應付總額。';
+    main.textContent = money(r.grandTotal);
+    mainLabel.textContent = plural(locale, r.shares.length, s.itemsMainLabel);
+    note.textContent = s.itemsNote;
     table.replaceChildren(
-      ...r.shares.map((s) => {
+      ...r.shares.map((share) => {
         const tr = document.createElement('tr');
-        const cells = [s.name, formatNumber(s.own, 2), formatNumber(s.sharedPart, 2), formatNumber(s.charges, 2), yuan(s.pay)];
+        const cells = [share.name, num(share.own), num(share.sharedPart), num(share.charges), money(share.pay)];
         cells.forEach((text, i) => {
           const td = document.createElement('td');
           td.textContent = text;
@@ -261,31 +326,39 @@
       }),
     );
     summary.value = [
-      `應付總額 ${yuan(r.grandTotal)}`,
-      ...r.shares.map((s) => `${s.name}：${yuan(s.pay)}`),
+      t(s.summaryTotal, { total: money(r.grandTotal) }),
+      ...r.shares.map((share) => t(s.summaryLine, { name: share.name, pay: money(share.pay) })),
     ].join('\n');
   }
 
   function fillStats(subtotal: number, serviceAmount: number, tipAmount: number, grand: number) {
-    $('#sb-subtotal', root).textContent = formatNumber(subtotal, 2);
-    $('#sb-service-out', root).textContent = formatNumber(serviceAmount, 2);
-    $('#sb-tip-out', root).textContent = formatNumber(tipAmount, 2);
-    $('#sb-grand', root).textContent = yuan(grand);
+    $('#sb-subtotal', root).textContent = stat(subtotal);
+    $('#sb-service-out', root).textContent = stat(serviceAmount);
+    const tipOut = root.querySelector('#sb-tip-out');
+    if (tipOut) tipOut.textContent = stat(tipAmount);
+    $('#sb-grand', root).textContent = money(grand);
   }
 
-  const prefs = { ...defaults, ...loadPref<Partial<Prefs>>('split-bill', {}) };
+  const prefs = { ...defaults, ...loadPref<Partial<Prefs>>(s.prefKey, {}) };
   total.value = prefs.total;
   people.value = prefs.people;
   service.value = prefs.service;
-  tip.value = prefs.tip;
+  if (tip) tip.value = prefs.tip;
   shared.value = prefs.shared;
   for (const r of modeRadios) r.checked = r.value === prefs.mode;
-  for (const r of roundRadios) r.checked = r.value === prefs.roundTo;
+  if (roundRadios.some((r) => r.value === prefs.roundTo)) for (const r of roundRadios) r.checked = r.value === prefs.roundTo;
+  for (const r of roundModeRadios) r.checked = r.value === (prefs.roundMode ?? 'up');
   const persons = Array.isArray(prefs.persons) && prefs.persons.length > 0 ? prefs.persons : defaults.persons;
   persons.forEach((p) => addPersonRow(p.name, p.amount));
 
   root.addEventListener('input', render);
   root.addEventListener('change', render);
+  for (const b of tipButtons) {
+    b.addEventListener('click', () => {
+      if (tip) tip.value = b.dataset.tip ?? '';
+      render();
+    });
+  }
   $('#sb-add', root).addEventListener('click', () => {
     addPersonRow();
     render();
@@ -317,7 +390,20 @@
     margin-top: 4px;
   }
   .field[hidden],
-  .grid-2[hidden] {
+  .grid-2[hidden],
+  .sb-round-mode[hidden] {
     display: none;
+  }
+  .sb-round-mode {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .sb-tips {
+    gap: 6px;
+  }
+  .sb-tips .btn[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 </style>

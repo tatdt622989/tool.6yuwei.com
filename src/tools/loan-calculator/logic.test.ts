@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { annuityPayment, calculateLoan, monthlyIrr, rateForMonth, validateLoan, type LoanInput } from './logic';
+import { annuityPayment, calculateLoan, LOAN_PROBLEM_ZH, loanProblem, monthlyIrr, rateForMonth, validateLoan, type LoanInput } from './logic';
 
 const base: LoanInput = { principal: 1_000_000, months: 84, stages: [{ ratePct: 3, months: 0 }], fees: 0 };
 
@@ -71,4 +71,28 @@ describe('validateLoan', () => {
       expect(calculateLoan({ ...base, ...patch })).toBeNull();
     },
   );
+});
+
+describe('loanProblem', () => {
+  it('returns codes that map to the zh-TW messages', () => {
+    expect(loanProblem(base)).toBeNull();
+    expect(loanProblem({ ...base, principal: 0 })).toBe('amount');
+    expect(loanProblem({ ...base, months: 481 })).toBe('months');
+    expect(loanProblem({ ...base, stages: [] })).toBe('noRate');
+    expect(loanProblem({ ...base, stages: [{ ratePct: 31, months: 0 }] })).toBe('rate');
+    expect(loanProblem({ ...base, stages: [{ ratePct: 3, months: 1.5 }] })).toBe('stageMonths');
+    expect(loanProblem({ ...base, fees: -1 })).toBe('feesNegative');
+    expect(loanProblem({ ...base, fees: base.principal })).toBe('feesTooHigh');
+    expect(loanProblem({ ...base, fees: Number.NaN })).toBe('incomplete');
+    expect(validateLoan({ ...base, principal: 0 })).toBe(LOAN_PROBLEM_ZH.amount);
+  });
+});
+
+describe('US personal loan with an origination fee (en)', () => {
+  it('$15,000 at 12% for 60 months with a $450 fee', () => {
+    const r = calculateLoan({ principal: 15_000, months: 60, stages: [{ ratePct: 12, months: 0 }], fees: 450 })!;
+    expect(r.firstPayment).toBeCloseTo(333.67, 2);
+    expect(r.totalInterest).toBeCloseTo(5020, -1);
+    expect(r.aprPct).toBeCloseTo(13.35, 2);
+  });
 });

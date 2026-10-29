@@ -1,38 +1,48 @@
-<div class="tool" data-tool="image-to-pdf">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const paper = s.client.defaultSize;
+---
+
+<div class="tool" data-tool="image-to-pdf" {...i18nAttrs(locale, s.client)}>
   <p class="ip-privacy">
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
-    <span><strong>圖片不會上傳。</strong>JPG 轉 PDF 全程在你的瀏覽器中完成，證件、收據、作業掃描檔都不會傳到任何伺服器。</span>
+    <span><strong>{s.privacyStrong}</strong>{s.privacyText}</span>
   </p>
 
   <label class="dropzone" id="ip-drop" tabindex="0">
     <input type="file" id="ip-file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif" multiple hidden />
-    <strong>點擊選擇圖片，或拖曳到這裡</strong>
-    <span class="hint">支援 JPG、PNG、WebP 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上截圖</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="grid-3">
     <div class="field">
-      <span class="label">紙張大小</span>
-      <div class="seg" role="radiogroup" aria-label="紙張大小">
-        <label><input type="radio" name="ip-size" value="a4" checked /><span>A4</span></label>
-        <label><input type="radio" name="ip-size" value="letter" /><span>Letter</span></label>
-        <label><input type="radio" name="ip-size" value="fit" /><span>符合圖片</span></label>
+      <span class="label">{s.sizeLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.sizeLabel}>
+        <label><input type="radio" name="ip-size" value="a4" checked={paper === 'a4'} /><span>A4</span></label>
+        <label><input type="radio" name="ip-size" value="letter" checked={paper === 'letter'} /><span>Letter</span></label>
+        <label><input type="radio" name="ip-size" value="fit" /><span>{s.sizeFit}</span></label>
       </div>
     </div>
     <div class="field" id="ip-orient-field">
-      <span class="label">方向</span>
-      <div class="seg" role="radiogroup" aria-label="頁面方向">
-        <label><input type="radio" name="ip-orient" value="auto" checked /><span>自動</span></label>
-        <label><input type="radio" name="ip-orient" value="portrait" /><span>直向</span></label>
-        <label><input type="radio" name="ip-orient" value="landscape" /><span>橫向</span></label>
+      <span class="label">{s.orientLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.orientAria}>
+        <label><input type="radio" name="ip-orient" value="auto" checked /><span>{s.orientAuto}</span></label>
+        <label><input type="radio" name="ip-orient" value="portrait" /><span>{s.orientPortrait}</span></label>
+        <label><input type="radio" name="ip-orient" value="landscape" /><span>{s.orientLandscape}</span></label>
       </div>
     </div>
     <div class="field">
-      <span class="label">邊界</span>
-      <div class="seg" role="radiogroup" aria-label="邊界">
-        <label><input type="radio" name="ip-margin" value="none" /><span>無</span></label>
-        <label><input type="radio" name="ip-margin" value="small" checked /><span>窄 10 mm</span></label>
-        <label><input type="radio" name="ip-margin" value="large" /><span>寬 20 mm</span></label>
+      <span class="label">{s.marginLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.marginLabel}>
+        <label><input type="radio" name="ip-margin" value="none" /><span>{s.marginNone}</span></label>
+        <label><input type="radio" name="ip-margin" value="small" checked /><span>{s.marginSmall}</span></label>
+        <label><input type="radio" name="ip-margin" value="large" /><span>{s.marginLarge}</span></label>
       </div>
     </div>
   </div>
@@ -40,22 +50,22 @@
 
   <p class="notice error" id="ip-note" hidden></p>
 
-  <ol class="ip-list" id="ip-list" aria-label="圖片，由上到下依序成為 PDF 的每一頁"></ol>
-  <p class="hint" id="ip-order-hint" hidden>按住左側把手拖曳即可調整頁面順序（手機也可以），或使用上下箭頭按鈕。縮圖顯示圖片在頁面上的實際位置。</p>
+  <ol class="ip-list" id="ip-list" aria-label={s.listAria}></ol>
+  <p class="hint" id="ip-order-hint" hidden>{s.orderHint}</p>
 
   <div class="stats" id="ip-summary" hidden>
-    <div class="stat"><span class="stat-value" id="ip-count">0</span><span class="stat-label">頁數（一張圖一頁）</span></div>
-    <div class="stat"><span class="stat-value" id="ip-bytes">0 B</span><span class="stat-label">圖片總大小</span></div>
+    <div class="stat"><span class="stat-value" id="ip-count">0</span><span class="stat-label">{s.statCount}</span></div>
+    <div class="stat"><span class="stat-value" id="ip-bytes">0 B</span><span class="stat-label">{s.statBytes}</span></div>
   </div>
 
   <div class="field" id="ip-name-field" hidden>
-    <label for="ip-name">輸出檔名</label>
-    <input id="ip-name" type="text" value="images" autocomplete="off" spellcheck="false" />
+    <label for="ip-name">{s.nameLabel}</label>
+    <input id="ip-name" type="text" value={s.nameDefault} autocomplete="off" spellcheck="false" />
   </div>
 
   <div class="row" id="ip-actions" hidden>
-    <button class="btn primary" type="button" id="ip-make" disabled>轉成 PDF 並下載</button>
-    <button class="btn ghost" type="button" id="ip-clear">清除全部</button>
+    <button class="btn primary" type="button" id="ip-make" disabled>{s.make}</button>
+    <button class="btn ghost" type="button" id="ip-clear">{s.clear}</button>
   </div>
 
   <p class="notice ok" id="ip-done" hidden aria-live="polite"></p>
@@ -63,10 +73,13 @@
 
 <script>
   import { $, $$, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes, formatInteger } from '../../lib/format';
+  import { formatBytes, formatInteger, plural, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import { moveItem, safeFilename } from '../pdf-merge/logic';
   import { ICONS, makeSortable } from '../pdf-merge/sortable';
   import {
+    defaultLayout,
     isImageFile,
     isPureRotation,
     jpegOrientation,
@@ -89,6 +102,8 @@
   }
 
   const root = $('[data-tool="image-to-pdf"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const defaults = defaultLayout(s.defaultSize);
   const drop = $('#ip-drop', root);
   const fileInput = $<HTMLInputElement>('#ip-file', root);
   const sizeRadios = $$<HTMLInputElement>('input[name="ip-size"]', root);
@@ -109,7 +124,7 @@
 
   function options(): LayoutOptions {
     return {
-      size: checked(sizeRadios, 'a4') as PageSizeId,
+      size: checked(sizeRadios, defaults.size) as PageSizeId,
       orientation: checked(orientRadios, 'auto') as Orientation,
       margin: checked(marginRadios, 'small') as MarginId,
     };
@@ -168,18 +183,18 @@
     row.classList.toggle('has-error', Boolean(item.error));
     const grip = el('span', 'ip-grip');
     grip.innerHTML = ICONS.grip;
-    grip.title = '拖曳調整順序';
+    grip.title = s.grip;
     const info = el('div', 'ip-info');
     const meta = el('div', 'ip-meta');
     if (item.error) meta.append(el('span', 'ip-error', item.error));
-    else if (!item.width) meta.textContent = `${formatBytes(item.file.size)}・讀取中…`;
-    else meta.textContent = `${item.width} × ${item.height}・${formatBytes(item.file.size)}`;
+    else if (!item.width) meta.textContent = t(s.reading, { size: formatBytes(item.file.size, locale) });
+    else meta.textContent = t(s.meta, { dims: `${item.width} × ${item.height}`, size: formatBytes(item.file.size, locale) });
     info.append(el('div', 'ip-name', item.file.name), meta);
     const controls = el('div', 'ip-controls');
     controls.append(
-      iconButton(ICONS.up, `將「${item.file.name}」上移`, 'up'),
-      iconButton(ICONS.down, `將「${item.file.name}」下移`, 'down'),
-      iconButton(ICONS.remove, `移除「${item.file.name}」`, 'remove'),
+      iconButton(ICONS.up, t(s.moveUp, { name: item.file.name }), 'up'),
+      iconButton(ICONS.down, t(s.moveDown, { name: item.file.name }), 'down'),
+      iconButton(ICONS.remove, t(s.remove, { name: item.file.name }), 'remove'),
     );
     row.append(grip, pagePreview(item), info, controls);
   }
@@ -198,8 +213,8 @@
     $('#ip-name-field', root).hidden = !any;
     $('#ip-actions', root).hidden = !any;
     $('#ip-order-hint', root).hidden = items.length < 2;
-    $('#ip-count', root).textContent = formatInteger(usable.length);
-    $('#ip-bytes', root).textContent = formatBytes(usable.reduce((s, i) => s + i.file.size, 0));
+    $('#ip-count', root).textContent = formatInteger(usable.length, locale);
+    $('#ip-bytes', root).textContent = formatBytes(usable.reduce((sum, i) => sum + i.file.size, 0), locale);
     makeBtn.disabled = busy || usable.length === 0 || usable.some((i) => !i.width);
   }
 
@@ -208,8 +223,11 @@
     orientField.hidden = o.size === 'fit';
     $('#ip-layout-hint', root).textContent =
       o.size === 'fit'
-        ? '每一頁的大小會跟圖片一樣（以 96 DPI 換算），不會留白，適合截圖與長圖。'
-        : `每張圖片會等比例縮放、置中放在 ${o.size === 'a4' ? 'A4（210 × 297 mm）' : 'Letter（8.5 × 11 吋）'}頁面上，不會被裁切或變形。${o.orientation === 'auto' ? '橫的圖片會自動使用橫向頁面。' : ''}`;
+        ? s.layoutFit
+        : t(s.layoutPaper, {
+            paper: o.size === 'a4' ? s.paperA4 : s.paperLetter,
+            auto: o.orientation === 'auto' ? s.autoNote : '',
+          }).trim();
   }
 
   function onOptions() {
@@ -234,7 +252,7 @@
       item.width = img.naturalWidth;
       item.height = img.naturalHeight;
     } catch {
-      item.error = '無法讀取這張圖片，可能是瀏覽器不支援此格式（例如 HEIC）或檔案已損毀。';
+      item.error = s.unreadable;
     }
   }
 
@@ -242,13 +260,7 @@
     const images = files.filter((f) => isImageFile(f.type, f.name));
     const skipped = files.length - images.length;
     const heic = files.some((f) => /\.(heic|heif)$/i.test(f.name) || /hei[cf]/.test(f.type));
-    showNote(
-      skipped
-        ? heic
-          ? `已略過 ${skipped} 個檔案。iPhone 的 HEIC 照片請先用「HEIC 轉 JPG」工具轉檔，再加入這裡。`
-          : `已略過 ${skipped} 個不是圖片的檔案。要合併 PDF 請使用「PDF 合併」。`
-        : '',
-    );
+    showNote(skipped ? plural(locale, skipped, heic ? s.skippedHeic : s.skippedOther) : '');
     done.hidden = true;
     const added = images.map((file) => ({ id: nextId++, file, url: URL.createObjectURL(file), row: el('li', 'ip-item') }) as Item);
     for (const item of added) drawRow(item);
@@ -306,24 +318,24 @@
     busy = true;
     makeBtn.disabled = true;
     done.hidden = true;
-    makeBtn.textContent = '產生中…';
+    makeBtn.textContent = s.making;
     try {
       const prepared = [];
       for (const item of usable) prepared.push(await prepare(item));
       const { imagesToPdf } = await import('./build');
-      const filename = safeFilename(nameInput.value, 'images');
+      const filename = safeFilename(nameInput.value, s.nameFallback);
       const bytes = await imagesToPdf(prepared, options(), filename.replace(/\.pdf$/i, ''), (n, total) => {
-        makeBtn.textContent = `產生中…（${n}/${total}）`;
+        makeBtn.textContent = t(s.makingProgress, { n, total });
       });
       const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
       downloadBlob(blob, filename);
-      done.textContent = `已產生 ${usable.length} 頁的 PDF（${formatBytes(blob.size)}），檔案「${filename}」已開始下載。`;
+      done.textContent = plural(locale, usable.length, s.done, { size: formatBytes(blob.size, locale), name: filename });
       done.hidden = false;
     } catch {
-      showNote('產生 PDF 時發生錯誤，可能有圖片損毀或尺寸過大。可移除有問題的圖片後再試一次。');
+      showNote(s.failed);
     } finally {
       busy = false;
-      makeBtn.textContent = '轉成 PDF 並下載';
+      makeBtn.textContent = s.make;
       refresh();
     }
   });
@@ -399,7 +411,7 @@
     void addFiles(files.map((f, i) => new File([f], f.name && f.name !== 'image.png' ? f.name : `paste-${stamp}-${i + 1}.png`, { type: f.type })));
   });
 
-  applyOptions(loadPref<LayoutOptions>('image-to-pdf', { size: 'a4', orientation: 'auto', margin: 'small' }));
+  applyOptions(loadPref<LayoutOptions>('image-to-pdf', defaults));
   updateLayoutHint();
   refresh();
 </script>

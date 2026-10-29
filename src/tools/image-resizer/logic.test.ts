@@ -126,6 +126,29 @@ describe('describeSpec', () => {
     expect(describeSpec(size(1080, 1080, false, 'stretch'))).toContain('變形');
     expect(describeSpec(size(null, null))).toBe('請輸入寬度或高度');
   });
+
+  it('uses the given labels', () => {
+    const labels = {
+      percent: '{p}% of the original',
+      percentEmpty: 'Enter a percentage',
+      empty: 'Enter a width or height',
+      widthOnly: 'Width {w} px, auto height',
+      heightOnly: 'Height {h} px, auto width',
+      fitInside: 'Fit within {w} × {h}',
+      contain: 'Contain {w} × {h}',
+      cover: 'Cover {w} × {h}',
+      stretch: 'Stretch {w} × {h}',
+    };
+    expect(describeSpec({ mode: 'percent', percent: 25 }, labels)).toBe('25% of the original');
+    expect(describeSpec({ mode: 'percent', percent: 0 }, labels)).toBe('Enter a percentage');
+    expect(describeSpec(size(null, null), labels)).toBe('Enter a width or height');
+    expect(describeSpec(size(1200.4, null), labels)).toBe('Width 1200 px, auto height');
+    expect(describeSpec(size(null, 800), labels)).toBe('Height 800 px, auto width');
+    expect(describeSpec(size(600, 600), labels)).toBe('Fit within 600 × 600');
+    expect(describeSpec(size(600, 600, false, 'contain'), labels)).toBe('Contain 600 × 600');
+    expect(describeSpec(size(600, 600, false, 'cover'), labels)).toBe('Cover 600 × 600');
+    expect(describeSpec(size(600, 600, false, 'stretch'), labels)).toBe('Stretch 600 × 600');
+  });
 });
 
 describe('output', () => {

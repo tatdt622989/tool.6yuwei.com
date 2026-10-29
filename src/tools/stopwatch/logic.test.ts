@@ -95,6 +95,13 @@ describe('formatting', () => {
       '2\t00:02.50\t00:04.00',
     ]);
   });
+
+  it('uses a localized header for copied laps', () => {
+    expect(lapsToText([1500], ['Lap', 'Lap time', 'Total time']).split('\n')).toEqual([
+      'Lap\tLap time\tTotal time',
+      '1\t00:01.50\t00:01.50',
+    ]);
+  });
 });
 
 describe('restoreState', () => {

@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addTax,
   applyPercentOff,
+  applyPercentsOff,
   applyThreshold,
+  applyWariOff,
   applyZhe,
   buyNGetM,
   factorToPercentOff,
   factorToZhe,
+  roundMoney,
   secondItem,
+  secondItemPercentOff,
   zheToFactor,
 } from './logic';
 
@@ -149,5 +154,48 @@ describe('secondItem', () => {
 
   it('第二件半價 (5 折) averages 75 折', () => {
     expect(factorToZhe(secondItem(100, 5).factor)).toBe('75 折');
+  });
+});
+
+describe('percent-off markets (en, ja)', () => {
+  it('stacks percent-off discounts by multiplying', () => {
+    const r = applyPercentsOff(79.99, 30, 20);
+    expect(r.final).toBeCloseTo(44.7944, 4);
+    expect(factorToPercentOff(r.factor)).toBeCloseTo(44, 6);
+    expect(applyPercentsOff(100, 25).final).toBe(75);
+    expect(applyPercentsOff(100, 120).final).toBeNaN();
+    expect(applyPercentsOff(100).final).toBeNaN();
+  });
+
+  it('converts 割引 to percent off', () => {
+    expect(applyWariOff(3980, 3).final).toBeCloseTo(2786, 6);
+    expect(applyWariOff(1000, 2.5).final).toBe(750);
+    expect(applyWariOff(1000, 11).final).toBeNaN();
+  });
+
+  it('prices a second item at a percent off', () => {
+    const half = secondItemPercentOff(40, 50);
+    expect(half.paid).toBe(60);
+    expect(half.perItem).toBe(30);
+    expect(factorToPercentOff(half.factor)).toBe(25);
+    expect(secondItemPercentOff(1980, 100).paid).toBe(1980);
+    expect(secondItemPercentOff(1980, -1).paid).toBeNaN();
+  });
+
+  it('rounds money per currency', () => {
+    expect(roundMoney(2786.0000000001, 'floor')).toBe(2786);
+    expect(roundMoney(2785.9999999999, 'floor')).toBe(2786);
+    expect(roundMoney(1782.9, 'floor')).toBe(1782);
+    expect(roundMoney(55.993, 'cent')).toBe(55.99);
+    expect(roundMoney(1.005, 'cent')).toBe(1.01);
+    expect(roundMoney(12.345, 'none')).toBe(12.345);
+  });
+
+  it('adds sales tax or 消費税', () => {
+    expect(addTax(55.99, 8.25, 'cent')).toBe(60.61);
+    expect(addTax(2786, 10, 'floor')).toBe(3064);
+    expect(addTax(2786, 8, 'floor')).toBe(3008);
+    expect(addTax(100, 0)).toBe(100);
+    expect(addTax(100, -1)).toBeNaN();
   });
 });

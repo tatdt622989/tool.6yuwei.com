@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { RankId } from './i18n';
 import {
   COOLDOWN_MS,
+  RANKS,
   clicksPerSecond,
   createSession,
   elapsedMs,
@@ -115,5 +117,24 @@ describe('best scores', () => {
     expect(sanitizeBest(null)).toEqual({});
     expect(isMode(30)).toBe(true);
     expect(isMode(2)).toBe(false);
+  });
+});
+
+describe('i18n', () => {
+  it('has a label and note for every rank in every locale', async () => {
+    const { default: i18n } = await import('./i18n');
+    for (const strings of Object.values(i18n)) {
+      for (const r of RANKS) {
+        const text = strings!.client.ranks[r.id as RankId];
+        expect(text?.label, r.id).toBeTruthy();
+        expect(text?.note, r.id).toBeTruthy();
+      }
+    }
+    expect(Object.keys(i18n).sort()).toEqual(['en', 'ja', 'zh-TW']);
+  });
+
+  it('keeps the zh-TW rank labels identical to logic', async () => {
+    const { default: i18n } = await import('./i18n');
+    for (const r of RANKS) expect(i18n['zh-TW']!.client.ranks[r.id as RankId]).toEqual({ label: r.label, note: r.note });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXCEPTIONS, STYLES, convertAll, hasUnconvertible } from './logic';
+import { EXCEPTIONS, STYLES, convertAll, hasUnconvertible, toHalfwidthAscii } from './logic';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const DIGITS = '0123456789';
@@ -99,5 +99,16 @@ describe('other styles', () => {
     expect(all).toHaveLength(STYLES.length);
     for (const { output } of all) expect(output).not.toMatch(/\p{Emoji_Presentation}/u);
     expect(new Set(STYLES.map((s) => s.id)).size).toBe(STYLES.length);
+  });
+});
+
+describe('toHalfwidthAscii', () => {
+  it('turns full-width letters, digits, symbols and spaces into ASCII', () => {
+    expect(toHalfwidthAscii('Ｈｅｌｌｏ　２０２６！')).toBe('Hello 2026!');
+    expect(STYLES[0].convert(toHalfwidthAscii('ＡＢＣ'))).toBe('𝐀𝐁𝐂');
+  });
+
+  it('leaves kana, kanji and half-width text alone', () => {
+    expect(toHalfwidthAscii('こんにちは ｶﾅ abc')).toBe('こんにちは ｶﾅ abc');
   });
 });

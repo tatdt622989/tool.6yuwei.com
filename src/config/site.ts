@@ -61,6 +61,8 @@ export const site = {
   description: brands['zh-TW'].description,
   author: '6yuwei',
   blogUrl: 'https://blog.6yuwei.com',
+  repoUrl: 'https://github.com/tatdt622989/tool.6yuwei.com',
+  license: 'AGPL-3.0',
   contactEmail: (env.PUBLIC_CONTACT_EMAIL ?? '').trim(),
   gscVerification: (env.PUBLIC_GSC_VERIFICATION ?? '').trim(),
   ogImage: '/og-default.png',

@@ -5,6 +5,8 @@ import AdSlot from '../components/AdSlot.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import ToolCard from '../components/ToolCard.astro';
 import Icon from '../components/Icon.astro';
+import ShareBar from '../components/ShareBar.astro';
+import { absoluteUrl, getBrand, site } from '../config/site';
 import { getCategory } from '../config/categories';
 import { formatDate, t } from '../i18n/format';
 import { localeHome, type Locale } from '../i18n/locales';
@@ -31,6 +33,9 @@ const crumbs = [
   { name: tool.name, path: toolPath(tool.slug, locale) },
 ];
 const [firstSection, ...restSections] = tool.sections;
+const brand = getBrand(locale);
+const shareTitle = `${tool.name}${brand.titleSeparator}${brand.name}`;
+const sourceUrl = `${site.repoUrl}/tree/main/src/tools/${tool.slug}`;
 // Unit tools link out to the long-tail conversion landing pages (zh-TW only for now).
 const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter'].includes(tool.slug) ? pairs : [];
 ---
@@ -58,6 +63,8 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
       <section class="tool-card" aria-label={t(s.tool.toolAria, { name: tool.name })}>
         <ToolUI locale={locale} />
       </section>
+
+      <ShareBar locale={locale} url={absoluteUrl(toolPath(tool.slug, locale))} title={shareTitle} />
 
       <AdSlot slot="afterTool" />
 
@@ -133,6 +140,8 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
 
         <p class="updated">
           {s.tool.updated}<time datetime={tool.updated}>{formatDate(tool.updated, locale)}</time>
+          <span aria-hidden="true"> · </span>
+          <a href={sourceUrl} rel="noopener">{s.tool.source}</a>
         </p>
       </article>
 

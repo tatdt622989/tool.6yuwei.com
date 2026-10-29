@@ -1,7 +1,18 @@
 // 星座 (Western sun sign) and 生肖 (農曆-new-year aware) lookup. Pure functions, no DOM.
 
 import { toDayNumber, type YMD } from '../date-diff/logic';
-import { animalOf, inRange, lunarNewYear, solarToLunar, termDay, yearElement, yearGanzhi } from '../lunar-converter/logic';
+import {
+  animalOf,
+  BRANCHES,
+  inRange,
+  lunarNewYear,
+  solarToLunar,
+  STEM_ELEMENT,
+  STEMS,
+  termDay,
+  yearElement,
+  yearGanzhi,
+} from '../lunar-converter/logic';
 
 export interface SignInfo {
   name: string;
@@ -142,5 +153,99 @@ export function animalYearTable(from: number, to: number): AnimalYearRow[] {
     years: Array.from({ length: to - from + 1 }, (_, i) => from + i)
       .filter((y) => animalOf(y) === animal)
       .map((year) => ({ year, newYear: lunarNewYear(year), ganzhi: yearGanzhi(year) })),
+  }));
+}
+
+/* ---------- Stems and branches (shared by the en Chinese zodiac and the ja 干支 views) ---------- */
+
+const mod = (n: number, m: number) => ((n % m) + m) % m;
+
+/** Index of a year's 天干 (0 = 甲) and 地支 (0 = 子 / Rat). 1984 = 甲子. */
+export const stemIndex = (year: number): number => mod(year - 4, 10);
+export const branchIndex = (year: number): number => mod(year - 4, 12);
+
+export interface StemBranch {
+  year: number;
+  stemIndex: number;
+  branchIndex: number;
+  /** e.g. 丙午 */
+  ganzhi: string;
+  /** 五行 of the stem: 木火土金水 */
+  element: string;
+  /** Odd stems (甲丙戊庚壬) are yang (陽, 兄 え), even ones yin (陰, 弟 と). */
+  yang: boolean;
+}
+
+export function stemBranchOf(year: number): StemBranch {
+  const si = stemIndex(year);
+  const bi = branchIndex(year);
+  return { year, stemIndex: si, branchIndex: bi, ganzhi: STEMS[si] + BRANCHES[bi], element: STEM_ELEMENT[si], yang: si % 2 === 0 };
+}
+
+/**
+ * Japanese 干支 (えと) of a birth date. Japan has used the Gregorian calendar since 1873 and
+ * switches the year's 干支 on 1 January, so a birth on 1 February 2026 is 丙午 — unlike the Chinese
+ * zodiac, which still counts it as 乙巳 until Lunar New Year (17 February 2026).
+ */
+export function etoOfDate(date: YMD): StemBranch {
+  return stemBranchOf(date.y);
+}
+
+/** Chinese zodiac of a birth date (switches at Lunar New Year) with yin/yang. Null outside 1900-01-31 … 2100. */
+export function chineseZodiacOf(date: YMD): (AnimalResult & StemBranch) | null {
+  const a = animalForDate(date);
+  return a ? { ...a, ...stemBranchOf(a.lunarYear) } : null;
+}
+
+/**
+ * Next 年女・年男 year (a year with the same 十二支 as the birth year) on or after `currentYear`,
+ * with the age reached that year (満年齢 after the birthday). The birth year itself does not count.
+ */
+export function nextAnimalYear(birthYear: number, currentYear: number): { year: number; age: number } {
+  let year = Math.max(currentYear, birthYear + 1);
+  year += mod(birthYear - year, 12);
+  return { year, age: year - birthYear };
+}
+
+/** 還暦: the 干支 comes back after 60 years (満 60 歳, 数え 61 歳). */
+export const kanrekiYear = (birthYear: number): number => birthYear + 60;
+
+const ERAS: readonly { name: string; start: number }[] = [
+  { name: '令和', start: 2019 },
+  { name: '平成', start: 1989 },
+  { name: '昭和', start: 1926 },
+  { name: '大正', start: 1912 },
+  { name: '明治', start: 1868 },
+];
+
+/**
+ * 和暦 for a Gregorian year: ['平成2年'], or two names in a year when the era changed
+ * (1989 → ['昭和64年', '平成元年']). Empty before 1868.
+ */
+export function warekiOf(year: number): string[] {
+  const out: string[] = [];
+  for (const [i, era] of ERAS.entries()) {
+    if (year < era.start) continue;
+    const n = year - era.start + 1;
+    out.unshift(`${era.name}${n === 1 ? '元' : n}年`);
+    // The previous era also covers the start year of this one.
+    if (year === era.start && ERAS[i + 1]) out.unshift(`${ERAS[i + 1].name}${year - ERAS[i + 1].start + 1}年`);
+    break;
+  }
+  return out;
+}
+
+export interface BranchYearRow {
+  branchIndex: number;
+  years: { year: number; ganzhi: string }[];
+}
+
+/** For each 十二支, the Gregorian years in [from, to] with their 干支 (ja 早見表; switches on 1 January). */
+export function branchYearTable(from: number, to: number): BranchYearRow[] {
+  return BRANCHES.map((_, bi) => ({
+    branchIndex: bi,
+    years: Array.from({ length: to - from + 1 }, (_, i) => from + i)
+      .filter((y) => branchIndex(y) === bi)
+      .map((year) => ({ year, ganzhi: stemBranchOf(year).ganzhi })),
   }));
 }

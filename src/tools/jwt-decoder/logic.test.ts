@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { base64UrlToBytes, decodeJwt, encodeSegment, formatDuration, timeClaimValue, tokenStatus } from './logic';
+import {
+  base64UrlToBytes,
+  decodeJwt,
+  durationParts,
+  encodeSegment,
+  formatDuration,
+  timeClaimValue,
+  tokenStatus,
+} from './logic';
 
 // The widely used HS256 example token from jwt.io.
 const SAMPLE =
@@ -37,6 +45,11 @@ describe('decodeJwt', () => {
   it('explains structural errors', () => {
     expect(decodeJwt('')).toMatchObject({ ok: false });
     expect(decodeJwt('a.b')).toMatchObject({ ok: false, error: expect.stringContaining('2 段') });
+    expect(decodeJwt('a.b')).toMatchObject({ code: 'segments', segments: 2 });
+    expect(decodeJwt('  ')).toMatchObject({ code: 'empty' });
+    expect(decodeJwt('a.b.c.d.e')).toMatchObject({ code: 'jwe' });
+    expect(decodeJwt('!!!.e30.sig')).toMatchObject({ code: 'header' });
+    expect(decodeJwt(`${encodeSegment({ alg: 'HS256' })}.@@.sig`)).toMatchObject({ code: 'payload' });
     expect(decodeJwt('a.b.c.d.e')).toMatchObject({ ok: false, error: expect.stringContaining('JWE') });
     expect(decodeJwt('!!!.e30.sig')).toMatchObject({ ok: false, error: expect.stringContaining('標頭') });
     expect(decodeJwt(`${encodeSegment([1])}.e30.sig`)).toMatchObject({ ok: false });
@@ -67,6 +80,12 @@ describe('helpers', () => {
     expect(formatDuration(-3725)).toBe('1 小時 2 分');
     expect(formatDuration(86405)).toBe('1 天');
     expect(formatDuration(2 * 86400 + 3 * 3600)).toBe('2 天 3 小時');
+    expect(durationParts(0)).toEqual([{ n: 0, unit: 'second' }]);
+    expect(durationParts(-3725)).toEqual([
+      { n: 1, unit: 'hour' },
+      { n: 2, unit: 'minute' },
+    ]);
+    expect(durationParts(86405)).toEqual([{ n: 1, unit: 'day' }]);
   });
 
   it('reads numeric time claims only', () => {

@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, cleanFloat, convert, convertAll, formatValue, getCategory, PING_M2 } from './logic';
+import {
+  CATEGORIES,
+  categoriesFor,
+  cleanFloat,
+  convert,
+  convertAll,
+  formatValue,
+  getCategory,
+  getUnit,
+  JO_M2,
+  PING_M2,
+  unitLabel,
+  unitSymbol,
+} from './logic';
 
 describe('convert: linear units', () => {
   it('converts length', () => {
@@ -107,5 +120,84 @@ describe('formatValue', () => {
   it('cleanFloat keeps zero and trims noise', () => {
     expect(cleanFloat(0)).toBe(0);
     expect(cleanFloat(0.1 + 0.2)).toBe(0.3);
+  });
+});
+
+describe('per-market unit sets', () => {
+  it('keeps the zh-TW list as the default', () => {
+    expect(categoriesFor()).toBe(CATEGORIES);
+    expect(categoriesFor('tw')).toBe(CATEGORIES);
+    expect(getCategory('length', 'tw')).toBe(CATEGORIES[0]);
+  });
+
+  it('never shows Taiwan-only units in the US or Japan sets', () => {
+    const twOnly = ['taichi', 'taicun', 'jin', 'liang', 'qian', 'ping', 'jia'];
+    for (const set of ['us', 'jp'] as const) {
+      const ids = categoriesFor(set).flatMap((c) => c.units.map((u) => u.id));
+      for (const id of twOnly) expect(ids).not.toContain(id);
+    }
+  });
+
+  it('every set has the same categories and valid defaults', () => {
+    for (const set of ['tw', 'us', 'jp'] as const) {
+      const cats = categoriesFor(set);
+      expect(cats.map((c) => c.key)).toEqual(CATEGORIES.map((c) => c.key));
+      for (const c of cats) {
+        expect(getUnit(c, c.defaults.from)).toBeDefined();
+        expect(getUnit(c, c.defaults.to)).toBeDefined();
+        expect(new Set(c.units.map((u) => u.id)).size).toBe(c.units.length);
+      }
+    }
+  });
+
+  it('converts US customary units', () => {
+    expect(convert(1, 'volume', 'ustsp', 'ml', 'us')).toBeCloseTo(4.9289, 4);
+    expect(convert(1, 'volume', 'ustbsp', 'ustsp', 'us')).toBe(3);
+    expect(convert(1, 'volume', 'cup', 'floz', 'us')).toBe(8);
+    expect(convert(1, 'volume', 'usgal', 'qt', 'us')).toBe(4);
+    expect(convert(1, 'volume', 'qt', 'pt', 'us')).toBe(2);
+    expect(convert(1, 'volume', 'ft3', 'l', 'us')).toBeCloseTo(28.3168, 4);
+    expect(convert(1, 'weight', 'ston', 'lb', 'us')).toBe(2000);
+    expect(convert(1, 'weight', 'st', 'lb', 'us')).toBe(14);
+    expect(convert(1, 'area', 'acre', 'ft2', 'us')).toBe(43560);
+    expect(convert(1, 'area', 'yd2', 'ft2', 'us')).toBe(9);
+    expect(convert(1, 'area', 'mi2', 'acre', 'us')).toBe(640);
+    expect(convert(72, 'temperature', 'f', 'c', 'us')).toBeCloseTo(22.222, 3);
+  });
+
+  it('converts Japanese traditional units', () => {
+    expect(convert(1, 'length', 'shaku', 'cm', 'jp')).toBeCloseTo(30.303, 3);
+    expect(convert(1, 'length', 'ken', 'shaku', 'jp')).toBe(6);
+    expect(convert(1, 'length', 'shaku', 'sun', 'jp')).toBe(10);
+    expect(convert(1, 'area', 'tsubo', 'm2', 'jp')).toBeCloseTo(3.305785, 6);
+    expect(convert(1, 'area', 'jo', 'm2', 'jp')).toBe(JO_M2);
+    expect(convert(1, 'weight', 'kan', 'kg', 'jp')).toBe(3.75);
+    expect(convert(1, 'weight', 'kan', 'monme', 'jp')).toBe(1000);
+    expect(convert(1, 'volume', 'sho', 'go', 'jp')).toBe(10);
+    expect(convert(1, 'volume', 'go', 'ml', 'jp')).toBeCloseTo(180.39, 2);
+    expect(convert(1, 'volume', 'jpcup', 'ml', 'jp')).toBe(200);
+  });
+
+  it('rejects units outside the chosen set', () => {
+    expect(convert(1, 'weight', 'jin', 'g', 'us')).toBeNaN();
+    expect(convert(1, 'volume', 'go', 'ml', 'us')).toBeNaN();
+  });
+});
+
+describe('localized labels and number format', () => {
+  const unit = getUnit(getCategory('length'), 'm')!;
+  const tsubo = getUnit(getCategory('area', 'jp'), 'tsubo')!;
+  it('uses the zh name and symbol by default', () => {
+    expect(unitLabel(unit, { unitLabel: '{name}（{symbol}）' })).toBe('公尺（m）');
+  });
+  it('uses localized names and collapses identical name/symbol', () => {
+    expect(unitLabel(unit, { unitLabel: '{name} ({symbol})', unitNames: { m: 'Meters' } })).toBe('Meters (m)');
+    expect(unitLabel(tsubo, { unitLabel: '{name}（{symbol}）', unitLabelSame: '{name}' })).toBe('坪');
+    expect(unitSymbol(tsubo, { unitLabel: '', unitSymbols: { tsubo: 'x' } })).toBe('x');
+  });
+  it('formats in the requested locale', () => {
+    expect(formatValue(1234.5, 'en')).toBe('1,234.5');
+    expect(formatValue(1234.5, 'ja')).toBe('1,234.5');
+    expect(formatValue(1234.5)).toBe('1,234.5');
   });
 });

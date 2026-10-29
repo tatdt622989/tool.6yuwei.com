@@ -1,14 +1,23 @@
-<div class="tool" data-tool="image-converter">
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="image-converter" {...i18nAttrs(locale, s.client)}>
   <label class="dropzone" id="cv-drop" tabindex="0">
     <input type="file" id="cv-file" accept="image/*,.heic,.heif" multiple hidden />
-    <strong>點擊選擇圖片，或拖曳到這裡</strong>
-    <span class="hint">支援 JPG、PNG、WebP、GIF、BMP、SVG 等，可一次選多張，也可以按 Ctrl/Cmd + V 貼上</span>
+    <strong>{s.dropTitle}</strong>
+    <span class="hint">{s.dropHint}</span>
   </label>
 
   <div class="grid-3">
     <div class="field">
-      <span class="label">轉換為</span>
-      <div class="seg" role="radiogroup" aria-label="輸出格式">
+      <span class="label">{s.formatLabel}</span>
+      <div class="seg" role="radiogroup" aria-label={s.formatAria}>
         <label><input type="radio" name="cv-format" value="jpeg" checked /><span>JPG</span></label>
         <label><input type="radio" name="cv-format" value="png" /><span>PNG</span></label>
         <label><input type="radio" name="cv-format" value="webp" /><span>WebP</span></label>
@@ -16,15 +25,15 @@
       </div>
     </div>
     <div class="field">
-      <label for="cv-quality">品質：<output id="cv-quality-out">90</output></label>
+      <label for="cv-quality">{s.qualityBefore}<output id="cv-quality-out">90</output></label>
       <input id="cv-quality" type="range" min="10" max="100" step="1" value="90" />
-      <span class="hint" id="cv-quality-hint">數字越大畫質越好、檔案越大</span>
+      <span class="hint" id="cv-quality-hint">{s.client.qualityHint}</span>
     </div>
     <div class="field" id="cv-bg-field">
-      <label for="cv-bg">透明區域背景色</label>
+      <label for="cv-bg">{s.bgLabel}</label>
       <div class="row">
         <input id="cv-bg" type="color" value="#ffffff" />
-        <span class="hint">JPG 不支援透明，透明處會填上此顏色</span>
+        <span class="hint">{s.bgHint}</span>
       </div>
     </div>
   </div>
@@ -34,16 +43,18 @@
   <ul class="cv-list" id="cv-list" aria-live="polite"></ul>
 
   <div class="row" id="cv-actions" hidden>
-    <button class="btn primary" type="button" id="cv-all">全部下載</button>
-    <button class="btn ghost" type="button" id="cv-clear">清除</button>
+    <button class="btn primary" type="button" id="cv-all">{s.downloadAll}</button>
+    <button class="btn ghost" type="button" id="cv-clear">{s.clear}</button>
   </div>
 
-  <p class="hint">圖片只在你的瀏覽器中轉換，不會上傳到任何伺服器。</p>
+  <p class="hint">{s.privacy}</p>
 </div>
 
 <script>
   import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
-  import { formatBytes, formatNumber } from '../../lib/format';
+  import { formatBytes, formatNumber, t } from '../../i18n/format';
+  import { readI18n } from '../../i18n/client';
+  import type { Strings } from './i18n';
   import {
     FORMATS,
     formatLabel,
@@ -79,6 +90,7 @@
   }
 
   const root = $('[data-tool="image-converter"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
   const drop = $('#cv-drop', root);
   const fileInput = $<HTMLInputElement>('#cv-file', root);
   const formatRadios = $$<HTMLInputElement>('input[name="cv-format"]', root);
@@ -177,8 +189,8 @@
     const { format } = readPrefs();
     const lossy = FORMATS[format].lossy;
     quality.disabled = !lossy;
-    qualityOut.textContent = lossy ? quality.value : '無損';
-    qualityHint.textContent = lossy ? '數字越大畫質越好、檔案越大' : 'PNG 為無損格式，不需要設定品質';
+    qualityOut.textContent = lossy ? quality.value : s.lossless;
+    qualityHint.textContent = lossy ? s.qualityHint : s.qualityHintPng;
     bgField.hidden = format !== 'jpeg';
   }
 
@@ -231,20 +243,28 @@
     const info = el('div', 'cv-info');
     const meta = el('div', 'cv-meta');
     info.append(el('div', 'cv-name', item.file.name), meta);
-    const from = formatLabel(item.file.type, item.file.name);
+    const from = formatLabel(item.file.type, item.file.name, s.unknown);
     if (item.error) {
       meta.append(el('span', 'cv-error', item.error));
     } else if (!item.result) {
-      meta.textContent = `${from}・${formatBytes(item.file.size)}，轉換中…`;
+      meta.textContent = t(s.converting, { from, size: formatBytes(item.file.size, locale) });
     } else {
       const r = item.result;
-      const to = formatLabel(r.blob.type, r.filename);
+      const to = formatLabel(r.blob.type, r.filename, s.unknown);
       const change = sizeChangePercent(item.file.size, r.blob.size);
       const sign = change > 0 ? '+' : '';
-      meta.textContent = `${from} → ${to}・${formatBytes(item.file.size)} → ${formatBytes(r.blob.size)}（${sign}${formatNumber(change, 0)}%）・${r.width} × ${r.height}`;
-      if (r.flattened) info.append(el('div', 'hint', '原圖含透明區域，已填上背景色。'));
+      meta.textContent = t(s.done, {
+        from,
+        to,
+        before: formatBytes(item.file.size, locale),
+        after: formatBytes(r.blob.size, locale),
+        change: `${sign}${formatNumber(change, 0, locale)}`,
+        width: r.width,
+        height: r.height,
+      });
+      if (r.flattened) info.append(el('div', 'hint', s.flattened));
     }
-    const btn = el('button', 'btn small', '下載');
+    const btn = el('button', 'btn small', s.download);
     btn.type = 'button';
     btn.disabled = !item.result;
     btn.addEventListener('click', () => item.result && downloadBlob(item.result.blob, item.result.filename));
@@ -275,7 +295,7 @@
         }
         item.result = result;
       } catch {
-        item.error = '無法讀取這張圖片，可能是瀏覽器不支援此格式（例如 HEIC 在非 Safari 瀏覽器）或檔案已損毀。';
+        item.error = s.readError;
       }
       drawRow(item);
       updateActions();
@@ -310,7 +330,7 @@
     }
     items.push(...accepted);
     note.hidden = skipped === 0;
-    note.textContent = skipped ? `已略過 ${skipped} 個非圖片檔案。` : '';
+    note.textContent = skipped ? (skipped === 1 && s.skippedOne ? s.skippedOne : t(s.skipped, { n: skipped })) : '';
     updateActions();
     void processAll(accepted);
   }
@@ -390,7 +410,7 @@
     }
     if (!webp) {
       note.hidden = false;
-      note.textContent = '你的瀏覽器不支援輸出 WebP，已停用此選項。';
+      note.textContent = s.noWebp;
     }
   });
 </script>

@@ -1,6 +1,7 @@
-import { LATIN_OPENING, LATIN_WORDS, ZH_SENTENCES } from './corpus';
+import { JA_SENTENCES, LATIN_OPENING, LATIN_WORDS, ZH_SENTENCES } from './corpus';
 
-export type LoremLang = 'zh' | 'la';
+/** zh: Traditional Chinese, ja: Japanese (ダミーテキスト), la: classic Lorem ipsum. */
+export type LoremLang = 'zh' | 'ja' | 'la';
 export type LoremUnit = 'paragraphs' | 'sentences' | 'chars' | 'words';
 
 export interface LoremOptions {
@@ -23,9 +24,10 @@ export const LIMITS: Record<LoremUnit, number> = {
   words: 5000,
 };
 
-/** Units offered per language: words make no sense for Chinese. */
+/** Units offered per language: words make no sense for Chinese or Japanese. */
 export const UNITS: Record<LoremLang, readonly LoremUnit[]> = {
   zh: ['paragraphs', 'sentences', 'chars'],
+  ja: ['paragraphs', 'sentences', 'chars'],
   la: ['paragraphs', 'sentences', 'words', 'chars'],
 };
 
@@ -36,15 +38,15 @@ export function clampCount(unit: LoremUnit, count: number): number {
 
 const randInt = (random: RandomFn, min: number, max: number) => min + Math.floor(random() * (max - min + 1));
 
-// ---------- Chinese ----------
+// ---------- Chinese / Japanese ----------
 
 /** Draws sentences without repeating any until the whole corpus has been used. */
-function sentenceBag(random: RandomFn): () => string {
+function sentenceBag(random: RandomFn, corpus: readonly string[] = ZH_SENTENCES): () => string {
   let bag: string[] = [];
   let last = '';
   return () => {
     if (bag.length === 0) {
-      bag = [...ZH_SENTENCES];
+      bag = [...corpus];
       for (let i = bag.length - 1; i > 0; i--) {
         const j = Math.floor(random() * (i + 1));
         [bag[i], bag[j]] = [bag[j], bag[i]];
@@ -121,8 +123,8 @@ export function generateLorem(options: LoremOptions, random: RandomFn = Math.ran
   const unit = UNITS[options.lang].includes(options.unit) ? options.unit : 'paragraphs';
   const count = clampCount(unit, options.count);
 
-  if (options.lang === 'zh') {
-    const next = sentenceBag(random);
+  if (options.lang === 'zh' || options.lang === 'ja') {
+    const next = sentenceBag(random, options.lang === 'ja' ? JA_SENTENCES : ZH_SENTENCES);
     if (unit === 'paragraphs') return wrap(Array.from({ length: count }, () => zhParagraph(next, random)), options.html);
     if (unit === 'sentences') return wrap([Array.from({ length: count }, next).join('')], options.html);
     return wrap([zhChars(count, next)], options.html);

@@ -125,8 +125,24 @@ export function listTimeZones(): string[] {
   return [...all].sort();
 }
 
-export function zoneLabel(timeZone: string): string {
-  return ZONE_LABELS[timeZone] ?? timeZone.split('/').pop()!.replace(/_/g, ' ');
+/** City name for a zone from a label map (zh by default), else the last segment of its IANA id. */
+export function zoneLabel(timeZone: string, labels: Record<string, string> = ZONE_LABELS): string {
+  return labels[timeZone] ?? timeZone.split('/').pop()!.replace(/_/g, ' ');
+}
+
+/**
+ * A locale's starting zone list with the viewer's own zone added ('first' / 'last') when it is valid
+ * and not already listed. `userZone` comes from Intl.DateTimeFormat().resolvedOptions().timeZone.
+ */
+export function buildDefaultZones(
+  zones: readonly string[],
+  userZone: string | undefined,
+  position: 'first' | 'last' | 'none' = 'none',
+): string[] {
+  const base = zones.filter((z, i) => isValidTimeZone(z) && zones.indexOf(z) === i);
+  if (position === 'none' || !userZone || !isValidTimeZone(userZone)) return base;
+  const rest = base.filter((z) => z !== userZone);
+  return position === 'first' ? [userZone, ...rest] : base.includes(userZone) ? base : [...base, userZone];
 }
 
 const WEEKDAYS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
@@ -248,8 +264,8 @@ export function toWallTimeValue(w: WallTime): string {
 }
 
 /** Sanitises a stored zone list: valid, unique, at most `max` entries. */
-export function normalizeZones(zones: unknown, max = 24): string[] {
-  if (!Array.isArray(zones)) return [...DEFAULT_ZONES];
+export function normalizeZones(zones: unknown, max = 24, fallback: readonly string[] = DEFAULT_ZONES): string[] {
+  if (!Array.isArray(zones)) return [...fallback];
   const out: string[] = [];
   for (const z of zones) if (typeof z === 'string' && isValidTimeZone(z) && !out.includes(z)) out.push(z);
   return out.slice(0, max);
