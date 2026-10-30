@@ -74,7 +74,7 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     }
   </div>
 
-  <div class="row">
+  <div class="row bx-actions">
     <button class="btn" type="button" id="bx-draw">{s.draw}</button>
     <button class="btn ghost" type="button" id="bx-undo" disabled>{s.undo}</button>
     <button class="btn ghost" type="button" id="bx-reset">{s.reset}</button>
@@ -730,12 +730,83 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     margin: 0;
     font-size: 12px;
   }
-  @media (max-width: 420px) {
+  /* Phones: one big button per finish, larger text, and bordered actions that are easy to hit mid-battle. */
+  @media (max-width: 560px) {
+    .bx-full-btn {
+      width: 100%;
+      min-height: 44px;
+      margin-left: 0;
+      font-size: 16px;
+    }
+    .bx-board {
+      gap: 8px;
+    }
     .bx-player {
-      padding: 10px;
+      gap: 8px;
+      padding: 10px 8px;
+    }
+    .bx-score {
+      font-size: 22vw;
+    }
+    .bx-need {
+      font-size: 14px;
+    }
+    .bx-finishes {
+      grid-template-columns: 1fr;
+      gap: 8px;
     }
     .bx-finish {
-      font-size: 13px;
+      min-height: 60px;
+      padding: 4px 2px;
+      font-size: min(17px, 4.3vw);
+      font-weight: 700;
+    }
+    .bx-pts {
+      font-size: 15px;
+    }
+    .bx-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .bx-actions .btn {
+      min-height: 48px;
+      padding: 6px;
+      font-size: 15px;
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .bx-actions .btn.ghost {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border-strong);
+    }
+    .bx-stage.is-full .bx-exit {
+      margin-left: 0;
+    }
+    .bx-stage.is-full .bx-actions {
+      grid-template-columns: 1fr 1fr;
+    }
+    .bx-winner .result-value {
+      font-size: 22px;
+    }
+    .bx-winner .btn {
+      width: 100%;
+      min-height: 48px;
+      font-size: 16px;
+    }
+    .bx-log {
+      font-size: 15px;
+    }
+    .bx-stage.is-full {
+      padding: 8px;
+    }
+    .bx-stage.is-full .bx-score {
+      font-size: clamp(64px, 14vh, 160px);
+    }
+    .bx-stage.is-full .bx-finish {
+      min-height: clamp(52px, 8.5vh, 96px);
+      font-size: min(18px, 4.3vw);
     }
   }
 </style>

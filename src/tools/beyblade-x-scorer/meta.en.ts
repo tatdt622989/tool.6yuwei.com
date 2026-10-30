@@ -28,7 +28,7 @@ export default defineTool({
     'Choose the points needed to win (4 is the official standard) and the format: 1on1 or 3on3.',
     'Enter both player names. To track win rates, enter the combo for 1on1 or the three Beys of each 3on3 deck.',
     'After each battle, tap the finish under the winning player: Spin, Over, Burst or Xtreme. Tap Draw when neither side wins.',
-    'The match ends when a player reaches the target, and it is saved to the win-rate table below. Tap Undo last battle to fix a mistake.',
+    'The match ends when a player reaches the target, and it is saved to the win-rate table below. Tap Undo to take back the last battle.',
   ],
   sections: [
     {
