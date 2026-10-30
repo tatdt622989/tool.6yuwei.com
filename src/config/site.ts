@@ -83,7 +83,8 @@ export const ads = {
 };
 
 export const analytics = {
-  gaId: (env.PUBLIC_GA_ID ?? '').trim(),
+  /** GA4 measurement ID (public). PUBLIC_GA_ID overrides it; the layout only loads GA on the production host. */
+  gaId: (env.PUBLIC_GA_ID ?? '').trim() || 'G-10LYBK8Q3W',
 };
 
 /** Absolute URL for a site path. */

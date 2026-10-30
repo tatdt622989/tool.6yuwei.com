@@ -110,14 +110,20 @@ const manifest = localePath(locale, '/manifest.webmanifest');
     {
       analytics.gaId && (
         <>
-          <script async src={`https://www.googletagmanager.com/gtag/js?id=${analytics.gaId}`} />
-          <script is:inline define:vars={{ gaId: analytics.gaId }}>
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {
-              dataLayer.push(arguments);
+          {/* Same host guard as ads: local dev and preview servers must not show up in GA4. */}
+          <script is:inline define:vars={{ gaId: analytics.gaId, host: new URL(site.url).hostname }}>
+            if (location.hostname === host) {
+              var s = document.createElement('script');
+              s.async = true;
+              s.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+              document.head.appendChild(s);
+              window.dataLayer = window.dataLayer || [];
+              window.gtag = function () {
+                dataLayer.push(arguments);
+              };
+              gtag('js', new Date());
+              gtag('config', gaId);
             }
-            gtag('js', new Date());
-            gtag('config', gaId);
           </script>
         </>
       )
