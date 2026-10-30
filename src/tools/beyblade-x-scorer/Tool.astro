@@ -27,8 +27,10 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
       <label><input type="radio" name="bx-mode" value="1" checked /><span>{s.mode1}</span></label>
       <label><input type="radio" name="bx-mode" value="3" /><span>{s.mode3}</span></label>
     </div>
+    <button class="btn small bx-full-btn" type="button" id="bx-full">{s.fullscreen}</button>
   </div>
 
+  <div class="bx-stage" id="bx-stage">
   <div class="bx-board">
     {
       sides.map((side) => (
@@ -36,6 +38,7 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
           <input class="bx-name" type="text" maxlength={NAME_MAX} aria-label={s.nameAria} placeholder={s.client.defaultNames[side]} />
           <div class="bx-score" aria-live="polite">0</div>
           <div class="bx-need">{t(s.client.toWin.other, { n: DEFAULT_TARGET })}</div>
+          <div class="bx-current-bey"></div>
 
           <div class="field bx-mode-box" data-for="1">
             <label for={`bx-bey-${side}`}>{s.beyLabel}</label>
@@ -75,11 +78,13 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     <button class="btn" type="button" id="bx-draw">{s.draw}</button>
     <button class="btn ghost" type="button" id="bx-undo" disabled>{s.undo}</button>
     <button class="btn ghost" type="button" id="bx-reset">{s.reset}</button>
+    <button class="btn bx-exit" type="button" id="bx-exit">{s.exitFullscreen}</button>
   </div>
 
   <div class="result bx-winner" id="bx-winner" aria-live="polite" hidden>
     <div class="result-value" id="bx-winner-text"></div>
     <button class="btn primary" type="button" id="bx-next">{s.nextMatch}</button>
+  </div>
   </div>
 
   <div class="bx-log-box">
@@ -250,6 +255,7 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
       const need = Math.max(0, state.match.target - totals[side]);
       $('.bx-need', p).textContent = winner === null ? plural(locale, need, s.toWin) : '';
       p.classList.toggle('is-winner', winner === side);
+      $('.bx-current-bey', p).textContent = beyInPlay(side);
       for (const btn of $$<HTMLButtonElement>('.bx-finish', p)) btn.disabled = winner !== null;
       for (const box of $$<HTMLElement>('.bx-mode-box', p)) box.hidden = box.dataset.for !== state.mode;
       $$<HTMLInputElement>(`input[name="bx-cur-${side}"]`, p).forEach((r, k) => (r.checked = k === state.current[side]));
@@ -450,6 +456,72 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     render();
   });
 
+  // Full screen: the real Fullscreen API where available (Android, desktop, iPad); iPhone Safari only
+  // supports it for video, so there the scoreboard grows to fill the screen in place instead.
+  const stage = $('#bx-stage', root);
+  type WebkitDoc = Document & { webkitFullscreenElement?: Element; webkitFullscreenEnabled?: boolean; webkitExitFullscreen?: () => void };
+  type WebkitEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WebkitDoc;
+  const native = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement) === stage;
+  let wakeLock: WakeLockSentinel | null = null;
+
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the scoreboard still works */
+    }
+  }
+
+  async function enterFull() {
+    const el = stage as WebkitEl;
+    stage.classList.add('is-full');
+    try {
+      // Request first, while the click still counts as a user gesture.
+      if (doc.fullscreenEnabled && el.requestFullscreen) {
+        await el.requestFullscreen();
+        keepAwake(true);
+        return;
+      }
+      if (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+        keepAwake(true);
+        return;
+      }
+    } catch {
+      /* fall through to the in-page layout */
+    }
+    keepAwake(true);
+    const header = document.querySelector<HTMLElement>('header')?.offsetHeight ?? 0;
+    stage.style.setProperty('--bx-top', `${header}px`);
+    window.scrollTo({ top: stage.getBoundingClientRect().top + window.scrollY - header });
+  }
+
+  function leaveFull() {
+    stage.classList.remove('is-full');
+    keepAwake(false);
+  }
+
+  $('#bx-full', root).addEventListener('click', enterFull);
+  $('#bx-exit', root).addEventListener('click', () => {
+    if (native()) (document.exitFullscreen ? document.exitFullscreen() : doc.webkitExitFullscreen?.());
+    else leaveFull();
+  });
+  for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(type, () => {
+      if (!native()) leaveFull();
+    });
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && stage.classList.contains('is-full')) keepAwake(true);
+  });
+
   render();
 </script>
 
@@ -600,6 +672,59 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     color: var(--muted);
     background: var(--surface-2);
     white-space: nowrap;
+  }
+  .bx-full-btn {
+    margin-left: auto;
+  }
+  .bx-stage {
+    display: grid;
+    gap: 12px;
+  }
+  .bx-exit,
+  .bx-current-bey {
+    display: none;
+  }
+  .bx-stage.is-full {
+    min-height: calc(100dvh - var(--bx-top, 0px));
+    grid-template-rows: 1fr auto auto;
+    padding: 12px;
+    background: var(--bg);
+    box-sizing: border-box;
+  }
+  .bx-stage.is-full .bx-board {
+    min-height: 0;
+  }
+  .bx-stage.is-full .bx-player {
+    align-content: space-between;
+  }
+  .bx-stage.is-full .bx-mode-box {
+    display: none !important;
+  }
+  .bx-stage.is-full .bx-current-bey {
+    display: block;
+    min-height: 1.4em;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .bx-stage.is-full .bx-score {
+    font-size: clamp(72px, 22vh, 240px);
+  }
+  .bx-stage.is-full .bx-finish {
+    min-height: clamp(56px, 12vh, 140px);
+    font-size: clamp(15px, 2.4vh, 22px);
+  }
+  .bx-stage.is-full .bx-pts {
+    font-size: clamp(13px, 2vh, 18px);
+  }
+  .bx-stage.is-full .bx-exit {
+    display: inline-flex;
+    margin-left: auto;
+  }
+  .bx-stage.is-full .bx-winner .result-value {
+    font-size: clamp(22px, 4vh, 36px);
   }
   .bx-disclaimer {
     margin: 0;

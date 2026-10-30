@@ -16,6 +16,8 @@ export interface Strings {
   /** {n} = slot number */
   deckPlaceholder: string;
   currentAria: string;
+  fullscreen: string;
+  exitFullscreen: string;
   draw: string;
   undo: string;
   reset: string;
@@ -81,6 +83,8 @@ export default defineToolI18n<Strings>({
     deckLabel: '3on3 陣容（點選目前出場的陀螺）',
     deckPlaceholder: '第 {n} 顆',
     currentAria: '目前出場',
+    fullscreen: '全螢幕計分',
+    exitFullscreen: '離開全螢幕',
     draw: '平手',
     undo: '復原上一回合',
     reset: '重新開始',
@@ -135,6 +139,8 @@ export default defineToolI18n<Strings>({
     deckLabel: '3on3 deck (tap the Beyblade in play)',
     deckPlaceholder: 'Bey {n}',
     currentAria: 'In play',
+    fullscreen: 'Full screen',
+    exitFullscreen: 'Exit full screen',
     draw: 'Draw',
     undo: 'Undo last battle',
     reset: 'Reset',
@@ -189,6 +195,8 @@ export default defineToolI18n<Strings>({
     deckLabel: '3on3 デッキ（出場中のベイをタップ）',
     deckPlaceholder: '{n} 機目',
     currentAria: '出場中',
+    fullscreen: '全画面で記録',
+    exitFullscreen: '全画面を終了',
     draw: '引き分け',
     undo: '1 つ戻す',
     reset: 'リセット',

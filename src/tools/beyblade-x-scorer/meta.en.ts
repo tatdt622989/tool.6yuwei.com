@@ -71,6 +71,10 @@ export default defineTool({
       a: 'Yes. Export CSV downloads every battle with the date, players, Beys, winner, finish and points, ready for Excel or Google Sheets. Nothing is uploaded to a server.',
     },
     {
+      q: 'Can I use it full screen during a match?',
+      a: 'Yes. Tap Full screen to show only the scores and finish buttons, with bigger buttons that are easy to tap next to the stadium. The screen also stays on while you score. Safari on iPhone does not allow web pages to go full screen, so there the scoreboard fills the screen instead.',
+    },
+    {
       q: 'Is this an official Beyblade tool?',
       a: 'No. It is an unofficial fan-made tool and is not affiliated with TAKARA TOMY or Hasbro. Scoring follows the standard official rules; check your event rules before you play.',
     },
