@@ -21,6 +21,7 @@ interface Props {
   description: string;
   /** Path used for canonical + og:url; defaults to the current path. */
   path?: string;
+  /** Share image; defaults to this locale's generic card in public/og/. */
   ogImage?: string;
   ogType?: 'website' | 'article';
   jsonLd?: (Record<string, unknown> | null)[];
@@ -33,7 +34,7 @@ const {
   title,
   description,
   path = Astro.url.pathname,
-  ogImage = site.ogImage,
+  ogImage,
   ogType = 'website',
   jsonLd = [],
   noindex = false,
@@ -46,7 +47,7 @@ const info = LOCALE_INFO[locale];
 const s = getUi(locale);
 const fullTitle = title ? `${title}${brand.titleSeparator}${brand.name}` : `${brand.name}${brand.titleSeparator}${brand.tagline}`;
 const canonical = absoluteUrl(path);
-const image = absoluteUrl(ogImage);
+const image = absoluteUrl(ogImage ?? `/og/${locale}/default.png`);
 const structured = jsonLd.filter(Boolean);
 const hreflangs = noindex ? [] : hreflangLinks(alternates, absoluteUrl);
 const ogAlternateLocales = LOCALES.filter((l) => l !== locale && alternates[l]).map((l) => LOCALE_INFO[l].ogLocale);

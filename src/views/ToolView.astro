@@ -46,6 +46,7 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
   title={tool.seoTitle}
   description={tool.description}
   path={toolPath(tool.slug, locale)}
+  ogImage={`/og/${locale}/${tool.slug}.png`}
   activeCategory={category.id}
   jsonLd={[toolJsonLd(tool, category), breadcrumbJsonLd(crumbs), faqJsonLd(tool.faq)]}
 >

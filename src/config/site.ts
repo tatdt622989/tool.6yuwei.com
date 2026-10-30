@@ -65,7 +65,6 @@ export const site = {
   license: 'AGPL-3.0',
   contactEmail: (env.PUBLIC_CONTACT_EMAIL ?? '').trim(),
   gscVerification: (env.PUBLIC_GSC_VERIFICATION ?? '').trim(),
-  ogImage: '/og-default.png',
 } as const;
 
 export type AdSlotName = 'afterTool' | 'inArticle' | 'bottom' | 'sidebar' | 'home';

@@ -13,6 +13,7 @@ export function toolsFeed(locale: Locale): Response {
     description: t.description,
     intro: t.intro,
     category: getCategory(t.category, locale).name,
+    icon: t.icon,
     keywords: t.keywords,
     url: absoluteUrl(toolPath(t.slug, locale)),
   }));

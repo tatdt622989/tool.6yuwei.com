@@ -34,6 +34,8 @@ npm run preview
 
 參考實作：`src/tools/word-counter/`、`src/tools/bmi-calculator/`、`src/tools/password-generator/`。slug 不可與 `about`、`contact`、`privacy`、`terms`、`category`、`convert`、`app`、`en`、`ja` 等保留路徑重複（build 時會檢查）。
 
+新增或改名工具後，執行 `npm run build && npm run og` 產生分享圖，並把 `public/og/` 一起 commit（漏了會讓 `og-images.test.ts` 失敗）。
+
 ## 多語系（zh-TW / en / ja）
 
 - 繁體中文是預設語系，網址維持在根目錄（`/<slug>/`）；英文在 `/en/<slug>/`、日文在 `/ja/<slug>/`，slug 共用。
@@ -48,6 +50,7 @@ npm run preview
 ## SEO 設計
 
 - 每個工具頁：獨立 `<title>` / description / canonical / OG / Twitter Card，JSON-LD 含 `WebApplication`、`BreadcrumbList`、`FAQPage`。
+- 分享圖：每個工具、每種語系各一張 `public/og/<locale>/<slug>.png`（1200×630），其他頁面用該語系的 `default.png`。由 `scripts/og-images.mjs` 讀取 build 出的 `tools.json`，在本機 Chrome 用系統字型排版截圖；Docker 映像檔沒有中日文字型，所以圖片預先產生後進版控。
 - 工具下方有使用步驟、說明文章與 FAQ，提供足量原創內容（同時是 AdSense 審核重點）。
 - 內部連結：麵包屑、分類頁、側欄同類工具、「你可能也需要」相關工具。
 - 首頁有 `WebSite` + `SearchAction`（`/?q=` 會直接篩選工具）與 `ItemList`。

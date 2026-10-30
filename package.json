@@ -15,7 +15,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",
-    "update:invoice": "node scripts/update-invoice.mjs"
+    "update:invoice": "node scripts/update-invoice.mjs",
+    "og": "node scripts/og-images.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@types/qrcode": "^1.5.6",
+    "playwright-core": "^1.58.2",
     "typescript": "^6.0.3",
     "vitest": "^5.0.5"
   }
