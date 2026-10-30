@@ -41,7 +41,7 @@ export default defineTool({
     {
       heading: 'Scoring a 3on3 battle',
       body: [
-        'In 3on3, each player brings three Beys and launches them in a set order: the first Bey in battle 1, the second in battle 2, the third in battle 3, then back to the first until someone reaches the target. Switch to 3on3 and enter each deck, and the Bey in play moves to the next one after every battle.',
+        'In 3on3, each player brings three Beys and launches them in a set order: the first Bey in battle 1, the second in battle 2, the third in battle 3, then back to the first until someone reaches the target. Switch to 3on3 and enter each deck, and the Bey in play moves to the next one after every battle. A draw is replayed with the same Beys under the official rules, so Draw keeps the current Beys.',
         'If the real order differs, tap the button next to the right Bey to correct it. A deck with only two Beys rotates between those two. Undo also moves each player back to the Bey used in the undone battle.',
       ],
     },

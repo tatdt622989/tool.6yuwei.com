@@ -353,7 +353,8 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
   function score(winner: Side | null, finish: Finish | null) {
     if (matchWinner(state.match) !== null) return;
     state.match = addRound(state.match, { winner, finish, bey: [beyInPlay(0), beyInPlay(1)] });
-    if (state.mode === '3') {
+    // Official 3on3 rules replay a draw with the same Beyblades.
+    if (state.mode === '3' && winner !== null) {
       rotate(0);
       rotate(1);
     }
