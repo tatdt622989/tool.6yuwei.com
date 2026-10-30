@@ -317,6 +317,8 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
 
     const rows = beyStats(history).slice(0, 50);
     wrap.hidden = rows.length === 0;
+    // Column names double as labels when phones show each row as a card.
+    const labels = $$('thead th', wrap).map((th) => th.textContent ?? '');
     $('#bx-table', root).replaceChildren(
       ...rows.map((b) => {
         const tr = el('tr');
@@ -334,6 +336,7 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
           el('td', 'num', formatFixed(b.pointsPerBattle, 2, locale)),
           el('td', '', finishes || '–'),
         );
+        [...tr.children].forEach((td, i) => ((td as HTMLElement).dataset.label = labels[i]));
         return tr;
       }),
     );
@@ -695,37 +698,73 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
   .bx-stage.is-full .bx-board {
     min-height: 0;
   }
+  /* Full screen: every label scales with the short side of the screen so it reads from across the stadium. */
   .bx-stage.is-full .bx-player {
-    align-content: space-between;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.6vmin, 20px);
   }
   .bx-stage.is-full .bx-mode-box {
     display: none !important;
   }
+  .bx-stage.is-full .bx-name {
+    min-height: 0;
+    padding: 0.35em 0.5em;
+    font-size: clamp(17px, 3.4vmin, 44px);
+  }
+  .bx-stage.is-full .bx-score {
+    margin-top: auto;
+    font-size: clamp(80px, 30vmin, 360px);
+  }
+  .bx-stage.is-full .bx-need {
+    font-size: clamp(15px, 3vmin, 38px);
+    color: var(--text-2);
+  }
   .bx-stage.is-full .bx-current-bey {
     display: block;
-    min-height: 1.4em;
+    margin-bottom: auto;
+    min-height: 1.3em;
     text-align: center;
-    font-size: 15px;
+    font-size: clamp(15px, 3.2vmin, 40px);
     font-weight: 600;
     color: var(--text-2);
     overflow-wrap: anywhere;
   }
-  .bx-stage.is-full .bx-score {
-    font-size: clamp(72px, 22vh, 240px);
+  .bx-stage.is-full .bx-finishes {
+    gap: clamp(6px, 1.2vmin, 14px);
   }
   .bx-stage.is-full .bx-finish {
-    min-height: clamp(56px, 12vh, 140px);
-    font-size: clamp(15px, 2.4vh, 22px);
+    align-content: center;
+    row-gap: 0.2em;
+    min-height: clamp(56px, 13vmin, 180px);
+    font-size: clamp(18px, 4.2vmin, 56px);
+    font-weight: 700;
+    line-height: 1.15;
   }
   .bx-stage.is-full .bx-pts {
-    font-size: clamp(13px, 2vh, 18px);
+    font-size: clamp(14px, 3.2vmin, 42px);
+    font-weight: 600;
+  }
+  .bx-stage.is-full .bx-actions .btn {
+    min-height: clamp(44px, 7vmin, 92px);
+    padding: 0.3em 0.9em;
+    font-size: clamp(15px, 2.8vmin, 34px);
+  }
+  .bx-stage.is-full .bx-actions .btn.ghost {
+    color: var(--text);
+    background: var(--surface);
+    border-color: var(--border-strong);
   }
   .bx-stage.is-full .bx-exit {
     display: inline-flex;
     margin-left: auto;
   }
   .bx-stage.is-full .bx-winner .result-value {
-    font-size: clamp(22px, 4vh, 36px);
+    font-size: clamp(22px, 5vmin, 64px);
+  }
+  .bx-stage.is-full .bx-winner .btn {
+    min-height: clamp(44px, 7vmin, 92px);
+    font-size: clamp(16px, 3vmin, 36px);
   }
   .bx-disclaimer {
     margin: 0;
@@ -744,7 +783,7 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     }
     .bx-player {
       gap: 8px;
-      padding: 10px 8px;
+      padding: 10px 6px;
     }
     .bx-score {
       font-size: 22vw;
@@ -799,15 +838,149 @@ const slots = Array.from({ length: DECK_SIZE }, (_, i) => i);
     .bx-log {
       font-size: 15px;
     }
+    .bx-slot {
+      gap: 4px;
+      padding: 2px 0;
+    }
+    .bx-slot input[type='text'] {
+      padding: 8px 6px;
+    }
+    /* The win-rate table becomes one card per Beyblade so nothing scrolls sideways. */
+    .bx-stats-box .table-wrap {
+      overflow: visible;
+    }
+    .bx-stats-box .table thead {
+      display: none;
+    }
+    .bx-stats-box .table,
+    .bx-stats-box :global(tbody),
+    .bx-stats-box :global(td) {
+      display: block;
+    }
+    .bx-stats-box :global(tr) {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bx-stats-box :global(tr:last-child) {
+      border-bottom: 0;
+    }
+    .bx-stats-box :global(td) {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0;
+      border: 0;
+      font-size: 15px;
+      text-align: right;
+    }
+    .bx-stats-box :global(td::before) {
+      content: attr(data-label);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: left;
+    }
+    .bx-stats-box :global(td:first-child) {
+      grid-column: 1 / -1;
+      display: block;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: left;
+    }
+    .bx-stats-box :global(td:first-child::before) {
+      content: none;
+    }
+    .bx-stats-box :global(td:last-child) {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      color: var(--text-2);
+      text-align: left;
+    }
     .bx-stage.is-full {
       padding: 8px;
     }
+    .bx-stage.is-full .bx-name {
+      font-size: 17px;
+    }
     .bx-stage.is-full .bx-score {
-      font-size: clamp(64px, 14vh, 160px);
+      font-size: min(32vw, 18vh);
+    }
+    .bx-stage.is-full .bx-need,
+    .bx-stage.is-full .bx-current-bey {
+      font-size: 16px;
     }
     .bx-stage.is-full .bx-finish {
-      min-height: clamp(52px, 8.5vh, 96px);
-      font-size: min(18px, 4.3vw);
+      min-height: clamp(56px, 9vh, 104px);
+      font-size: min(22px, 5.4vw);
+    }
+    .bx-stage.is-full .bx-pts {
+      font-size: 17px;
+    }
+    .bx-stage.is-full .bx-actions .btn {
+      min-height: 52px;
+      font-size: 17px;
+    }
+  }
+  /* Phones on their side: too short to stack, so each player puts the score on the left and big finish buttons on the right. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .bx-stage.is-full {
+      padding: 8px;
+      gap: 8px;
+    }
+    .bx-stage.is-full .bx-board {
+      gap: 8px;
+    }
+    .bx-stage.is-full .bx-player {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+      grid-template-rows: auto 1fr auto auto;
+      gap: 6px 10px;
+      padding: 8px;
+    }
+    .bx-stage.is-full .bx-name,
+    .bx-stage.is-full .bx-score,
+    .bx-stage.is-full .bx-need,
+    .bx-stage.is-full .bx-current-bey {
+      grid-column: 1;
+      margin: 0;
+    }
+    .bx-stage.is-full .bx-name {
+      font-size: 16px;
+    }
+    .bx-stage.is-full .bx-score {
+      align-self: center;
+      font-size: min(34vh, 13vw);
+    }
+    .bx-stage.is-full .bx-need,
+    .bx-stage.is-full .bx-current-bey {
+      font-size: 15px;
+    }
+    .bx-stage.is-full .bx-finishes {
+      grid-column: 2;
+      grid-row: 1 / -1;
+      grid-template-columns: 1fr 1fr;
+      grid-auto-rows: 1fr;
+      gap: 6px;
+    }
+    .bx-stage.is-full .bx-finish {
+      min-height: 0;
+      font-size: clamp(16px, 5.2vh, 28px);
+    }
+    .bx-stage.is-full .bx-pts {
+      font-size: clamp(14px, 4.2vh, 22px);
+    }
+    .bx-stage.is-full .bx-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .bx-stage.is-full .bx-actions .btn {
+      min-height: 44px;
+      font-size: 16px;
+    }
+    .bx-stage.is-full .bx-exit {
+      margin-left: auto;
     }
   }
 </style>
