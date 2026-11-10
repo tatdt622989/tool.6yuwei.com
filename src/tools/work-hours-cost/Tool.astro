@@ -1,0 +1,832 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { LOCALE_INFO } from '../../i18n/locales';
+import Icon from '../../components/Icon.astro';
+import { CURRENCIES, DEFAULTS, FREQUENCIES, MODES, PERIODS, exampleLabel, examplesFor, matchesExample } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const c = s.client;
+const defaults = DEFAULTS[locale];
+const intl = LOCALE_INFO[locale].intl;
+const currencyNames = new Intl.DisplayNames(intl, { type: 'currency' });
+const examples = examplesFor(defaults.currency);
+---
+
+<div class="tool" data-tool="work-hours-cost" data-defaults={JSON.stringify(defaults)} {...i18nAttrs(locale, c)}>
+  <div class="seg wh-mode" role="radiogroup" aria-label={s.modeAria}>
+    {
+      MODES.map((m) => (
+        <label>
+          <input type="radio" name="wh-mode" value={m} checked={m === defaults.mode} />
+          <span>{s.modes[m]}</span>
+        </label>
+      ))
+    }
+  </div>
+
+  <div class="wh-inputs">
+    <div class="field" id="wh-once" hidden={defaults.mode !== 'once'}>
+      <label for="wh-price">{s.priceLabel}</label>
+      <input id="wh-price" type="number" inputmode="decimal" min="0" step="any" value={defaults.price} />
+    </div>
+    <div class="grid-2" id="wh-habit" hidden={defaults.mode !== 'habit'}>
+      <div class="field">
+        <label for="wh-amount">{s.amountLabel}</label>
+        <input id="wh-amount" type="number" inputmode="decimal" min="0" step="any" value={defaults.amount} />
+      </div>
+      <div class="field">
+        <span class="label" id="wh-freq-label">{s.frequencyLabel}</span>
+        <div class="seg wh-freq" role="radiogroup" aria-labelledby="wh-freq-label">
+          {
+            FREQUENCIES.map((f) => (
+              <label>
+                <input type="radio" name="wh-freq" value={f} checked={f === defaults.frequency} />
+                <span>{c.frequencies[f]}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice error" id="wh-error" role="alert" hidden></div>
+
+  <section class="wh-stage" id="wh-stage" aria-label={s.resultAria}>
+    <div class="wh-headline" aria-live="polite">
+      <p class="wh-lead" id="wh-lead"></p>
+      <div class="wh-big" id="wh-big">–</div>
+    </div>
+    <p class="wh-sentence" id="wh-sentence"></p>
+    <p class="wh-note" id="wh-note"></p>
+    <div class="wh-grid" id="wh-grid" role="img"></div>
+    <p class="wh-caption" id="wh-caption"></p>
+    <p class="wh-rate">
+      <span id="wh-rate"></span>
+      <button class="wh-edit-pay" type="button" id="wh-edit-pay">{s.editPay}</button>
+    </p>
+  </section>
+
+  <div class="wh-examples">
+    <span class="wh-examples-label" id="wh-examples-label">{s.examplesLabel}</span>
+    <div class="row wh-example-list" id="wh-example-list" role="group" aria-labelledby="wh-examples-label">
+      {
+        examples.map((e) => (
+          <button
+            class="btn small"
+            type="button"
+            data-example={e.id}
+            hidden={e.mode !== defaults.mode}
+            aria-pressed={matchesExample(defaults, e) ? 'true' : 'false'}
+          >
+            {exampleLabel(e, defaults.currency, intl, c)}
+          </button>
+        ))
+      }
+    </div>
+    <p class="hint" id="wh-examples-hint">{s.examplesHint}</p>
+  </div>
+
+  <div class="stats wh-stats" id="wh-stats-once" hidden={defaults.mode !== 'once'}>
+    <div class="stat"><span class="stat-value" id="wh-o-hours">–</span><span class="stat-label">{s.statsOnce.hours}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-o-share">–</span><span class="stat-label">{s.statsOnce.monthShare}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-o-hourly">–</span><span class="stat-label">{s.statsOnce.hourly}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-o-daily">–</span><span class="stat-label">{s.statsOnce.daily}</span></div>
+  </div>
+  <div class="stats wh-stats" id="wh-stats-habit" hidden={defaults.mode !== 'habit'}>
+    <div class="stat"><span class="stat-value" id="wh-h-year">–</span><span class="stat-label">{s.statsHabit.perYear}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-h-month">–</span><span class="stat-label">{s.statsHabit.perMonth}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-h-hours">–</span><span class="stat-label">{s.statsHabit.hours}</span></div>
+    <div class="stat"><span class="stat-value" id="wh-h-share">–</span><span class="stat-label">{s.statsHabit.yearShare}</span></div>
+  </div>
+
+  <div class="wh-share">
+    <button class="btn" type="button" id="wh-share"><Icon name="Link" size={18} /><span id="wh-share-label">{s.share}</span></button>
+    <p class="hint">{s.shareHint}</p>
+  </div>
+
+  <details class="wh-settings" open>
+    <summary>{s.settings}</summary>
+    <div class="wh-settings-body">
+      <div class="seg" role="radiogroup" aria-label={s.periodAria}>
+        {
+          PERIODS.map((p) => (
+            <label>
+              <input type="radio" name="wh-period" value={p} checked={p === defaults.period} />
+              <span>{s.periods[p]}</span>
+            </label>
+          ))
+        }
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="wh-pay" id="wh-pay-label" data-labels={JSON.stringify(s.payLabel)}>{s.payLabel[defaults.period]}</label>
+          <input id="wh-pay" type="number" inputmode="decimal" min="0" step="any" value={defaults.pay} />
+        </div>
+        <div class="field">
+          <label for="wh-currency">{s.currency}</label>
+          <select id="wh-currency">
+            {
+              CURRENCIES.map((cur) => (
+                <option value={cur} selected={cur === defaults.currency}>
+                  {cur} · {currencyNames.of(cur)}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="wh-days">{s.workDays}</label>
+          <input id="wh-days" type="number" inputmode="decimal" min="1" max="31" step="any" value={defaults.workDays} />
+        </div>
+        <div class="field">
+          <label for="wh-hours">{s.hoursPerDay}</label>
+          <input id="wh-hours" type="number" inputmode="decimal" min="0.25" max="24" step="any" value={defaults.hoursPerDay} />
+        </div>
+      </div>
+      <p class="wh-basis" id="wh-basis"></p>
+      <p class="hint">{s.grossNote}</p>
+      <p class="hint">{s.saveHint}</p>
+    </div>
+  </details>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatNumber, plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import type { Strings } from './i18n';
+  import {
+    clockSpan,
+    CLOCK_START,
+    dayGrid,
+    decodeShare,
+    encodeShare,
+    exampleLabel,
+    examplesFor,
+    formatPrice,
+    formatRate,
+    habit,
+    hourlyRate,
+    matchesExample,
+    MAX_BLOCKS,
+    monthShare,
+    monthlyHours,
+    normalizeSettings,
+    payOf,
+    splitWorkTime,
+    workHours,
+    type Example,
+    type PayPeriod,
+    type Settings,
+  } from './logic';
+
+  const root = $('[data-tool="work-hours-cost"]');
+  const { s, locale } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const prefKey = `work-hours-cost:${locale}`;
+  const defaults = JSON.parse(root.dataset.defaults ?? '{}') as Settings;
+
+  const onceBox = $('#wh-once', root);
+  const habitBox = $('#wh-habit', root);
+  const priceInput = $<HTMLInputElement>('#wh-price', root);
+  const amountInput = $<HTMLInputElement>('#wh-amount', root);
+  const exampleList = $('#wh-example-list', root);
+  const exampleBtns = $$<HTMLButtonElement>('button[data-example]', exampleList);
+  const examplesHint = $('#wh-examples-hint', root);
+  const examplesHintText = examplesHint.textContent ?? '';
+  const errorEl = $('#wh-error', root);
+  const leadEl = $('#wh-lead', root);
+  const bigEl = $('#wh-big', root);
+  const sentenceEl = $('#wh-sentence', root);
+  const noteEl = $('#wh-note', root);
+  const gridEl = $('#wh-grid', root);
+  const captionEl = $('#wh-caption', root);
+  const rateEl = $('#wh-rate', root);
+  const statsOnce = $('#wh-stats-once', root);
+  const statsHabit = $('#wh-stats-habit', root);
+  const statEls = {
+    hours: $('#wh-o-hours', root),
+    share: $('#wh-o-share', root),
+    hourly: $('#wh-o-hourly', root),
+    daily: $('#wh-o-daily', root),
+    perYear: $('#wh-h-year', root),
+    perMonth: $('#wh-h-month', root),
+    yearHours: $('#wh-h-hours', root),
+    yearShare: $('#wh-h-share', root),
+  };
+  const shareBtn = $<HTMLButtonElement>('#wh-share', root);
+  const shareLabel = $('#wh-share-label', root);
+  const payInput = $<HTMLInputElement>('#wh-pay', root);
+  const payLabel = $('#wh-pay-label', root);
+  const payLabels = JSON.parse(payLabel.dataset.labels ?? '{}') as Record<PayPeriod, string>;
+  const currencySelect = $<HTMLSelectElement>('#wh-currency', root);
+  const daysInput = $<HTMLInputElement>('#wh-days', root);
+  const hoursInput = $<HTMLInputElement>('#wh-hours', root);
+  const basisEl = $('#wh-basis', root);
+  const settingsBox = $<HTMLDetailsElement>('.wh-settings', root);
+  const editPayBtn = $<HTMLButtonElement>('#wh-edit-pay', root);
+
+  const radios = (name: string) => $$<HTMLInputElement>(`input[name="${name}"]`, root);
+  const checked = (name: string) => radios(name).find((r) => r.checked)?.value;
+  const setChecked = (name: string, value: string) => {
+    for (const radio of radios(name)) radio.checked = radio.value === value;
+  };
+
+  /** A shared link wins over the remembered pay; only the pay side is ever remembered. */
+  function initial(): Settings {
+    return normalizeSettings(decodeShare(location.hash), normalizeSettings(loadPref<unknown>(prefKey, null), defaults));
+  }
+
+  let settings: Settings = initial();
+  let examples: Example[] = [];
+  let examplesCurrency = '';
+
+  /* ---------- Text helpers ---------- */
+  const num = (value: number, digits = 1) => formatNumber(value, digits, locale);
+  const round1 = (value: number) => Math.round(value * 10) / 10;
+  const price = (value: number) => formatPrice(value, settings.currency, intl);
+  const rate = (value: number) => formatRate(value, settings.currency, intl);
+  const percent = (share: number) => `${num(share * 100, share < 0.1 ? 2 : 1)}%`;
+  const clock12 = new Intl.DateTimeFormat(intl, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' });
+  /** Minutes after midnight → "1:00 PM" where the locale uses a 12-hour clock, else "13:00". */
+  const timeOf = (minutes: number) =>
+    s.hour12
+      ? clock12.format(new Date(Date.UTC(2000, 0, 3, 0, minutes)))
+      : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+
+  /** 132 hours → ['16 days', '4 hours']; parts that are zero are left out. */
+  function timeParts(hours: number): string[] {
+    const time = splitWorkTime(hours, settings.hoursPerDay);
+    const parts: string[] = [];
+    if (time.days) parts.push(plural(locale, time.days, s.units.day));
+    if (time.hours) parts.push(plural(locale, time.hours, s.units.hour));
+    if (time.minutes) parts.push(plural(locale, time.minutes, s.units.minute));
+    return parts.length > 0 ? parts : [s.underMinute];
+  }
+
+  /* ---------- Form ---------- */
+  function writeForm() {
+    setChecked('wh-mode', settings.mode);
+    setChecked('wh-freq', settings.frequency);
+    setChecked('wh-period', settings.period);
+    priceInput.value = String(settings.price);
+    amountInput.value = String(settings.amount);
+    payInput.value = String(settings.pay);
+    currencySelect.value = settings.currency;
+    daysInput.value = String(settings.workDays);
+    hoursInput.value = String(settings.hoursPerDay);
+  }
+
+  function readForm(): Settings {
+    // An emptied money field means 0 (the result then asks for a number); emptied days or hours keep their last value.
+    const money = (input: HTMLInputElement) => (input.value.trim() === '' ? 0 : input.value);
+    return normalizeSettings(
+      {
+        mode: checked('wh-mode'),
+        price: money(priceInput),
+        amount: money(amountInput),
+        frequency: checked('wh-freq'),
+        period: checked('wh-period'),
+        pay: money(payInput),
+        currency: currencySelect.value,
+        workDays: daysInput.value,
+        hoursPerDay: hoursInput.value,
+      },
+      settings,
+    );
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderBig(parts: string[] | null) {
+    if (!parts) {
+      bigEl.textContent = '–';
+      return;
+    }
+    const nodes = parts.map((part) => {
+      const wrap = document.createElement('span');
+      wrap.className = 'wh-part';
+      // "16 days" → a large "16" and a small "days"; text without a leading number stays in one piece.
+      const match = /^([\d.,]*\d)\s*(.+)$/.exec(part);
+      const number = document.createElement('span');
+      number.className = 'wh-num';
+      number.textContent = match ? match[1] : part;
+      wrap.append(number);
+      if (match) {
+        const unit = document.createElement('span');
+        unit.className = 'wh-unit';
+        unit.textContent = match[2];
+        wrap.append(unit);
+      } else {
+        wrap.classList.add('is-text');
+      }
+      return wrap;
+    });
+    bigEl.replaceChildren(...nodes);
+  }
+
+  /** Month blocks of working days; `months` of them (possibly a fraction) are filled. */
+  function renderGrid(months: number, fixed?: number) {
+    const grid = dayGrid(months, settings.workDays, fixed);
+    const many = grid.blocks.length;
+    gridEl.dataset.size = many === 1 ? 'l' : many <= 4 ? 'm' : 's';
+    const blocks = grid.blocks.map((filled, i) => {
+      const month = document.createElement('div');
+      month.className = 'wh-month';
+      const cells = document.createElement('div');
+      cells.className = 'wh-cells';
+      for (let j = 0; j < grid.cells; j++) {
+        const cell = document.createElement('span');
+        cell.className = 'wh-cell';
+        const fill = Math.min(1, Math.max(0, filled - j));
+        if (fill > 0) cell.style.setProperty('--f', String(fill));
+        cells.append(cell);
+      }
+      month.append(cells);
+      if (many > 1) {
+        const label = document.createElement('span');
+        label.className = 'wh-month-label';
+        label.textContent = t(s.monthLabel, { n: i + 1 });
+        month.append(label);
+      }
+      return month;
+    });
+    gridEl.replaceChildren(...blocks);
+    return grid;
+  }
+
+  function setCaption(text: string) {
+    captionEl.textContent = text;
+    gridEl.setAttribute('aria-label', text);
+  }
+
+  function renderExamples() {
+    if (examplesCurrency !== settings.currency) {
+      examplesCurrency = settings.currency;
+      examples = examplesFor(settings.currency);
+      exampleList.hidden = examples.length === 0;
+      examplesHint.textContent = examples.length === 0 ? s.noExamples : examplesHintText;
+      for (const btn of exampleBtns) {
+        const example = examples.find((e) => e.id === btn.dataset.example);
+        if (example) btn.textContent = exampleLabel(example, settings.currency, intl, s);
+      }
+    }
+    for (const btn of exampleBtns) {
+      const example = examples.find((e) => e.id === btn.dataset.example);
+      btn.hidden = !example || example.mode !== settings.mode;
+      btn.setAttribute('aria-pressed', String(!!example && matchesExample(settings, example)));
+    }
+  }
+
+  function clearResult(lead: string) {
+    leadEl.textContent = lead;
+    renderBig(null);
+    sentenceEl.textContent = '';
+    noteEl.textContent = '';
+    renderGrid(0, settings.mode === 'habit' ? MAX_BLOCKS : undefined);
+    setCaption('');
+    for (const key of ['hours', 'share', 'perYear', 'perMonth', 'yearHours', 'yearShare'] as const) statEls[key].textContent = '–';
+  }
+
+  function renderOnce(hourly: number) {
+    const hours = workHours(settings.price, hourly);
+    if (hours === null || !(settings.price > 0)) return clearResult(hours === null ? '' : s.needInput.once);
+    const months = monthShare(hours, settings);
+    const days = plural(locale, round1(hours / settings.hoursPerDay), s.units.day);
+
+    leadEl.textContent = t(s.lead.once, { price: price(settings.price) });
+    renderBig(timeParts(hours));
+
+    const span = clockSpan(hours, settings.hoursPerDay);
+    const start = timeOf(CLOCK_START);
+    let sentence = '';
+    let note = '';
+    if (months > MAX_BLOCKS) {
+      sentence = t(s.sentence.years, { years: num(months / 12) });
+    } else if (span) {
+      const template = span.week > 0 ? s.sentence.later : span.weekday > 0 ? s.sentence.sameWeek : s.sentence.sameDay;
+      sentence = t(template, { start, time: timeOf(span.endMinutes), day: s.weekdays[span.weekday], week: span.week + 1 });
+      note = t(s.clockNote, { start, h: num(settings.hoursPerDay, 2) });
+    }
+    sentenceEl.textContent = sentence;
+    noteEl.textContent = note;
+
+    const grid = renderGrid(months);
+    const n = grid.cells;
+    if (grid.overflow) setCaption(s.grid.overflow);
+    else if (grid.blocks.length > 1) setCaption(t(s.grid.months, { m: grid.blocks.length, n, days }));
+    else setCaption(t(s.grid.once, { n, days }));
+
+    statEls.hours.textContent = plural(locale, round1(hours), s.hoursValue);
+    statEls.share.textContent = percent(months);
+  }
+
+  function renderHabit(hourly: number) {
+    const plan = habit(settings.amount, settings.frequency, settings);
+    if (plan.hours === null || !(settings.amount > 0)) return clearResult(plan.hours === null ? '' : s.needInput.habit);
+    const months = monthShare(plan.hours, settings);
+    const days = plural(locale, round1(plan.hours / settings.hoursPerDay), s.units.day);
+    const amount = price(settings.amount);
+
+    leadEl.textContent = t(s.lead.habit, { amount, freq: s.freqPhrase[settings.frequency], year: price(plan.perYear) });
+    renderBig(timeParts(plan.hours));
+    sentenceEl.textContent = t(s.habitSentence, {
+      amount,
+      each: timeParts(settings.amount / hourly).join(' '),
+      share: percent(months / 12),
+    });
+    noteEl.textContent = '';
+
+    const grid = renderGrid(months, MAX_BLOCKS);
+    setCaption(grid.overflow ? s.grid.habitOverflow : t(s.grid.habit, { n: grid.cells, days }));
+
+    statEls.perYear.textContent = price(plan.perYear);
+    statEls.perMonth.textContent = price(plan.perMonth);
+    statEls.yearHours.textContent = plural(locale, round1(plan.hours), s.hoursValue);
+    statEls.yearShare.textContent = percent(months / 12);
+  }
+
+  function render() {
+    const hourly = hourlyRate(settings);
+    const once = settings.mode === 'once';
+    onceBox.hidden = statsOnce.hidden = !once;
+    habitBox.hidden = statsHabit.hidden = once;
+    payLabel.textContent = payLabels[settings.period];
+    renderExamples();
+
+    const hasPay = hourly > 0;
+    errorEl.hidden = hasPay;
+    errorEl.textContent = hasPay ? '' : s.needPay;
+    shareBtn.disabled = !hasPay;
+    rateEl.textContent = hasPay ? t(s.rateLine, { hourly: rate(hourly) }) : '';
+    basisEl.textContent = hasPay ? t(s.basis, { hours: num(monthlyHours(settings), 2), hourly: rate(hourly) }) : '';
+    statEls.hourly.textContent = hasPay ? rate(hourly) : '–';
+    statEls.daily.textContent = hasPay ? rate(hourly * settings.hoursPerDay) : '–';
+
+    if (once) renderOnce(hourly);
+    else renderHabit(hourly);
+  }
+
+  /* ---------- Changes ---------- */
+  /** A shared link describes the sharer's numbers; once edited, drop it from the address bar. */
+  function dropHash() {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  function onItemChange() {
+    settings = readForm();
+    dropHash();
+    render();
+  }
+
+  /** Only a change to the pay fields is remembered, so opening someone's link never overwrites your own pay. */
+  function onPayChange() {
+    settings = readForm();
+    savePref(prefKey, payOf(settings));
+    dropHash();
+    render();
+  }
+
+  for (const radio of [...radios('wh-mode'), ...radios('wh-freq')]) radio.addEventListener('change', onItemChange);
+  for (const input of [priceInput, amountInput]) input.addEventListener('input', onItemChange);
+  for (const radio of radios('wh-period')) radio.addEventListener('change', onPayChange);
+  for (const input of [payInput, daysInput, hoursInput]) input.addEventListener('input', onPayChange);
+  currencySelect.addEventListener('change', onPayChange);
+
+  exampleList.addEventListener('click', (event) => {
+    const btn = (event.target as Element).closest<HTMLButtonElement>('button[data-example]');
+    const example = examples.find((e) => e.id === btn?.dataset.example);
+    if (!example) return;
+    settings =
+      example.mode === 'once'
+        ? { ...settings, mode: 'once', price: example.price }
+        : { ...settings, mode: 'habit', amount: example.price, frequency: example.frequency ?? settings.frequency };
+    writeForm();
+    dropHash();
+    render();
+  });
+
+  // The pay form sits below the result; this jumps to it.
+  editPayBtn.addEventListener('click', () => {
+    settingsBox.open = true;
+    payInput.focus({ preventScroll: true });
+    payInput.select();
+    settingsBox.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+
+  shareBtn.addEventListener('click', async () => {
+    const url = `${location.origin}${location.pathname}#${encodeShare(settings)}`;
+    if (await copyText(url)) flashButton(shareLabel);
+  });
+
+  // A share link pasted into a tab that already shows the tool.
+  window.addEventListener('hashchange', () => {
+    const shared = decodeShare(location.hash);
+    if (!shared) return;
+    settings = normalizeSettings(shared, settings);
+    writeForm();
+    render();
+  });
+
+  writeForm();
+  render();
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+  .wh-mode {
+    justify-self: start;
+  }
+  .wh-inputs {
+    display: grid;
+    gap: 14px;
+  }
+  .wh-freq {
+    justify-self: start;
+  }
+  .wh-examples {
+    display: grid;
+    gap: 8px;
+  }
+  .wh-examples-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .wh-example-list {
+    gap: 6px;
+  }
+  .wh-example-list .btn {
+    font-variant-numeric: tabular-nums;
+    white-space: normal;
+    text-align: start;
+  }
+  .wh-example-list .btn[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+    background: var(--accent-soft);
+  }
+  .wh-examples .hint {
+    margin: 0;
+  }
+
+  .wh-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 26px 16px 20px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+    text-align: center;
+  }
+  .wh-headline {
+    display: grid;
+    gap: 8px;
+  }
+  .wh-lead {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .wh-big {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0 0.28em;
+    font-family: var(--display);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(34px, 10vw, 68px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .wh-big :global(.wh-part) {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.08em;
+    white-space: nowrap;
+  }
+  .wh-big :global(.wh-unit) {
+    font-size: 0.4em;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--accent);
+  }
+  .wh-big :global(.is-text .wh-num) {
+    font-size: 0.6em;
+  }
+  .wh-sentence {
+    margin: 0 auto;
+    max-width: 46em;
+    min-height: 1.5em;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+  .wh-note {
+    margin: -6px auto 0;
+    max-width: 46em;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .wh-sentence:empty,
+  .wh-note:empty,
+  .wh-caption:empty,
+  .wh-basis:empty {
+    display: none;
+  }
+
+  /* Month blocks: five squares a row (a working week), one square per working day. */
+  .wh-grid {
+    --cell: 16px;
+    --gap: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px 16px;
+    margin-top: 6px;
+  }
+  .wh-grid[data-size='l'] {
+    --cell: 30px;
+    --gap: 5px;
+  }
+  .wh-grid[data-size='m'] {
+    --cell: 16px;
+    --gap: 3px;
+  }
+  /* Five to twelve small months: four a row on a phone, six a row when there is room. The squares shrink with the stage. */
+  .wh-grid[data-size='s'] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px 12px;
+    width: 100%;
+    max-width: 320px;
+    margin-inline: auto;
+  }
+  .wh-grid[data-size='s'] :global(.wh-month) {
+    justify-items: stretch;
+    text-align: center;
+  }
+  .wh-grid[data-size='s'] :global(.wh-cells) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .wh-grid[data-size='s'] :global(.wh-cell) {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    border-radius: 2px;
+  }
+  .wh-grid[data-size='s'] :global(.wh-month-label) {
+    font-size: 10px;
+  }
+  @media (min-width: 640px) {
+    .wh-grid[data-size='s'] {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 16px 20px;
+      max-width: 540px;
+    }
+    .wh-grid[data-size='s'] :global(.wh-month-label) {
+      font-size: 11px;
+    }
+    .wh-stage {
+      padding-inline: 22px;
+    }
+    .wh-grid[data-size='l'] {
+      --cell: 34px;
+      --gap: 6px;
+    }
+    .wh-grid[data-size='m'] {
+      --cell: 20px;
+      --gap: 4px;
+    }
+  }
+  .wh-grid :global(.wh-month) {
+    display: grid;
+    gap: 5px;
+    justify-items: center;
+    align-content: start;
+  }
+  .wh-grid :global(.wh-cells) {
+    display: grid;
+    grid-template-columns: repeat(5, var(--cell));
+    gap: var(--gap);
+  }
+  .wh-grid :global(.wh-cell) {
+    --empty: color-mix(in oklab, var(--accent) 22%, var(--surface));
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: calc(var(--cell) / 5);
+    background: linear-gradient(to right, var(--accent) calc(var(--f, 0) * 100%), var(--empty) calc(var(--f, 0) * 100%));
+  }
+  .wh-grid :global(.wh-month-label) {
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .wh-caption {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .wh-rate {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 2px 10px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .wh-edit-pay {
+    padding: 4px 2px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .wh-edit-pay:hover {
+    color: var(--accent-hover);
+  }
+  .wh-edit-pay:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+
+  /* Two stats per row on a phone: shrink the figures so amounts do not break mid-number. */
+  .wh-stats .stat {
+    padding: 12px;
+  }
+  @media (max-width: 480px) {
+    .wh-stats .stat-value {
+      font-size: 19px;
+    }
+  }
+
+  .wh-share {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+  }
+  .wh-share .hint {
+    margin: 0;
+  }
+
+  .wh-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .wh-settings summary {
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .wh-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .wh-settings-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+  .wh-settings-body .seg {
+    justify-self: start;
+  }
+  .wh-settings-body .hint {
+    margin: 0;
+  }
+  .wh-basis {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

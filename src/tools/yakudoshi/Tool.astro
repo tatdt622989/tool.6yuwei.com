@@ -1,0 +1,407 @@
+---
+// ja-only tool: strings are written in Japanese here (see docs/i18n.md §3).
+import type { ToolProps } from '../../i18n/tool';
+import { warekiYearsText } from '../wareki-converter/logic';
+import {
+  DEFAULT_YEAR,
+  hayamiTable,
+  KIND_LABEL,
+  lifetimeYakudoshi,
+  SEX_LABEL,
+  YEAR_MAX,
+  YEAR_MIN,
+  yearLabel,
+  type Sex,
+} from './logic';
+
+type Props = ToolProps;
+const { locale = 'ja' } = Astro.props;
+
+// The page is rendered for this default so the 早見表 and the result are in the HTML; the script only swaps
+// the years when the visitor changes an input.
+const DEFAULT_BIRTH = 1986;
+const DEFAULT_SEX: Sex = 'male';
+const BIRTH_MIN = 1920;
+const birthMax = Math.max(new Date().getFullYear(), YEAR_MIN);
+const birthYears = Array.from({ length: birthMax - BIRTH_MIN + 1 }, (_, i) => birthMax - i);
+const years = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
+const sexes: Sex[] = ['male', 'female'];
+const kinds = ['mae', 'hon', 'ato'] as const;
+---
+
+<div class="tool" data-tool="yakudoshi" data-locale={locale} data-default-birth={DEFAULT_BIRTH} data-default-year={DEFAULT_YEAR}>
+  <div class="yk-inputs">
+    <div class="field">
+      <label for="yk-birth">生まれ年</label>
+      <select id="yk-birth">
+        {birthYears.map((y) => <option value={y} selected={y === DEFAULT_BIRTH}>{yearLabel(y)}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <span class="label">性別</span>
+      <div class="seg" role="radiogroup" aria-label="性別">
+        {
+          sexes.map((sex) => (
+            <label>
+              <input type="radio" name="yk-sex" value={sex} checked={sex === DEFAULT_SEX} />
+              <span>{SEX_LABEL[sex]}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+    <div class="field">
+      <label for="yk-year">調べる年</label>
+      <select id="yk-year">
+        {years.map((y) => <option value={y} selected={y === DEFAULT_YEAR}>{yearLabel(y)}</option>)}
+      </select>
+    </div>
+  </div>
+  <span class="hint">数え年は「調べる年 − 生まれ年 ＋ 1」で計算します。元日に1歳加わるので、誕生日は関係ありません。</span>
+
+  <div class="result" aria-live="polite">
+    <div class="result-value" id="yk-main">—</div>
+    <div class="result-label" id="yk-sub"></div>
+  </div>
+
+  <div class="stats yk-stats">
+    <div class="stat"><span class="stat-value" id="yk-kazoe">—</span><span class="stat-label" id="yk-kazoe-label">数え年</span></div>
+    <div class="stat"><span class="stat-value" id="yk-man">—</span><span class="stat-label" id="yk-man-label">満年齢</span></div>
+    <div class="stat"><span class="stat-value" id="yk-next">—</span><span class="stat-label" id="yk-next-label">次の厄年</span></div>
+  </div>
+
+  <div class="field">
+    <span class="label" id="yk-life-title">あなたの厄年一覧</span>
+    <div class="table-wrap">
+      <table class="table yk-table" aria-labelledby="yk-life-title">
+        <thead>
+          <tr><th>区分</th><th class="num">数え年</th><th>年</th><th class="num">満年齢</th></tr>
+        </thead>
+        {
+          sexes.map((sex) => (
+            <tbody data-life={sex} hidden={sex !== DEFAULT_SEX}>
+              {lifetimeYakudoshi(DEFAULT_BIRTH, sex).map((e) => (
+                <tr class:list={{ 'yk-group': e.kind === 'mae', 'yk-hon': e.kind === 'hon' }}>
+                  <td>
+                    {KIND_LABEL[e.kind]}
+                    {e.kind === 'hon' && e.taiyaku && <span class="yk-tai">大厄</span>}
+                  </td>
+                  <td class="num">{e.kazoe}歳</td>
+                  <td>
+                    <span class="yk-ad">{e.year}年</span>
+                    <span class="yk-wareki">{warekiYearsText(e.year)}</span>
+                  </td>
+                  <td class="num">
+                    {e.kazoe - 2}〜{e.kazoe - 1}歳
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          ))
+        }
+      </table>
+    </div>
+    <span class="hint">満年齢は、その年の誕生日を迎える前と迎えた後の年齢です。男性は42歳、女性は33歳の本厄が大厄とされています。</span>
+  </div>
+
+  <div class="field">
+    <span class="label" id="yk-table-title">{yearLabel(DEFAULT_YEAR)}の厄年早見表</span>
+    <div class="yk-tables">
+      {
+        sexes.map((sex) => (
+          <div class="table-wrap">
+            <table class="table yk-table yk-hayami" data-hayami={sex}>
+              <caption>{SEX_LABEL[sex]}の生まれ年</caption>
+              <thead>
+                <tr>{kinds.map((k) => <th scope="col">{KIND_LABEL[k]}</th>)}</tr>
+              </thead>
+              <tbody>
+                {hayamiTable(DEFAULT_YEAR, sex).map((row) => (
+                  <tr>
+                    {kinds.map((k) => (
+                      <td>
+                        <span class="yk-ad">{row[k].birthYear}年</span>
+                        {k === 'hon' && row.taiyaku && <span class="yk-tai">大厄</span>}
+                        <span class="yk-wareki">{row[k].wareki}</span>
+                        <span class="yk-age">数え年{row[k].kazoe}歳</span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      }
+    </div>
+    <span class="hint">表の年は生まれ年です。選んだ生まれ年と性別にあたる欄には色が付きます。</span>
+  </div>
+
+  <p class="notice">
+    厄年の数え方は、神社やお寺、地域によって異なります。立春（2月4日ごろ）を年の区切りにして、1月1日から節分までに生まれた人を前年生まれとして扱うところ、満年齢で数えるところ、女性の61歳を厄年に含めないところもあります。川崎大師のように、独自の厄年早見表を公開している寺社もあります。厄払い・厄除けを受けるときは、お参りする神社やお寺の案内で確認してください。
+  </p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { warekiYearsText } from '../wareki-converter/logic';
+  import {
+    hayamiTable,
+    KIND_LABEL,
+    kazoeAge,
+    kindText,
+    lifetimeYakudoshi,
+    manAge,
+    nextYakudoshi,
+    SEX_LABEL,
+    yakuStatus,
+    yearLabel,
+    type Sex,
+  } from './logic';
+
+  interface Prefs {
+    birth: number;
+    sex: Sex;
+  }
+
+  const root = $('[data-tool="yakudoshi"]');
+  const birthSel = $<HTMLSelectElement>('#yk-birth', root);
+  const yearSel = $<HTMLSelectElement>('#yk-year', root);
+  const sexInputs = $$<HTMLInputElement>('input[name="yk-sex"]', root);
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+  const hasOption = (sel: HTMLSelectElement, value: number) => [...sel.options].some((o) => Number(o.value) === value);
+
+  const sex = (): Sex => (sexInputs.find((i) => i.checked)?.value === 'female' ? 'female' : 'male');
+
+  function renderResult(birth: number, s: Sex, year: number) {
+    const kazoe = kazoeAge(birth, year);
+    if (kazoe < 1) {
+      set('#yk-main', `${year}年はまだ生まれていない年です`);
+      set('#yk-sub', `${yearLabel(birth)}生まれの人の数え年は、生まれた年を1歳として数えます。`);
+      ['#yk-kazoe', '#yk-man', '#yk-next'].forEach((id) => set(id, '—'));
+      set('#yk-kazoe-label', `${year}年の数え年`);
+      set('#yk-man-label', `${year}年の満年齢`);
+      set('#yk-next-label', '次の厄年');
+      return;
+    }
+    const entry = yakuStatus(birth, s, year);
+    const next = nextYakudoshi(birth, s, year);
+    const who = `${yearLabel(birth)}生まれの${SEX_LABEL[s]}は、${yearLabel(year)}に数え年${kazoe}歳です。`;
+    if (entry) {
+      const hon = year - (entry.kazoe - entry.honAge);
+      set('#yk-main', `${year}年は${kindText(entry)}です`);
+      set(
+        '#yk-sub',
+        `${who}数え年${entry.honAge}歳の本厄${entry.taiyaku ? '（大厄）' : ''}は${hon}年で、前厄は${hon - 1}年、後厄は${hon + 1}年です。`,
+      );
+    } else {
+      set('#yk-main', `${year}年は厄年ではありません`);
+      set(
+        '#yk-sub',
+        who +
+          (next
+            ? `次の厄年は${next.year}年（${kindText(next)}・数え年${next.kazoe}歳）です。`
+            : '数え年62歳の後厄まで、この一覧の厄年はすべて過ぎています。'),
+      );
+    }
+    const man = manAge(birth, year);
+    set('#yk-kazoe', `${kazoe}歳`);
+    set('#yk-kazoe-label', `${year}年の数え年`);
+    set('#yk-man', man.before === null ? `${man.after}歳` : `${man.before}〜${man.after}歳`);
+    set('#yk-man-label', `${year}年の満年齢（誕生日の前〜後）`);
+    set('#yk-next', next ? `${next.year}年` : '—');
+    set('#yk-next-label', next ? `次の厄年（${kindText(next)}・数え年${next.kazoe}歳）` : '次の厄年はありません');
+  }
+
+  function renderLife(birth: number, s: Sex, year: number) {
+    set('#yk-life-title', `${yearLabel(birth)}生まれ・${SEX_LABEL[s]}の厄年一覧`);
+    for (const body of $$<HTMLElement>('[data-life]', root)) {
+      const bodySex: Sex = body.dataset.life === 'female' ? 'female' : 'male';
+      body.hidden = bodySex !== s;
+      const rows = $$<HTMLTableRowElement>('tr', body);
+      lifetimeYakudoshi(birth, bodySex).forEach((e, i) => {
+        const tr = rows[i];
+        if (!tr) return;
+        $('.yk-ad', tr).textContent = `${e.year}年`;
+        $('.yk-wareki', tr).textContent = warekiYearsText(e.year);
+        tr.classList.toggle('is-current', e.year === year);
+        tr.classList.toggle('is-past', e.year < year);
+      });
+    }
+  }
+
+  function renderHayami(birth: number, s: Sex, year: number) {
+    set('#yk-table-title', `${yearLabel(year)}の厄年早見表`);
+    for (const table of $$<HTMLTableElement>('[data-hayami]', root)) {
+      const tableSex: Sex = table.dataset.hayami === 'female' ? 'female' : 'male';
+      const cells = $$<HTMLTableCellElement>('tbody td', table);
+      hayamiTable(year, tableSex)
+        .flatMap((row) => [row.mae, row.hon, row.ato])
+        .forEach((cell, i) => {
+          const td = cells[i];
+          if (!td) return;
+          $('.yk-ad', td).textContent = `${cell.birthYear}年`;
+          $('.yk-wareki', td).textContent = cell.wareki;
+          $('.yk-age', td).textContent = `数え年${cell.kazoe}歳`;
+          td.classList.toggle('is-current', tableSex === s && cell.birthYear === birth);
+          td.setAttribute('aria-label', `${KIND_LABEL[cell.kind]} ${cell.birthYear}年（${cell.wareki}）生まれ 数え年${cell.kazoe}歳`);
+        });
+    }
+  }
+
+  function render() {
+    const birth = Number(birthSel.value);
+    const year = Number(yearSel.value);
+    const s = sex();
+    renderResult(birth, s, year);
+    renderLife(birth, s, year);
+    renderHayami(birth, s, year);
+    savePref('yakudoshi', { birth, sex: s } satisfies Prefs);
+  }
+
+  birthSel.addEventListener('change', render);
+  yearSel.addEventListener('change', render);
+  for (const input of sexInputs) input.addEventListener('change', render);
+
+  // The birth year and sex are remembered; the year to check always starts from the page default.
+  const saved = loadPref<Prefs>('yakudoshi', { birth: Number(root.dataset.defaultBirth), sex: 'male' });
+  if (hasOption(birthSel, saved.birth)) birthSel.value = String(saved.birth);
+  for (const input of sexInputs) input.checked = input.value === (saved.sex === 'female' ? 'female' : 'male');
+  if (hasOption(yearSel, Number(root.dataset.defaultYear))) yearSel.value = String(root.dataset.defaultYear);
+  render();
+</script>
+
+<style>
+  .yk-inputs {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 720px) {
+    .yk-inputs {
+      grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+  .yk-inputs .seg {
+    justify-self: start;
+  }
+  .yk-inputs .seg span {
+    padding: 8px 18px;
+  }
+  .result-value {
+    font-size: clamp(24px, 6.4vw, 34px);
+  }
+  .yk-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .yk-stats .stat:last-child {
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 640px) {
+    .yk-stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .yk-stats .stat:last-child {
+      grid-column: auto;
+    }
+  }
+  .yk-tables {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .yk-tables {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .yk-table th,
+  .yk-table td {
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+  .yk-table caption {
+    padding: 8px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .yk-ad {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .yk-wareki,
+  .yk-age {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .yk-tai {
+    display: block;
+    width: fit-content;
+    margin-top: 2px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.6;
+    color: var(--accent-hover);
+    background: var(--surface);
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 999px;
+  }
+
+  /* 一生分の一覧: on a phone the 和暦 and the 大厄 mark sit under the year and the label. */
+  .yk-table tbody[data-life] .yk-wareki {
+    display: block;
+  }
+  @media (min-width: 560px) {
+    .yk-table tbody[data-life] .yk-wareki {
+      display: inline;
+      margin-left: 6px;
+    }
+    .yk-table tbody[data-life] .yk-tai {
+      display: inline-block;
+      margin: 0 0 0 6px;
+    }
+  }
+  .yk-table tr.yk-hon td:first-child {
+    font-weight: 700;
+  }
+  .yk-table tr.yk-group:not(:first-child) td {
+    border-top: 2px solid var(--border);
+  }
+  .yk-table tr.is-past td {
+    color: var(--muted);
+  }
+  .yk-table tr.is-current td,
+  .yk-hayami td.is-current {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+  .yk-table tr.is-current td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* 早見表: three equal columns, each cell = 生まれ年 / 和暦 / 数え年. */
+  .yk-hayami {
+    table-layout: fixed;
+  }
+  .yk-hayami th,
+  .yk-hayami td {
+    white-space: normal;
+  }
+  .yk-hayami .yk-wareki,
+  .yk-hayami .yk-age {
+    display: block;
+  }
+  .yk-hayami .yk-tai {
+    display: inline-block;
+    margin: 0 0 0 4px;
+    vertical-align: 1px;
+  }
+  .yk-hayami td.is-current {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+</style>

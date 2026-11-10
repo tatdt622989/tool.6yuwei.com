@@ -1210,9 +1210,10 @@ const d = DEFAULT_SETTINGS;
     margin: -6px 0 0;
   }
 
-  /* Print just the pattern and the shopping list. */
+  /* Print just the pattern and the shopping list. Every tool's CSS ships on every tool page,
+     so this must only apply where the pattern exists. */
   @media print {
-    :global(body *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *)) {
+    :global(body:has(.bp-print) *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *)) {
       display: none !important;
     }
     :global(*:has(.bp-print)) {

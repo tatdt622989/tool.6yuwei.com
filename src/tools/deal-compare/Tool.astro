@@ -1,0 +1,710 @@
+---
+import Icon from '../../components/Icon.astro';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const pairs = [
+  { step: 2, key: 'threshold', text: s.threshold, first: 'thresholdSpend', second: 'thresholdOff' },
+  { step: 3, key: 'coupon', text: s.coupon, first: 'coupon', second: 'couponMinSpend' },
+  { step: 4, key: 'shipping', text: s.shipping, first: 'shipping', second: 'freeShippingFrom' },
+  { step: 5, key: 'cashback', text: s.cashback, first: 'cashbackRate', second: 'cashbackCap' },
+];
+---
+
+<div class="tool" data-tool="deal-compare" {...i18nAttrs(locale, s.client)}>
+  <div class="row between">
+    <span class="hint dc2-lead">{s.lead}</span>
+    <div class="row">
+      <button class="btn small" type="button" id="dc2-sample">{s.sample}</button>
+      <button class="btn small ghost" type="button" id="dc2-clear">{s.clear}</button>
+    </div>
+  </div>
+
+  <div class="dc2-offers" id="dc2-offers" role="group" aria-label={s.offersAria}></div>
+
+  <div class="row">
+    <button class="btn small" type="button" id="dc2-add"><Icon name="Plus" size={16} />{s.add}</button>
+  </div>
+
+  <div class="result dc2-verdict" id="dc2-verdict" aria-live="polite"></div>
+
+  <div class="dc2-compare" id="dc2-compare" hidden>
+    <span class="dc2-heading">{s.compareTitle}</span>
+    <div class="dc2-rows" id="dc2-rows"></div>
+  </div>
+
+  <div class="notice dc2-rule">
+    <strong>{s.ruleTitle}</strong>
+    <ol>
+      {s.rule.map((line) => <li>{line}</li>)}
+    </ol>
+    <p>{s.ruleNote}</p>
+  </div>
+
+  <div class="row">
+    <button class="btn small" type="button" id="dc2-copy" data-copy="#dc2-summary" disabled>{s.copy}</button>
+  </div>
+  <textarea id="dc2-summary" hidden readonly aria-hidden="true"></textarea>
+
+  <template id="dc2-tpl">
+    <section class="dc2-offer">
+      <div class="dc2-head">
+        <input class="dc2-name" data-f="name" type="text" maxlength="30" autocomplete="off" aria-label={s.nameAria} />
+        <button class="btn small ghost" type="button" data-act="remove">{s.remove}</button>
+      </div>
+
+      <label class="dc2-sub dc2-price">
+        <span>{s.price}</span>
+        <input data-f="price" type="text" inputmode="decimal" autocomplete="off" />
+      </label>
+
+      <div class="dc2-step">
+        <div class="dc2-step-title"><span class="dc2-num">1</span>{s.percent.title}</div>
+        <div class="dc2-pair">
+          <label class="dc2-sub">
+            <span>{s.percent.value}</span>
+            <input data-f="discount" type="text" inputmode="decimal" autocomplete="off" />
+          </label>
+          {
+            s.units.length > 1 && (
+              <label class="dc2-sub">
+                <span>{s.percent.unitAria}</span>
+                <select data-f="unit">
+                  {s.units.map((u) => (
+                    <option value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </label>
+            )
+          }
+        </div>
+        <span class="hint" data-r="unit-hint"></span>
+      </div>
+
+      {
+        pairs.map((p) => (
+          <div class="dc2-step">
+            <div class="dc2-step-title">
+              <span class="dc2-num">{p.step}</span>
+              {p.text.title}
+            </div>
+            <div class="dc2-pair">
+              <label class="dc2-sub">
+                <span>{p.text.first}</span>
+                <input data-f={p.first} type="text" inputmode="decimal" autocomplete="off" />
+              </label>
+              <label class="dc2-sub">
+                <span>{p.text.second}</span>
+                <input data-f={p.second} type="text" inputmode="decimal" autocomplete="off" />
+              </label>
+            </div>
+            {p.key === 'threshold' && (
+              <label class="check dc2-check">
+                <input type="checkbox" data-f="thresholdRepeat" /> {s.threshold.repeat}
+              </label>
+            )}
+          </div>
+        ))
+      }
+
+      <div class="dc2-out" data-r="out" hidden>
+        <div class="dc2-badges" data-r="badges"></div>
+        <dl class="dc2-lines" data-r="lines"></dl>
+        <ul class="dc2-hints" data-r="hints"></ul>
+      </div>
+      <p class="notice error" data-r="error" hidden></p>
+    </section>
+  </template>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatFixed, formatNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { formatList, t } from '../../i18n/format';
+  import { factorToZhe } from '../discount-calculator/logic';
+  import {
+    MAX_OFFERS,
+    MIN_OFFERS,
+    TEXT_FIELDS,
+    blankOffer,
+    computeOffer,
+    offerHints,
+    parseOffer,
+    rankOffers,
+    restoreOffers,
+    savingsAgainst,
+    type CostKey,
+    type DiscountUnit,
+    type OfferFields,
+    type OfferInput,
+    type OfferResult,
+    type Ranking,
+  } from './logic';
+  import type { Strings } from './i18n';
+
+  const LETTERS = 'ABCD';
+  const root = $('[data-tool="deal-compare"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const list = $('#dc2-offers', root);
+  const tpl = $<HTMLTemplateElement>('#dc2-tpl', root);
+  const addButton = $<HTMLButtonElement>('#dc2-add', root);
+  const verdict = $('#dc2-verdict', root);
+  const compare = $('#dc2-compare', root);
+  const rows = $('#dc2-rows', root);
+  const copyButton = $<HTMLButtonElement>('#dc2-copy', root);
+  const summary = $<HTMLTextAreaElement>('#dc2-summary', root);
+
+  const units = $$<HTMLOptionElement>('select[data-f="unit"] option', tpl.content).map((o) => o.value as DiscountUnit);
+  if (units.length === 0) units.push(s.defaultUnit);
+
+  const money = (v: number) =>
+    t(s.money, { n: s.moneyFormat === 'fixed2' ? formatFixed(v, 2, locale) : formatNumber(v, 2, locale) });
+  const minus = (v: number) => `−${money(v)}`;
+  const num = (v: number, digits = 2) => formatNumber(v, digits, locale);
+
+  /** Effective discount against the list price: 「約 82.1 折（17.9% off）」 or "17.9% off". */
+  function discountText(factor: number): string {
+    if (!Number.isFinite(factor)) return '';
+    if (factor <= 0) return s.fullDiscount;
+    if (Math.abs(factor - 1) < 0.0005) return s.noDiscount;
+    if (factor > 1) return t(s.overList, { pct: num((factor - 1) * 100, 1) });
+    return t(s.discount, { zhe: s.equiv === 'zhe' ? factorToZhe(factor) : '', pct: num((1 - factor) * 100, 1) });
+  }
+
+  /** The percentage discount as people say it: 0.85 → 85 (折), 15 (% off) or 1.5 (割引). */
+  function discountValue(factor: number, unit: DiscountUnit): number {
+    if (unit === 'percent') return (1 - factor) * 100;
+    if (unit === 'wari') return (1 - factor) * 10;
+    const pay = Math.round(factor * 1000) / 10;
+    return pay % 10 === 0 ? pay / 10 : pay;
+  }
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  const input = (card: HTMLElement, field: string) => card.querySelector<HTMLInputElement>(`[data-f="${field}"]`);
+  const part = (card: HTMLElement, name: string) => $(`[data-r="${name}"]`, card);
+
+  function addCard(fields: OfferFields): HTMLElement {
+    const card = (tpl.content.firstElementChild as HTMLElement).cloneNode(true) as HTMLElement;
+    for (const key of TEXT_FIELDS) input(card, key)!.value = fields[key];
+    input(card, 'thresholdRepeat')!.checked = fields.thresholdRepeat;
+    const unit = card.querySelector<HTMLSelectElement>('select[data-f="unit"]');
+    if (unit) unit.value = fields.unit;
+    list.append(card);
+    return card;
+  }
+
+  function readCard(card: HTMLElement): OfferFields {
+    const fields = blankOffer((card.querySelector<HTMLSelectElement>('select[data-f="unit"]')?.value as DiscountUnit) ?? s.defaultUnit);
+    for (const key of TEXT_FIELDS) fields[key] = input(card, key)!.value;
+    fields.thresholdRepeat = input(card, 'thresholdRepeat')!.checked;
+    return fields;
+  }
+
+  function setOffers(offers: OfferFields[]) {
+    list.replaceChildren();
+    offers.forEach(addCard);
+    render();
+  }
+
+  /** One offer's receipt: every step that was entered, in the order it is applied. */
+  function receipt(fields: OfferFields, offer: OfferInput, r: OfferResult): [label: string, value: string, kind: string][] {
+    const lines: [string, string, string][] = [[s.lines.list, money(r.price), '']];
+    if (r.factor < 1) {
+      const label = t(s.lines.percent[fields.unit] ?? '', { n: num(discountValue(r.factor, fields.unit)) });
+      lines.push([label, minus(r.percentSaved), '']);
+    }
+    if ((offer.thresholdSpend ?? 0) > 0 && (offer.thresholdOff ?? 0) > 0) {
+      const vars = { spend: money(offer.thresholdSpend!), off: money(offer.thresholdOff!), n: r.thresholdTimes };
+      const label = t(r.thresholdTimes > 1 ? s.lines.thresholdTimes : s.lines.threshold, vars);
+      lines.push(r.thresholdTimes > 0 ? [label, minus(r.thresholdOff), ''] : [label, s.lines.thresholdUnmet, 'is-muted']);
+    }
+    if ((offer.coupon ?? 0) > 0) {
+      lines.push(r.couponApplied ? [s.lines.coupon, minus(r.couponOff), ''] : [s.lines.coupon, s.lines.couponUnmet, 'is-muted']);
+    }
+    if ((offer.shipping ?? 0) > 0) {
+      lines.push([s.lines.shipping, r.shippingWaived ? s.lines.shippingFree : `+${money(r.shipping)}`, '']);
+    }
+    lines.push([s.labels.paid, money(r.paid), 'is-total']);
+    if ((offer.cashbackRate ?? 0) > 0) {
+      const rate = num(offer.cashbackRate!);
+      const label = r.cashbackCapped ? t(s.lines.cashbackCapped, { rate, cap: money(r.cashback) }) : t(s.lines.cashback, { rate });
+      lines.push([label, minus(r.cashback), ''], [s.labels.effective, money(r.effective), 'is-total']);
+    }
+    const discount = discountText(r.effectiveFactor);
+    if (discount) lines.push([s.labels.discount, discount, 'is-rate']);
+    return lines;
+  }
+
+  function hintTexts(offer: OfferInput): string[] {
+    return offerHints(offer, s.rounding).map((hint) => {
+      if (hint.kind === 'threshold') {
+        return t(hint.again ? s.hints.thresholdAgain : s.hints.threshold, { add: money(hint.add), off: money(hint.off) });
+      }
+      if (hint.kind === 'coupon') return t(s.hints.coupon, { add: money(hint.add), off: money(hint.off) });
+      if (hint.kind === 'shipping') return t(s.hints.shipping, { add: money(hint.add), fee: money(hint.fee) });
+      return t(s.hints.cap, { cap: money(hint.cap), lost: money(hint.lost) });
+    });
+  }
+
+  /** Badges an offer earns in the comparison; none unless at least two offers can be compared. */
+  function badgesFor(index: number, rank: Ranking): string[] {
+    if (rank.order.length < 2) return [];
+    if (rank.split) {
+      return [
+        ...(rank.bestPaid.includes(index) ? [s.badges.paid] : []),
+        ...(rank.bestEffective.includes(index) ? [s.badges.effective] : []),
+      ];
+    }
+    if (!rank.bestEffective.includes(index)) return [];
+    return [rank.bestEffective.length === rank.order.length ? s.badges.tie : s.badges.best];
+  }
+
+  function detailText(r: OfferResult): string {
+    const discount = discountText(r.cashback > 0 ? r.effectiveFactor : r.paidFactor);
+    const text =
+      r.cashback > 0
+        ? t(s.verdict.detail, { paid: money(r.paid), cashback: money(r.cashback), effective: money(r.effective) })
+        : t(s.verdict.detailPlain, { paid: money(r.paid) });
+    return discount ? text + t(s.verdict.discountWrap, { d: discount }) : text;
+  }
+
+  interface Winner {
+    label: string;
+    value: string;
+    detail: string;
+    saves: string[];
+  }
+
+  function winners(names: string[], results: (OfferResult | null)[], rank: Ranking): Winner[] {
+    if (rank.order.length === 0) return [];
+    if (rank.order.length === 1) {
+      const r = results[rank.order[0]]!;
+      const discount = discountText(r.effectiveFactor);
+      return [
+        {
+          label: r.cashback > 0 ? s.labels.effective : s.labels.paid,
+          value: money(r.effective),
+          detail: r.cashback > 0 ? detailText(r) : discount,
+          saves: [],
+        },
+      ];
+    }
+    const anyCashback = results.some((r) => r && r.cashback > 0);
+    const block = (label: string, best: number[], key: CostKey): Winner => ({
+      label,
+      value: formatList(best.map((i) => names[i]), locale),
+      detail: detailText(results[best[0]]!),
+      saves: savingsAgainst(results, best[0], key)
+        .filter((other) => !best.includes(other.index))
+        .map((other) =>
+          t(key === 'paid' ? s.verdict.savePaid : s.verdict.saveEffective, { name: names[other.index], diff: money(other.amount) }),
+        ),
+    });
+    if (rank.split) {
+      return [block(s.verdict.paid, rank.bestPaid, 'paid'), block(s.verdict.effective, rank.bestEffective, 'effective')];
+    }
+    const tie = rank.bestEffective.length === rank.order.length;
+    return [block(tie ? s.verdict.tie : s.verdict.best, rank.bestEffective, anyCashback ? 'effective' : 'paid')];
+  }
+
+  function render() {
+    const cards = $$<HTMLElement>('.dc2-offer', list);
+    const fields = cards.map(readCard);
+    savePref(s.prefKey, { offers: fields });
+
+    const names = fields.map((f, i) => f.name.trim() || t(s.offerName, { letter: LETTERS[i] }));
+    const offers = fields.map(parseOffer);
+    const results = offers.map((offer) => (offer ? computeOffer(offer, s.rounding) : null));
+    const rank = rankOffers(results);
+
+    cards.forEach((card, i) => {
+      const offer = offers[i];
+      const r = results[i];
+      input(card, 'name')!.placeholder = t(s.offerName, { letter: LETTERS[i] });
+      $<HTMLButtonElement>('[data-act="remove"]', card).hidden = cards.length <= MIN_OFFERS;
+      part(card, 'unit-hint').textContent = s.unitHints[fields[i].unit] ?? '';
+      const out = part(card, 'out');
+      const error = part(card, 'error');
+      out.hidden = !r;
+      error.hidden = !offer || r !== null;
+      error.textContent = error.hidden ? '' : s.invalid;
+      const badges = offer && r ? badgesFor(i, rank) : [];
+      card.classList.toggle('is-best', badges.length > 0);
+      if (!offer || !r) return;
+      part(card, 'badges').replaceChildren(...badges.map((text) => el('span', 'dc2-badge', text)));
+      part(card, 'lines').replaceChildren(
+        ...receipt(fields[i], offer, r).map(([label, value, kind]) => {
+          const row = el('div', `dc2-line ${kind}`.trim());
+          row.append(el('dt', '', label), el('dd', '', value));
+          return row;
+        }),
+      );
+      part(card, 'hints').replaceChildren(...hintTexts(offer).map((text) => el('li', '', text)));
+    });
+
+    const blocks = winners(names, results, rank);
+    verdict.classList.toggle('is-split', blocks.length > 1);
+    if (blocks.length === 0) {
+      verdict.replaceChildren(el('div', 'result-value', '—'), el('div', 'result-label', s.empty));
+    } else {
+      verdict.replaceChildren(
+        ...blocks.map((b) => {
+          const block = el('div', 'dc2-win');
+          block.append(el('div', 'result-label', b.label), el('div', 'result-value', b.value));
+          if (b.detail) block.append(el('div', 'dc2-detail', b.detail));
+          if (b.saves.length > 0) {
+            const saves = el('ul', 'dc2-saves');
+            saves.append(...b.saves.map((text) => el('li', '', text)));
+            block.append(saves);
+          }
+          return block;
+        }),
+      );
+    }
+
+    compare.hidden = rank.order.length < 2;
+    rows.replaceChildren(
+      ...(compare.hidden ? [] : rank.order).map((i) => {
+        const r = results[i]!;
+        const row = el('div', 'dc2-row');
+        const name = el('div', 'dc2-row-name');
+        name.append(el('span', '', names[i]), ...badgesFor(i, rank).map((text) => el('span', 'dc2-badge', text)));
+        const cell = (label: string, value: string, win = false, kind = '') => {
+          const node = el('div', `dc2-cell ${win ? 'is-win' : kind}`.trim());
+          node.append(el('span', 'dc2-cell-value', value), el('span', 'stat-label', label));
+          return node;
+        };
+        row.append(
+          name,
+          cell(s.labels.paid, money(r.paid), rank.bestPaid.includes(i)),
+          cell(s.labels.cashback, money(r.cashback)),
+          cell(s.labels.effective, money(r.effective), rank.bestEffective.includes(i)),
+          cell(s.labels.discount, discountText(r.effectiveFactor) || '—', false, 'is-rate'),
+        );
+        return row;
+      }),
+    );
+
+    const valid = results.flatMap((r, i) => (r ? [t(s.summary.offer, { name: names[i], detail: detailText(r) })] : []));
+    const heads =
+      rank.order.length < 2
+        ? []
+        : blocks.map((b, i) => {
+            const key: CostKey = (rank.split ? i === 0 : !results.some((r) => r && r.cashback > 0)) ? 'paid' : 'effective';
+            const best = results[(key === 'paid' ? rank.bestPaid : rank.bestEffective)[0]]!;
+            const amount = t(key === 'paid' ? s.summary.paidAmount : s.summary.effectiveAmount, { amount: money(best[key]) });
+            return t(s.summary.winner, { label: b.label, names: b.value, amount });
+          });
+    summary.value = valid.length === 0 ? '' : [s.summary.title, ...heads, '', ...valid, '', s.summary.footer].join('\n');
+    copyButton.disabled = valid.length === 0;
+    addButton.disabled = cards.length >= MAX_OFFERS;
+  }
+
+  root.addEventListener('input', render);
+  root.addEventListener('change', render);
+  list.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest('[data-act="remove"]');
+    if (!button || list.children.length <= MIN_OFFERS) return;
+    button.closest('.dc2-offer')?.remove();
+    render();
+  });
+  addButton.addEventListener('click', () => {
+    if (list.children.length >= MAX_OFFERS) return;
+    const card = addCard(blankOffer(s.defaultUnit));
+    render();
+    input(card, 'price')?.focus();
+  });
+  $('#dc2-sample', root).addEventListener('click', () => {
+    setOffers(s.sample.map((fields) => blankOffer(s.defaultUnit, fields)));
+  });
+  $('#dc2-clear', root).addEventListener('click', () => {
+    setOffers([blankOffer(s.defaultUnit), blankOffer(s.defaultUnit)]);
+  });
+
+  const saved = loadPref<{ offers?: unknown }>(s.prefKey, {});
+  setOffers(restoreOffers(saved?.offers, units) ?? [blankOffer(s.defaultUnit), blankOffer(s.defaultUnit)]);
+</script>
+
+<style>
+  .dc2-lead {
+    flex: 1 1 240px;
+  }
+  .dc2-offers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .dc2-offers :global(.dc2-offer) {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+  }
+  .dc2-offers :global(.dc2-offer.is-best) {
+    border-color: var(--accent);
+  }
+  .dc2-offers :global(.dc2-head) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+  }
+  .dc2-offers :global(.dc2-name) {
+    font-weight: 700;
+  }
+  .dc2-offers :global(.dc2-sub) {
+    display: grid;
+    gap: 2px;
+    align-content: start;
+    min-width: 0;
+  }
+  .dc2-offers :global(.dc2-sub > span) {
+    font-size: 13px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .dc2-offers :global(.dc2-price > span) {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .dc2-offers :global(.dc2-step) {
+    display: grid;
+    gap: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .dc2-offers :global(.dc2-step-title) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .dc2-offers :global(.dc2-num) {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: 999px;
+  }
+  .dc2-offers :global(.dc2-pair) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: end;
+  }
+  .dc2-offers :global(.dc2-pair input),
+  .dc2-offers :global(.dc2-pair select) {
+    height: 40px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .dc2-offers :global(.dc2-check) {
+    font-size: 14px;
+  }
+  .dc2-offers :global(.hint:empty) {
+    display: none;
+  }
+  .dc2-offers :global(.dc2-out) {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  :global(.dc2-badges) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  :global(.dc2-badges:empty) {
+    display: none;
+  }
+  :global(.dc2-badge) {
+    padding: 2px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--on-accent);
+    background: var(--accent-hover);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .dc2-offers :global(.dc2-lines) {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    font-size: 14px;
+  }
+  .dc2-offers :global(.dc2-line) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2px 12px;
+    color: var(--text-2);
+  }
+  .dc2-offers :global(.dc2-line dt) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .dc2-offers :global(.dc2-line dd) {
+    margin: 0 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .dc2-offers :global(.dc2-line.is-muted dd) {
+    color: var(--muted);
+  }
+  .dc2-offers :global(.dc2-line.is-total) {
+    margin-top: 4px;
+    padding-top: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    border-top: 1px solid var(--border-strong);
+  }
+  .dc2-offers :global(.dc2-line.is-rate) {
+    font-size: 13px;
+  }
+  .dc2-offers :global(.dc2-hints) {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0 0 0 18px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .dc2-offers :global(.dc2-hints:empty) {
+    display: none;
+  }
+
+  .dc2-verdict {
+    display: grid;
+    gap: 16px;
+  }
+  @media (min-width: 640px) {
+    .dc2-verdict.is-split {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .dc2-verdict :global(.dc2-win) {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    min-width: 0;
+  }
+  .dc2-verdict :global(.result-value) {
+    font-size: 28px;
+  }
+  .dc2-verdict :global(.dc2-detail) {
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .dc2-verdict :global(.dc2-saves) {
+    display: grid;
+    gap: 2px;
+    margin: 4px 0 0;
+    padding: 0 0 0 18px;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .dc2-compare {
+    display: grid;
+    gap: 8px;
+  }
+  .dc2-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .dc2-rows {
+    display: grid;
+    gap: 8px;
+  }
+  .dc2-rows :global(.dc2-row) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .dc2-rows :global(.dc2-row-name) {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .dc2-rows :global(.dc2-cell) {
+    display: grid;
+    gap: 0;
+    min-width: 0;
+  }
+  .dc2-rows :global(.dc2-cell-value) {
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .dc2-rows :global(.dc2-cell.is-win .dc2-cell-value) {
+    color: var(--accent-hover);
+  }
+  .dc2-rows :global(.dc2-cell.is-rate .dc2-cell-value) {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.55;
+  }
+  @media (min-width: 720px) {
+    .dc2-rows :global(.dc2-row) {
+      grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 0.9fr)) minmax(0, 1.4fr);
+      align-items: center;
+    }
+    .dc2-rows :global(.dc2-row-name) {
+      grid-column: auto;
+    }
+  }
+
+  .dc2-rule {
+    display: grid;
+    gap: 6px;
+  }
+  .dc2-rule ol {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding-left: 20px;
+  }
+  .dc2-rule p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
