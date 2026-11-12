@@ -1,0 +1,498 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { formatFixed, formatNumber, parseNumber } from '../../lib/format';
+import { plural, t } from '../../i18n/format';
+import i18n from './i18n';
+import { recoveryTable, streakColumns, streakTable } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const c = s.client;
+const d = s.defaults;
+const pct = (n: number) => formatNumber(n, 1, locale);
+const recovery = recoveryTable();
+// The losing-streak table is pre-rendered for the default risk so the page does not jump; the script rebuilds it.
+const defaultRisk = parseNumber(d.risk);
+const columns = streakColumns(defaultRisk);
+const streak = streakTable(columns);
+---
+
+<div class="tool ps-tool" data-tool="position-size-calculator" {...i18nAttrs(locale, c)}>
+  <div class="grid-2">
+    <div class="field">
+      <label for="ps-account">{s.account.label}</label>
+      <input id="ps-account" type="text" inputmode="decimal" autocomplete="off" value={d.account} />
+      <span class="hint">{s.account.hint}</span>
+    </div>
+    <div class="field">
+      <label for="ps-risk">{s.risk.label}</label>
+      <input id="ps-risk" type="text" inputmode="decimal" autocomplete="off" value={d.risk} />
+      <span class="hint">{s.risk.hint}</span>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field">
+      <label for="ps-entry">{s.entry.label}</label>
+      <input id="ps-entry" type="text" inputmode="decimal" autocomplete="off" value={d.entry} />
+    </div>
+    <div class="field">
+      <label for="ps-stop">{s.stop.label}</label>
+      <input id="ps-stop" type="text" inputmode="decimal" autocomplete="off" value={d.stop} />
+      <span class="hint">{s.stop.hint}</span>
+    </div>
+    <div class="field">
+      <label for="ps-target">{s.target.label}</label>
+      <input id="ps-target" type="text" inputmode="decimal" autocomplete="off" value={d.target} />
+      <span class="hint">{s.target.hint}</span>
+    </div>
+  </div>
+
+  <div class="ps-lot">
+    <label class="check"><input type="checkbox" id="ps-whole-lots" checked={d.wholeLots} /><span>{s.wholeLots}</span></label>
+    <div class="ps-lot-size">
+      <label for="ps-lot-size">{s.lotSize.label}</label>
+      <input id="ps-lot-size" type="text" inputmode="numeric" autocomplete="off" value={d.lotSize} />
+    </div>
+    <span class="hint ps-lot-hint">{s.lotSize.hint}</span>
+  </div>
+
+  <p class="notice error" id="ps-error" role="alert" hidden></p>
+
+  <div class="ps-results" aria-live="polite">
+    <div class="result">
+      <div class="result-value" id="ps-qty">—</div>
+      <div class="result-label" id="ps-qty-label">{c.qtyLabel.long}</div>
+    </div>
+
+    <p class="notice ps-warn" id="ps-warn" hidden></p>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="ps-budget">—</span><span class="stat-label" id="ps-budget-label">{s.stats.budget}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-rps">—</span><span class="stat-label" id="ps-rps-label">{s.stats.rps}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-cost">—</span><span class="stat-label">{s.stats.cost}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-share">—</span><span class="stat-label">{s.stats.share}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-loss">—</span><span class="stat-label" id="ps-loss-label">{s.stats.loss}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-rr">—</span><span class="stat-label" id="ps-rr-label">{s.stats.rr}</span></div>
+      <div class="stat"><span class="stat-value" id="ps-profit">—</span><span class="stat-label" id="ps-profit-label">{s.stats.profit}</span></div>
+    </div>
+
+    <p class="hint">{s.formula}</p>
+  </div>
+
+  <section class="ps-block" aria-labelledby="ps-recovery-title">
+    <h3 class="ps-subhead" id="ps-recovery-title">{s.recoveryTitle}</h3>
+    <p class="hint">{s.recoveryIntro}</p>
+    <div class="ps-dd">
+      <div class="field ps-dd-field">
+        <label for="ps-dd-in">{s.ddLabel}</label>
+        <input id="ps-dd-in" type="text" inputmode="decimal" autocomplete="off" value={d.ddLoss} />
+      </div>
+      <output class="ps-dd-out" id="ps-dd-out" for="ps-dd-in">—</output>
+    </div>
+    <div class="table-wrap">
+      <table class="table ps-recovery" id="ps-recovery" aria-labelledby="ps-recovery-title">
+        <thead>
+          <tr><th scope="col">{s.thLoss}</th><th scope="col" class="num">{s.thGain}</th></tr>
+        </thead>
+        <tbody>
+          {
+            recovery.map((r) => (
+              <tr data-loss={String(r.loss)}>
+                <td>{`${pct(r.loss)}%`}</td>
+                <td class="num">{`+${pct(r.gain)}%`}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ps-block" aria-labelledby="ps-streak-title">
+    <h3 class="ps-subhead" id="ps-streak-title">{s.streakTitle}</h3>
+    <p class="hint">{s.streakIntro}</p>
+    <div class="table-wrap">
+      <table class="table ps-streak" id="ps-streak" aria-label={s.streakAria}>
+        <thead>
+          <tr id="ps-streak-head">
+            <th scope="col">{c.streakHead}</th>
+            {
+              columns.map((risk) => (
+                <th scope="col" class={risk === defaultRisk ? 'num is-yours' : 'num'} data-risk={String(risk)}>
+                  {t(risk === defaultRisk ? c.streakYours : c.streakCol, { n: formatNumber(risk, 2, locale) })}
+                </th>
+              ))
+            }
+          </tr>
+        </thead>
+        <tbody id="ps-streak-body">
+          {
+            streak.map((row) => (
+              <tr data-losses={String(row.losses)}>
+                <th scope="row">{plural(locale, row.losses, c.streakRow)}</th>
+                {row.remaining.map((v, i) => (
+                  <td class={columns[i] === defaultRisk ? 'num is-yours' : 'num'}>{`${formatFixed(v, 1, locale)}%`}</td>
+                ))}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" id="ps-streak-note" hidden></p>
+  </section>
+
+  <p class="notice ps-disclaimer">{s.disclaimer}</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatFixed, formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import {
+    STREAK_LENGTHS,
+    calculatePosition,
+    recoveryGain,
+    streakColumns,
+    streakTable,
+    tidy,
+    type PositionField,
+    type PositionOutcome,
+    type PositionResult,
+  } from './logic';
+  import type { Strings } from './i18n';
+
+  const root = $('[data-tool="position-size-calculator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+
+  const INPUTS = {
+    account: $<HTMLInputElement>('#ps-account', root),
+    risk: $<HTMLInputElement>('#ps-risk', root),
+    entry: $<HTMLInputElement>('#ps-entry', root),
+    stop: $<HTMLInputElement>('#ps-stop', root),
+    target: $<HTMLInputElement>('#ps-target', root),
+    lotSize: $<HTMLInputElement>('#ps-lot-size', root),
+  } satisfies Record<PositionField, HTMLInputElement>;
+  const wholeLots = $<HTMLInputElement>('#ps-whole-lots', root);
+  const ddIn = $<HTMLInputElement>('#ps-dd-in', root);
+  const ddOut = $('#ps-dd-out', root);
+  const error = $('#ps-error', root);
+  const warn = $('#ps-warn', root);
+  const streakHead = $('#ps-streak-head', root);
+  const streakBody = $('#ps-streak-body', root);
+  const streakNote = $('#ps-streak-note', root);
+  const recoveryRows = $$<HTMLTableRowElement>('#ps-recovery tbody tr', root);
+
+  // Static labels as rendered, restored when the input becomes unusable.
+  const labelIds = ['qty', 'budget', 'rps', 'loss', 'rr', 'profit'] as const;
+  const staticLabels = Object.fromEntries(labelIds.map((id) => [id, $(`#ps-${id}-label`, root).textContent ?? ''])) as Record<
+    (typeof labelIds)[number],
+    string
+  >;
+
+  interface Prefs extends Partial<Record<PositionField | 'dd', string>> {
+    wholeLots?: boolean;
+  }
+
+  const set = (id: string, text: string) => {
+    $(`#ps-${id}`, root).textContent = text;
+  };
+  const num = (text: string): number | null => (text.trim() === '' ? null : parseNumber(text));
+  /** Whole amounts without decimals, others with cents (or more for tiny prices). */
+  const amount = (v: number) => {
+    const x = tidy(v);
+    if (Number.isInteger(x)) return formatInteger(x, locale);
+    return Math.abs(x) >= 1 ? formatFixed(x, 2, locale) : formatNumber(x, 4, locale);
+  };
+  const money = (v: number) => t(s.money, { n: amount(v) });
+  const percent = (v: number) => formatNumber(v, 2, locale);
+  const units = (n: number) => plural(locale, n, s.units);
+  const lots = (n: number) => plural(locale, n, s.lots);
+
+  /** "4,000 股（4 張）", "450株（4単元＋50株）", "80 shares". */
+  function quantityText(quantity: number, r: PositionResult, roundLots: boolean): string {
+    const showLots = r.lotSize > 1 && quantity > 0 && (s.lotBreakdown === 'always' || roundLots);
+    if (!showLots) return units(quantity);
+    const whole = Math.floor(quantity / r.lotSize);
+    const odd = quantity - whole * r.lotSize;
+    const lotPart = whole === 0 ? s.oddOnly : odd === 0 ? lots(whole) : t(s.lotsAndOdd, { lots: lots(whole), odd: units(odd) });
+    return t(s.qtyWithLots, { units: units(quantity), lots: lotPart });
+  }
+
+  function errorText(o: Extract<PositionOutcome, { status: 'error' }>): string {
+    if (o.problem === 'stopAtEntry') return s.stopAtEntry;
+    if (o.problem === 'targetSide') return s.targetSide[o.side ?? 'long'];
+    return s.errors[o.field];
+  }
+
+  function showText(el: HTMLElement, text: string) {
+    el.textContent = text;
+    el.hidden = text === '';
+  }
+
+  function clearResults() {
+    for (const id of ['qty', 'budget', 'rps', 'cost', 'share', 'loss', 'rr', 'profit']) set(id, '—');
+    for (const id of labelIds) set(`${id}-label`, staticLabels[id]);
+    showText(warn, '');
+  }
+
+  function renderPosition(): void {
+    const roundLots = wholeLots.checked;
+    const outcome = calculatePosition({
+      account: num(INPUTS.account.value),
+      riskPercent: num(INPUTS.risk.value),
+      entry: num(INPUTS.entry.value),
+      stop: num(INPUTS.stop.value),
+      target: num(INPUTS.target.value),
+      lotSize: num(INPUTS.lotSize.value),
+      wholeLots: roundLots,
+    });
+    for (const [field, input] of Object.entries(INPUTS)) {
+      if (outcome.status === 'error' && outcome.field === field) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    }
+    if (outcome.status === 'error') {
+      showText(error, errorText(outcome));
+      clearResults();
+      return;
+    }
+    showText(error, '');
+    const r = outcome.result;
+    set('qty', quantityText(r.quantity, r, roundLots));
+    set('qty-label', s.qtyLabel[r.side]);
+    set('budget', money(r.budget));
+    set('budget-label', t(s.budgetLabel, { pct: percent(num(INPUTS.risk.value) ?? 0) }));
+    set('rps', money(r.riskPerUnit));
+    set('rps-label', t(s.rpsLabel, { pct: percent(r.stopPercent) }));
+    set('cost', money(r.cost));
+    set('share', `${percent(r.costPercent)}%`);
+    set('loss', money(r.loss));
+    set('loss-label', t(s.lossLabel, { pct: percent(r.lossPercent) }));
+    if (r.rMultiple === null || r.profit === null) {
+      set('rr', '—');
+      set('rr-label', s.rrEmpty);
+      set('profit', '—');
+      set('profit-label', s.profitEmpty);
+    } else {
+      const ratio = formatNumber(r.rMultiple, 2, locale);
+      set('rr', t(s.rr, { r: ratio }));
+      set('rr-label', t(s.rrLabel, { r: ratio }));
+      set('profit', money(r.profit));
+      set('profit-label', s.profitLabel);
+    }
+
+    const step = r.step > 1 ? lots(1) : units(1);
+    if (r.quantity === 0) {
+      showText(warn, t(s.zeroQty, { budget: money(r.budget), step, stepLoss: money(r.stepLoss) }));
+    } else if (r.leveraged) {
+      const account = num(INPUTS.account.value) ?? 0;
+      showText(
+        warn,
+        r.cashQuantity > 0
+          ? t(s.leverage, {
+              cost: money(r.cost),
+              pct: percent(r.costPercent),
+              cashQty: quantityText(r.cashQuantity, r, roundLots),
+              cashLoss: money(r.cashLoss),
+              cashPct: percent((r.cashLoss / account) * 100),
+            })
+          : t(s.leverageNone, { cost: money(r.cost), pct: percent(r.costPercent), step }),
+      );
+    } else {
+      showText(warn, '');
+    }
+  }
+
+  function renderStreak(): void {
+    const risk = num(INPUTS.risk.value);
+    const columns = streakColumns(risk);
+    const yours = (col: number) => risk !== null && col === risk;
+    const cell = (tag: 'th' | 'td', text: string, cls = '') => {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      if (cls) el.className = cls;
+      return el;
+    };
+    const corner = cell('th', s.streakHead);
+    corner.scope = 'col';
+    streakHead.replaceChildren(
+      corner,
+      ...columns.map((col) => {
+        const th = cell('th', t(yours(col) ? s.streakYours : s.streakCol, { n: formatNumber(col, 2, locale) }), yours(col) ? 'num is-yours' : 'num');
+        th.scope = 'col';
+        th.dataset.risk = String(col);
+        return th;
+      }),
+    );
+    streakBody.replaceChildren(
+      ...streakTable(columns).map((row) => {
+        const tr = document.createElement('tr');
+        tr.dataset.losses = String(row.losses);
+        const head = cell('th', plural(locale, row.losses, s.streakRow));
+        head.scope = 'row';
+        tr.append(head, ...row.remaining.map((v, i) => cell('td', `${formatFixed(v, 1, locale)}%`, yours(columns[i]) ? 'num is-yours' : 'num')));
+        return tr;
+      }),
+    );
+
+    const account = num(INPUTS.account.value);
+    const usable = risk !== null && columns.includes(risk) && account !== null && Number.isFinite(account) && account > 0;
+    if (!usable) {
+      showText(streakNote, '');
+      return;
+    }
+    const n = STREAK_LENGTHS[1];
+    const left = streakTable([risk], [n])[0].remaining[0];
+    showText(
+      streakNote,
+      t(s.streakNote, { pct: formatNumber(risk, 2, locale), n, left: formatNumber(left, 1, locale), money: money(Math.round((account * left) / 100)) }),
+    );
+  }
+
+  function renderDrawdown(): void {
+    const loss = num(ddIn.value);
+    const gain = loss === null ? Number.NaN : recoveryGain(loss);
+    ddOut.classList.toggle('is-error', loss !== null && Number.isNaN(gain));
+    ddIn.toggleAttribute('aria-invalid', loss !== null && Number.isNaN(gain));
+    if (loss === null) ddOut.textContent = '—';
+    else if (Number.isNaN(gain)) ddOut.textContent = s.ddError;
+    else if (!Number.isFinite(gain)) ddOut.textContent = s.ddAll;
+    else ddOut.textContent = t(s.ddOut, { n: formatNumber(gain, 1, locale) });
+    for (const row of recoveryRows) row.classList.toggle('is-match', loss !== null && Number(row.dataset.loss) === loss);
+  }
+
+  function save(): void {
+    const prefs: Prefs = { wholeLots: wholeLots.checked, dd: ddIn.value };
+    for (const [field, input] of Object.entries(INPUTS)) prefs[field as PositionField] = input.value;
+    savePref(s.prefKey, prefs);
+  }
+
+  function render(): void {
+    renderPosition();
+    renderStreak();
+    renderDrawdown();
+    save();
+  }
+
+  // Restore the last entries; anything that is not a string (or boolean) is ignored.
+  const prefs = loadPref<Prefs>(s.prefKey, {});
+  if (prefs && typeof prefs === 'object') {
+    for (const [field, input] of Object.entries(INPUTS)) {
+      const value = prefs[field as PositionField];
+      if (typeof value === 'string') input.value = value;
+    }
+    if (typeof prefs.dd === 'string') ddIn.value = prefs.dd;
+    if (typeof prefs.wholeLots === 'boolean') wholeLots.checked = prefs.wholeLots;
+  }
+
+  root.addEventListener('input', render);
+  wholeLots.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  .ps-lot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 24px;
+  }
+  .ps-lot-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ps-lot-size label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .ps-lot-size input {
+    width: 120px;
+  }
+  .ps-lot-hint {
+    flex-basis: 100%;
+  }
+  .ps-tool input[aria-invalid='true'] {
+    border-color: var(--danger);
+  }
+  .ps-results,
+  .ps-block {
+    display: grid;
+    gap: 12px;
+  }
+  .ps-results p,
+  .ps-block p {
+    margin: 0;
+  }
+  .ps-results .result-value {
+    font-size: clamp(26px, 7.5vw, 34px);
+  }
+  .ps-results .stat-value {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+  .ps-warn {
+    color: var(--warning);
+    background: color-mix(in oklab, var(--warning) 10%, transparent);
+  }
+  .ps-block {
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .ps-subhead {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
+  }
+  .ps-dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px 16px;
+  }
+  .ps-dd-field {
+    width: 180px;
+  }
+  .ps-dd-out {
+    padding-bottom: 9px;
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-hover);
+  }
+  .ps-dd-out.is-error {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--danger);
+  }
+  .ps-recovery tr.is-match td {
+    font-weight: 700;
+    background: var(--accent-soft);
+  }
+  /* Streak cells are rebuilt by the script, so they need :global(). */
+  .ps-streak :global(th),
+  .ps-streak :global(td) {
+    padding: 9px 10px;
+  }
+  @media (max-width: 480px) {
+    .ps-streak :global(th[scope='col']) {
+      white-space: normal;
+    }
+  }
+  .ps-streak :global(th[scope='row']) {
+    font-weight: 600;
+    background: transparent;
+    color: var(--text);
+  }
+  .ps-streak :global(.is-yours) {
+    font-weight: 700;
+    color: var(--accent-hover);
+  }
+  .ps-streak :global(td.is-yours) {
+    background: var(--accent-soft);
+  }
+</style>
