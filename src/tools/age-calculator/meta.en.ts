@@ -20,6 +20,7 @@ export default defineTool({
     'age in weeks',
     'age in months',
     'days until my birthday',
+    'when will i be 10000 days old',
     'birthday calculator',
     'what day was i born',
     'zodiac sign by birthday',
@@ -30,7 +31,7 @@ export default defineTool({
     'Choose your birth month and day, then type your birth year.',
     'Leave Age on this date set to today, or pick another date to see how old you were or will be then.',
     'Read your exact age in the result box: years, months and days.',
-    'Below it, see your age in months, weeks and days, the countdown to your next birthday, your zodiac sign and the day of the week you were born.',
+    'Below it, see your age in months, weeks and days, the countdown to your next birthday, your zodiac sign, the day of the week you were born and the dates you turn 10,000, 20,000 and 30,000 days old.',
   ],
   sections: [
     {
@@ -71,6 +72,10 @@ export default defineTool({
       a: 'Enter your date of birth and look at Age in days. Someone born on January 1, 2000, for example, is 9,798 days old on October 29, 2026.',
     },
     {
+      q: 'When will I be 10,000 days old?',
+      a: 'About 27 years and 4 months after you were born (10,000 ÷ 365.2425 ≈ 27.38 years). Someone born on July 9, 1999 turns 10,000 days old on November 24, 2026, at age 27; 20,000 days comes at about 54 years and 9 months. The calculator counts the day you were born as day 0, the same as Age in days. If you count your birth day as day 1, your 10,000th day is the day before.',
+    },
+    {
       q: 'How many days until my birthday?',
       a: 'The Until your next birthday figure counts the days from the selected date to your next birthday and shows which day of the week it falls on. On your birthday it shows Today.',
     },
@@ -89,5 +94,5 @@ export default defineTool({
   ],
   related: ['date-diff', 'countdown-timer', 'timezone-converter', 'birthday-candles', 'life-in-weeks', 'birthday-moon', 'bmi-calculator'],
   priority: 65,
-  updated: '2026-10-29',
+  updated: '2026-11-12',
 });

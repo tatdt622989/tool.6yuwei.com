@@ -1,6 +1,7 @@
 ---
 import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
 import i18n, { type AgeStat } from './i18n';
+import { DAY_MILESTONES } from './logic';
 
 type Props = ToolProps;
 const { locale = 'zh-TW' } = Astro.props;
@@ -61,6 +62,23 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
     }
   </div>
   <p class="hint">{s.hint}</p>
+
+  <section class="ag-ms" aria-labelledby="ac-milestones-title">
+    <h3 class="ag-ms-title" id="ac-milestones-title">{s.milestones.title}</h3>
+    <ol class="ag-ms-list" id="ac-milestones">
+      {
+        DAY_MILESTONES.map((days, i) => (
+          <li class="ag-ms-row" data-days={String(days)}>
+            <span class="ag-ms-name">{s.milestones.names[i]}</span>
+            <span class="ag-ms-date" data-role="date">—</span>
+            <span class="ag-ms-age" data-role="age" />
+            <span class="ag-ms-when" data-role="when" />
+          </li>
+        ))
+      }
+    </ol>
+    <p class="hint">{s.milestones.hint}</p>
+  </section>
 </div>
 
 <script>
@@ -78,7 +96,7 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
     WEEKDAY_LABEL,
     weekdayOf,
   } from '../date-diff/logic';
-  import { adToRoc, calcAge, kanshiOf, rocLabel, rocToAD, warekiLabel, type YMD } from './logic';
+  import { adToRoc, calcAge, dayMilestones, kanshiOf, rocLabel, rocToAD, warekiLabel, type YMD } from './logic';
   import type { Strings } from './i18n';
 
   const root = $('[data-tool="age-calculator"]');
@@ -91,6 +109,7 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
   const monthSel = $<HTMLSelectElement>('#ag-month', root);
   const daySel = $<HTMLSelectElement>('#ag-day', root);
   const onInput = $<HTMLInputElement>('#ag-on', root);
+  const milestoneRows = $$<HTMLElement>('#ac-milestones [data-days]', root);
 
   interface Prefs {
     era: 'ad' | 'roc';
@@ -135,6 +154,34 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
     ['#ag-nominal', '#ag-months', '#ag-weeks', '#ag-lived', '#ag-next', '#ag-zodiac', '#ag-kanshi', '#ag-sign', '#ag-born'].forEach(
       (id) => set(id, '—'),
     );
+    renderMilestones(null, null);
+  }
+
+  /** 10,000 / 20,000 / 30,000 days lived: date, age then, and the countdown from the reference date. */
+  function renderMilestones(birth: YMD | null, on: YMD | null) {
+    const list = birth && on ? dayMilestones(birth, on) : [];
+    milestoneRows.forEach((row) => {
+      const m = list.find((x) => String(x.days) === row.dataset.days);
+      const part = (role: string) => $(`[data-role="${role}"]`, row);
+      row.classList.toggle('is-past', !!m && m.daysFromOn < 0);
+      row.classList.toggle('is-today', !!m && m.daysFromOn === 0);
+      if (!m) {
+        part('date').textContent = '—';
+        part('age').textContent = '';
+        part('when').textContent = '';
+        return;
+      }
+      part('date').textContent = intl
+        ? utcDate(m.date, { year: 'numeric', month: locale === 'ja' ? 'long' : 'short', day: 'numeric', weekday: 'short' })
+        : formatYMD(m.date);
+      part('age').textContent = plural(locale, m.age.years, s.msAge);
+      part('when').textContent =
+        m.daysFromOn === 0
+          ? s.msToday
+          : m.daysFromOn > 0
+            ? plural(locale, m.daysFromOn, s.msUntil)
+            : plural(locale, -m.daysFromOn, s.msPassed);
+    });
   }
 
   function render() {
@@ -176,6 +223,7 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
     set('#ag-kanshi', `${kanshi.shi}（${kanshi.shiKana}）年`);
     set('#ag-kanshi-label', `干支：${kanshi.kanshi}（${kanshi.kanshiKana}）`);
     set('#ag-sign', s.signs?.[r.sign] ?? r.constellation);
+    renderMilestones(birth, on);
     if (intl) {
       set('#ag-born', utcDate(birth, { weekday: 'long' }));
       set('#ag-born-label', s.bornLabel === 'wareki' ? warekiLabel(birth) : utcDate(birth, { dateStyle: 'long' }));
@@ -224,5 +272,72 @@ const DYNAMIC_LABELS = new Set<AgeStat>(['next', 'kanshi', 'born']);
   }
   .ag-on {
     max-width: 320px;
+  }
+  .ag-ms {
+    display: grid;
+    gap: 10px;
+  }
+  .ag-ms-title {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
+  }
+  .ag-ms .hint {
+    margin: 0;
+  }
+  .ag-ms-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ag-ms-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'name when' 'date when' 'age when';
+    gap: 2px 14px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 640px) {
+    .ag-ms-row {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: 'name date when' 'name age when';
+    }
+  }
+  .ag-ms-name {
+    grid-area: name;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ag-ms-date {
+    grid-area: date;
+    font-weight: 600;
+    overflow-wrap: break-word;
+  }
+  .ag-ms-age {
+    grid-area: age;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .ag-ms-when {
+    grid-area: when;
+    font-weight: 700;
+    color: var(--accent-hover);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .ag-ms-row.is-today {
+    background: var(--accent-soft);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+  .ag-ms-row.is-past .ag-ms-when {
+    font-weight: 600;
+    color: var(--muted);
   }
 </style>

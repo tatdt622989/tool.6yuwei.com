@@ -21,6 +21,13 @@ export interface Strings {
   onHint: string;
   stats: Partial<Record<AgeStat, string>>;
   hint: string;
+  /** Day-count milestones (logic.ts DAY_MILESTONES). */
+  milestones: {
+    title: string;
+    /** One name per DAY_MILESTONES entry, in the same order. */
+    names: string[];
+    hint: string;
+  };
   client: {
     /** 'zh' = hand-written zh-TW formats; 'intl' = Intl dates in the page locale. */
     dateStyle: 'zh' | 'intl';
@@ -47,6 +54,12 @@ export interface Strings {
     errorYear: string;
     errorYearRoc?: string;
     errorFuture: string;
+    /** {n} = 實歲 on the milestone date. */
+    msAge: PluralForms;
+    /** {n} = days from the reference date. */
+    msUntil: PluralForms;
+    msToday: string;
+    msPassed: PluralForms;
   };
 }
 
@@ -67,6 +80,11 @@ export default defineToolI18n<Strings>({
       born: '出生日',
     },
     hint: '生肖以西元年切換；1–2 月出生、在農曆新年前的人，傳統上屬前一年的生肖。',
+    milestones: {
+      title: '活滿 1 萬天、2 萬天、3 萬天是哪一天',
+      names: ['1 萬天', '2 萬天', '3 萬天'],
+      hint: '天數和上方「已經活了」一樣，以出生當天為第 0 天計算，列出的日期就是「已經活了」剛好顯示 10,000、20,000、30,000 天的那天；若把出生當天算成第 1 天，「第 1 萬天」會早一天。倒數以「計算到哪一天」為準。',
+    },
     client: {
       dateStyle: 'zh',
       yearLabelAd: '出生年（西元）',
@@ -84,6 +102,10 @@ export default defineToolI18n<Strings>({
       errorYear: '請輸入西元出生年，例如 1990',
       errorYearRoc: '請輸入民國出生年，例如 79',
       errorFuture: '出生日期晚於計算日期，請確認年份是否正確',
+      msAge: { other: '當時 {n} 歲' },
+      msUntil: { other: '還有 {n} 天' },
+      msToday: '就是今天',
+      msPassed: { other: '已過 {n} 天' },
     },
   },
   en: {
@@ -102,6 +124,11 @@ export default defineToolI18n<Strings>({
       born: 'Day you were born',
     },
     hint: 'You turn a year older on your birthday. If you were born on February 29, the calculator counts your birthday as March 1 in non-leap years.',
+    milestones: {
+      title: 'When you turn 10,000, 20,000 and 30,000 days old',
+      names: ['10,000 days', '20,000 days', '30,000 days'],
+      hint: 'Days are counted the same way as Age in days: the day you were born is day 0, so these are the dates when Age in days reads exactly 10,000, 20,000 and 30,000. If you count your birth day as day 1, your 10,000th day is one day earlier. The countdown runs from Age on this date.',
+    },
     client: {
       dateStyle: 'intl',
       bornLabel: 'intl',
@@ -132,6 +159,10 @@ export default defineToolI18n<Strings>({
       },
       errorYear: 'Enter your birth year, for example 1990',
       errorFuture: 'The birth date is after the date you are calculating to. Check the year.',
+      msAge: { other: 'at age {n}' },
+      msUntil: { one: 'in {n} day', other: 'in {n} days' },
+      msToday: 'Today',
+      msPassed: { one: '{n} day ago', other: '{n} days ago' },
     },
   },
   ja: {
@@ -147,6 +178,11 @@ export default defineToolI18n<Strings>({
       kanshi: '干支',
       sign: '星座',
       born: '生まれた日',
+    },
+    milestones: {
+      title: '生まれてから 1 万日・2 万日・3 万日になる日',
+      names: ['1 万日', '2 万日', '3 万日'],
+      hint: '「生まれてからの日数」と同じく、生まれた日を 0 日目として数えています。表示している日付は、その日数がちょうど 10,000 日・20,000 日・30,000 日になる日です。生まれた日を 1 日目と数える「1 万日目」は、その前日になります。残り日数は基準日から数えています。',
     },
     hint: '満年齢は誕生日に 1 歳加わる数え方で表示しています。干支は 1 月 1 日で切り替えています（占いなどで立春を境にする場合は、1 月 1 日〜2 月 3 日ごろ生まれの方は前年の干支になります）。',
     client: {
@@ -179,6 +215,10 @@ export default defineToolI18n<Strings>({
       },
       errorYear: '生まれた年を西暦で入力してください（例：1990）',
       errorFuture: '生年月日が基準日より後になっています。年を確認してください',
+      msAge: { other: '{n} 歳のとき' },
+      msUntil: { other: 'あと {n} 日' },
+      msToday: '今日です',
+      msPassed: { other: '{n} 日前' },
     },
   },
 });

@@ -1,4 +1,4 @@
-import { compareYMD, diffDays, diffYMD, isLeapYear, type YMD } from '../date-diff/logic';
+import { addDays, compareYMD, diffDays, diffYMD, isLeapYear, type YMD, type YMDSpan } from '../date-diff/logic';
 
 export type { YMD } from '../date-diff/logic';
 
@@ -170,4 +170,31 @@ export function calcAge(birth: YMD, on: YMD): AgeResult | null {
     sign: signOf(birth.m, birth.d),
     totalMonths: span.years * 12 + span.months,
   };
+}
+
+// ---- Day-count milestones (1 萬天 / 10,000 days / 1 万日) ----
+
+/** Days lived that are listed as milestones under the result. */
+export const DAY_MILESTONES = [10_000, 20_000, 30_000] as const;
+
+export interface DayMilestone {
+  /** Days lived on that date, counted like AgeResult.daysLived. */
+  days: number;
+  date: YMD;
+  /** 實歲 on that date. */
+  age: YMDSpan;
+  /** Days from the reference date to the milestone: positive = still ahead, 0 = that day, negative = passed. */
+  daysFromOn: number;
+}
+
+/**
+ * The dates on which the days-lived count reaches each milestone. Same convention as calcAge().daysLived:
+ * the birth day is day 0, so the milestone is birth + n days (born 1999-07-09 → 10,000 days on 2026-11-24).
+ * Counting the birth day as day 1 would put each "n-th day" one day earlier.
+ */
+export function dayMilestones(birth: YMD, on: YMD, milestones: readonly number[] = DAY_MILESTONES): DayMilestone[] {
+  return milestones.map((days) => {
+    const date = addDays(birth, days);
+    return { days, date, age: diffYMD(birth, date), daysFromOn: diffDays(on, date) };
+  });
 }

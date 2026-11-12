@@ -4,6 +4,8 @@ import {
   birthdayInYear,
   calcAge,
   constellationOf,
+  DAY_MILESTONES,
+  dayMilestones,
   kanshiOf,
   nominalAge,
   rocLabel,
@@ -166,5 +168,39 @@ describe('extra result fields', () => {
     const r = calcAge(ymd(1990, 6, 15), ymd(2026, 10, 29))!;
     expect(r.totalMonths).toBe(36 * 12 + 4);
     expect(r.sign).toBe('gemini');
+  });
+});
+
+describe('day milestones', () => {
+  it('lists the 10,000th, 20,000th and 30,000th day', () => {
+    expect([...DAY_MILESTONES]).toEqual([10000, 20000, 30000]);
+    const [m1, m2, m3] = dayMilestones(ymd(1999, 7, 9), ymd(2026, 11, 12));
+    expect(m1).toEqual({ days: 10000, date: ymd(2026, 11, 24), age: { years: 27, months: 4, days: 15 }, daysFromOn: 12 });
+    expect(m2.date).toEqual(ymd(2054, 4, 11));
+    expect(m2.age).toEqual({ years: 54, months: 9, days: 2 });
+    expect(m3.date).toEqual(ymd(2081, 8, 27));
+    expect(m3.age.years).toBe(82);
+  });
+
+  it('uses the same count as days lived (birth day = day 0)', () => {
+    const born = ymd(1990, 6, 15);
+    for (const m of dayMilestones(born, ymd(2026, 10, 29))) {
+      expect(calcAge(born, m.date)!.daysLived).toBe(m.days);
+    }
+  });
+
+  it('reports milestones that are today or already passed', () => {
+    const born = ymd(1990, 6, 15);
+    const [first] = dayMilestones(born, ymd(2017, 10, 31));
+    expect(first.date).toEqual(ymd(2017, 10, 31));
+    expect(first.daysFromOn).toBe(0);
+    const [passed] = dayMilestones(born, ymd(2026, 10, 29));
+    expect(passed.daysFromOn).toBe(-3285);
+  });
+
+  it('handles a 2/29 birth date', () => {
+    const [m] = dayMilestones(ymd(2000, 2, 29), ymd(2026, 1, 1));
+    expect(m.date).toEqual(ymd(2027, 7, 17));
+    expect(calcAge(ymd(2000, 2, 29), m.date)!.daysLived).toBe(10000);
   });
 });
