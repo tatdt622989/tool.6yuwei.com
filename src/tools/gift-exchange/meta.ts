@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '交換禮物抽籤：線上秘密聖誕老人，不會抽到自己，傳連結就能抽',
   description:
     '免費交換禮物線上抽籤，不用註冊。聖誕節、尾牙或同學會都適用，輸入名單就能抽，保證沒有人抽到自己，也能設定情侶不互抽。每人一條專屬連結刮開看結果，也可以現場輪流拆禮物盒，或投影到大螢幕公開揭曉。',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     '交換禮物',

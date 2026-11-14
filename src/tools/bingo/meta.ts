@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '線上賓果機：賓果抽號、大螢幕開獎，還能產生賓果卡列印',
   description:
     '免費線上賓果機，不用註冊。一鍵隨機抽號、不重複，已抽號碼一目了然，可以開全螢幕投影，也有音效和語音報號。號碼範圍可選 1–25、1–75 或自訂，還能產生有編號的賓果卡直接列印，有人喊賓果時輸入編號就能對獎。尾牙、春酒、班級活動都適用。',
-  category: 'generator',
+  category: 'party',
   icon: 'Grid3x3',
   keywords: [
     '賓果機',

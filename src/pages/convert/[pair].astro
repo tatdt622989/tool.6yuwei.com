@@ -6,7 +6,8 @@ import ToolCard from '../../components/ToolCard.astro';
 import { convertPath, getPair, pairs } from '../../conversions/pairs';
 import { feetInches, formatDisplay, formulaText, pairUnits } from '../../conversions/logic';
 import { convert, formatValue, getCategory as getUnitCategory } from '../../tools/unit-converter/logic';
-import { getTool, toolPath } from '../../tools/registry';
+import { getCategory } from '../../config/categories';
+import { categoryPath, getTool, toolPath } from '../../tools/registry';
 import { breadcrumbJsonLd, faqJsonLd } from '../../lib/seo';
 
 export function getStaticPaths() {
@@ -33,7 +34,7 @@ const sample = rows[Math.min(4, rows.length - 1)];
 const path = convertPath(pair.slug);
 const crumbs = [
   { name: '首頁', path: '/' },
-  { name: '單位換算', path: '/convert/' },
+  { name: getCategory('convert').name, path: categoryPath('convert') },
   { name: pair.keyword, path },
 ];
 const title = `${pair.keyword}換算：1 ${u.fromName}等於幾${u.toName}？（附對照表）`;
@@ -53,7 +54,7 @@ const faq = [
   title={title}
   description={description}
   path={path}
-  activeCategory="calc"
+  activeCategory="convert"
   jsonLd={[breadcrumbJsonLd(crumbs), faqJsonLd(faq)]}
 >
   <div class="container layout">

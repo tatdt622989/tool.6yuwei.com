@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '抽選ツール：忘年会・新年会の抽選会を大画面で（景品ごとに当選者を抽選）',
   description:
     '忘年会や新年会の抽選会に使える無料の抽選ツールです。参加者と景品を入力し、大画面に映して景品ごとに当選者を抽選できます。登録不要で、不在時の再抽選や当選者一覧の CSV 保存にも対応しています。',
-  category: 'generator',
+  category: 'party',
   icon: 'Trophy',
   keywords: [
     '抽選ツール',

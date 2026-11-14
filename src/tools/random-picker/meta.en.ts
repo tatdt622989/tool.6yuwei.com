@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Random Name Picker: Pick Winners, Make Teams, Shuffle a List',
   description:
     'Paste a list of names to pick a random winner, split a class into fair random teams or shuffle the order. Free, no sign-up, unbiased crypto randomness.',
-  category: 'generator',
+  category: 'party',
   icon: 'Shuffle',
   keywords: [
     'random name picker',

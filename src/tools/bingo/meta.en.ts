@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Bingo Caller: Free Online Number Caller with Printable Cards',
   description:
     'Free online bingo caller for 75-ball, 90-ball or any range. Call random numbers on a big screen with sound and voice, then print numbered bingo cards. No sign-up.',
-  category: 'generator',
+  category: 'party',
   icon: 'Grid3x3',
   keywords: [
     'bingo caller',

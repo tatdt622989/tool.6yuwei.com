@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Scratch Card Maker: Free Online Scratch-Off Reveal Messages',
   description:
     'Make a free online scratch card: hide a message under a gold or silver layer and send the link. Great for gender reveals, birthday surprises and proposals.',
-  category: 'generator',
+  category: 'party',
   icon: 'Ticket',
   keywords: [
     'online scratch card maker',

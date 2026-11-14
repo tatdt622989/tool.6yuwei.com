@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '要上班多久才買得起？工時換算：買這個要工作幾小時',
   description:
     '輸入月薪、年薪或時薪和商品價格，馬上換算買這個要工作幾小時、幾個上班日，佔一個月薪水多少。也能算每天一杯咖啡這類固定花費，一年要上班幾天才付得起；結果可以用連結分享。',
-  category: 'finance',
+  category: 'work',
   icon: 'ShoppingBag',
   keywords: [
     '要上班多久才買得起',

@@ -26,14 +26,42 @@ interface CategoryDef {
 // Category order here is the display order everywhere.
 const defs = [
   {
+    id: 'work',
+    icon: 'Briefcase',
+    text: {
+      'zh-TW': {
+        name: '薪資與勞工',
+        blurb: '實領薪水、年終、加班費、資遣費',
+        title: '薪資與勞工試算：實領薪水、年終獎金、加班費、資遣費',
+        description:
+          '上班族最常查的薪資與勞動權益試算：實領薪水與勞健保扣款、年終獎金扣稅、綜合所得稅、加班費、特休天數、資遣費、失業給付、勞退月退休金與薪資排名。依台灣勞基法與現行費率設計，並附計算公式說明。',
+      },
+      en: {
+        name: 'Work & Salary',
+        blurb: 'Time cards, hourly cost, meeting cost',
+        title: 'Free Work & Salary Calculators: Time Card, Meeting Cost & More',
+        description:
+          'Calculators for your working life: add up time card hours, see what a purchase costs in hours of work, watch your pay tick up by the second, and find out what a meeting really costs. Enter your numbers and get an instant answer.',
+      },
+      ja: {
+        name: '給与・仕事',
+        blurb: '手取り計算、労働時間換算、会議コスト',
+        title: '給与・仕事の計算ツール：手取り・労働時間換算・会議コスト',
+        description:
+          '働く人のための計算ツールです。額面から手取りの計算、買い物が何時間分の労働か換算、秒単位で増えるお給料メーター、会議にかかる人件費などを、数字を入れるだけですぐに計算できます。',
+      },
+    },
+  },
+  {
     id: 'finance',
     icon: 'Coins',
     text: {
       'zh-TW': {
-        name: '薪資與理財',
-        blurb: '實領薪水、年終、發票對獎、股票手續費',
+        name: '投資理財',
+        blurb: '股票手續費、殖利率、房貸、匯率',
+        title: '投資理財計算機：股票手續費、殖利率、房貸、複利、匯率',
         description:
-          '上班族與家庭理財最常查的試算工具：實領薪水與勞健保扣款、年終獎金扣稅、綜合所得稅、加班費、特休、資遣費、失業給付、勞退月退休金、統一發票對獎、股票手續費、股息殖利率、融資維持率、貸款、定存與即時匯率。依台灣現行法規與費率設計，並附計算公式說明。',
+          '投資與家庭理財常用的試算工具：股票手續費與證交稅、股息殖利率、融資維持率、倉位大小、定存利息、複利、房貸與信貸月付金，以及即時匯率換算。依台灣現行費率設計，並附計算公式說明。',
       },
       en: {
         name: 'Money & Finance',
@@ -44,7 +72,7 @@ const defs = [
       },
       ja: {
         name: 'お金・資産運用',
-        blurb: '手取り計算、ローン、定期預金、為替',
+        blurb: 'ローン、複利、定期預金、為替',
         title: 'お金の計算ツール：ローン・複利・積立シミュレーション',
         description:
           '毎日のお金の計算に役立つツール集です。ローンや住宅ローンの返済額、複利・積立のシミュレーション、配当利回りなどを、数字を入れるだけですぐに計算できます。計算式もあわせて解説しているので、結果の根拠がひと目でわかります。',
@@ -56,24 +84,52 @@ const defs = [
     icon: 'Calculator',
     text: {
       'zh-TW': {
-        name: '計算機',
-        blurb: 'BMI、房貸、電費、坪數換算',
+        name: '生活計算',
+        blurb: '折扣、分帳、電費、發票對獎',
+        title: '生活計算機：折扣、單價比較、分帳、電費、發票對獎',
         description:
-          '生活與理財常用的計算機：BMI、百分比、折扣、房貸月付、複利、電費、分帳、坪數與單位換算。輸入數字即時算出結果，並附上公式說明，方便你理解每個數字怎麼來。',
+          '日常生活與購物常用的計算機：線上計算機、百分比、折扣與優惠比較、湊免運、單價比較、分帳、電費試算、日本退稅與統一發票對獎。輸入數字即時算出結果，並附上公式說明，方便你理解每個數字怎麼來。',
       },
       en: {
         name: 'Calculators',
-        blurb: 'Tips, sales tax, GPA, fractions, BMI',
-        title: 'Free Online Calculators: BMI, Percentage, Discount & More',
+        blurb: 'Tips, sales tax, discounts, GPA, fractions',
+        title: 'Free Online Calculators: Percentage, Discount, Tip & More',
         description:
-          'Quick calculators for everyday life: BMI, percentages, discounts, splitting the bill, unit conversion and more. Results update as you type, and each tool explains the formula behind the number.',
+          'Quick calculators for everyday life: percentages, discounts and deal comparisons, tips, sales tax, splitting the bill, GPA and fractions. Results update as you type, and each tool explains the formula behind the number.',
       },
       ja: {
         name: '計算ツール',
-        blurb: '消費税、日割り、坪換算、割り勘、BMI',
-        title: '無料の計算ツール：BMI・パーセント・割引計算など',
+        blurb: '消費税、日割り、割引、割り勘',
+        title: '無料の計算ツール：消費税・パーセント・割引計算など',
         description:
-          '暮らしの中でよく使う計算ツールです。BMI、パーセント、割引・割引率、割り勘、単位換算など。入力するとすぐに結果が表示され、計算式の解説もついています。',
+          '暮らしの中でよく使う計算ツールです。消費税、日割り、パーセント、割引・割引率、単価比較、割り勘など。入力するとすぐに結果が表示され、計算式の解説もついています。',
+      },
+    },
+  },
+  {
+    id: 'convert',
+    icon: 'ArrowLeftRight',
+    text: {
+      'zh-TW': {
+        name: '單位換算',
+        blurb: '公分英吋、公斤磅、坪數、國字大寫',
+        title: '單位換算大全：公分英吋、公斤磅、攝氏華氏、坪數換算',
+        description:
+          '常用單位換算一次找齊：長度、重量、溫度、面積、體積等單位互換，台灣常用的坪數、台斤，以及金額國字大寫。每個換算都有雙向即時計算、公式說明與常用數值對照表。',
+      },
+      en: {
+        name: 'Converters',
+        blurb: 'Units, measurements, Roman numerals',
+        title: 'Free Unit Converters: Length, Weight, Temperature & More',
+        description:
+          'Convert between common units in one place: length, weight, temperature, area, volume and more, plus Roman numerals. Results update as you type, with the formula and a quick reference table.',
+      },
+      ja: {
+        name: '単位換算',
+        blurb: '単位変換、坪・畳・平米、漢数字',
+        title: '単位換算ツール：長さ・重さ・温度・坪・畳・平米',
+        description:
+          'よく使う単位換算をまとめました。長さ、重さ、温度、面積、体積などの単位変換、坪・畳・平米の換算、漢数字（大字）への変換に対応。入力するとすぐに結果が表示され、計算式もわかります。',
       },
     },
   },
@@ -100,6 +156,85 @@ const defs = [
         title: '時間・日付の便利ツール：日数計算・時差・タイマー',
         description:
           '時間と日付に関するツールです。日付の間の日数計算、満年齢の計算、世界の時差の変換のほか、ストップウォッチ、カウントダウンタイマー、ポモドーロタイマーもブラウザですぐに使えます。',
+      },
+    },
+  },
+  {
+    id: 'health',
+    icon: 'HeartPulse',
+    text: {
+      'zh-TW': {
+        name: '健康計算',
+        blurb: 'BMI、TDEE、體脂、預產期',
+        description:
+          '和身體與生活有關的計算工具：BMI 與健康體重、每日熱量消耗 TDEE 與基礎代謝 BMR、體脂率、每日喝水量、預產期與懷孕週數、排卵期與安全期推算。結果僅供參考，身體狀況請以醫師建議為準。',
+      },
+      en: {
+        name: 'Health & Fitness',
+        blurb: 'BMI, calories, body fat, due date',
+        title: 'Free Health & Fitness Calculators: BMI, TDEE, Body Fat & More',
+        description:
+          'Calculators for your body and daily habits: BMI, TDEE and BMR calorie needs, body fat percentage, daily water intake, pregnancy due date and ovulation. Results are estimates for general reference — always follow your doctor\'s advice.',
+      },
+      ja: {
+        name: '健康',
+        blurb: 'BMI、消費カロリー、体脂肪率、出産予定日',
+        title: '健康計算ツール：BMI・消費カロリー・体脂肪率・出産予定日',
+        description:
+          'からだと生活習慣に関する計算ツールです。BMI と標準体重、1 日の消費カロリー（TDEE）と基礎代謝（BMR）、体脂肪率、1 日に必要な水分量、出産予定日、排卵日の目安を計算できます。結果はあくまで目安です。体調については医師の判断を優先してください。',
+      },
+    },
+  },
+  {
+    id: 'party',
+    icon: 'PartyPopper',
+    text: {
+      'zh-TW': {
+        name: '抽獎與派對',
+        blurb: '轉盤、尾牙抽獎、賓果、交換禮物',
+        title: '線上抽獎與派對工具：轉盤、尾牙抽獎、賓果、交換禮物',
+        description:
+          '聚會、尾牙、課堂與直播用得到的抽獎和派對工具：轉盤抽獎、尾牙抽獎程式、賓果機、交換禮物抽籤、抽籤與隨機分組、一番賞模擬、刮刮卡、線上擲筊、吹蠟燭與手機跑馬燈。開網頁就能用，投影到大螢幕也清楚。',
+      },
+      en: {
+        name: 'Party & Games',
+        blurb: 'Spin the wheel, raffles, bingo, Secret Santa',
+        title: 'Free Party & Raffle Tools: Spin the Wheel, Bingo, Secret Santa',
+        description:
+          'Tools for parties, classrooms and live streams: spin the wheel, raffle draws, a bingo caller, Secret Santa, random name picker and team maker, scratch cards, birthday candles and an LED scrolling sign. Open the page and play — it looks great on a big screen too.',
+      },
+      ja: {
+        name: '抽選・パーティー',
+        blurb: 'ルーレット、抽選、ビンゴ、プレゼント交換',
+        title: '無料の抽選・パーティーツール：ルーレット・ビンゴ・くじ引き',
+        description:
+          'パーティー、忘年会、授業や配信で使える抽選ツールです。ルーレット、抽選、ビンゴ抽選マシーン、プレゼント交換くじ、グループ分け、一番くじシミュレーター、スクラッチカード、ろうそく吹き消し、電光掲示板など。大画面に映しても見やすく作られています。',
+      },
+    },
+  },
+  {
+    id: 'generator',
+    icon: 'Sparkles',
+    text: {
+      'zh-TW': {
+        name: '產生器',
+        blurb: '密碼、QR Code、亂數、護照英文名',
+        description:
+          '需要隨機或自動產生內容時使用：高強度密碼產生器、QR Code 產生器、亂數產生器，以及護照英文姓名翻譯。採用瀏覽器內建的加密等級亂數來源，結果公平可信。',
+      },
+      en: {
+        name: 'Generators',
+        blurb: 'Passwords, QR codes, random numbers',
+        title: 'Free Online Generators: Passwords, QR Codes & Random Numbers',
+        description:
+          'Generate what you need in a click: strong random passwords, QR codes and random numbers. Randomness comes from your browser\'s cryptographically secure generator, so results are fair and unpredictable.',
+      },
+      ja: {
+        name: 'ジェネレーター',
+        blurb: 'パスワード、QR コード、乱数',
+        title: '無料ジェネレーター：パスワード・QR コード・乱数',
+        description:
+          'ランダムな値や自動生成が必要なときに。強力なパスワード生成、QR コード作成、乱数生成に対応しています。ブラウザ標準の暗号論的乱数を使うため、公平で予測できない結果が得られます。',
       },
     },
   },
@@ -182,32 +317,6 @@ const defs = [
     },
   },
   {
-    id: 'health',
-    icon: 'HeartPulse',
-    text: {
-      'zh-TW': {
-        name: '健康計算',
-        blurb: 'TDEE、體脂、預產期、排卵期',
-        description:
-          '和身體與生活有關的計算工具：每日熱量消耗 TDEE 與基礎代謝 BMR、體脂率、每日喝水量、預產期與懷孕週數、排卵期與安全期推算。結果僅供參考，身體狀況請以醫師建議為準。',
-      },
-      en: {
-        name: 'Health & Fitness',
-        blurb: 'Calories, body fat, due date, water intake',
-        title: 'Free Health & Fitness Calculators: TDEE, Body Fat & More',
-        description:
-          'Calculators for your body and daily habits: TDEE and BMR calorie needs, body fat percentage, daily water intake, pregnancy due date and ovulation. Results are estimates for general reference — always follow your doctor\'s advice.',
-      },
-      ja: {
-        name: '健康',
-        blurb: '消費カロリー、体脂肪率、出産予定日',
-        title: '健康計算ツール：消費カロリー・体脂肪率・出産予定日',
-        description:
-          'からだと生活習慣に関する計算ツールです。1 日の消費カロリー（TDEE）と基礎代謝（BMR）、体脂肪率、1 日に必要な水分量、出産予定日、排卵日の目安を計算できます。結果はあくまで目安です。体調については医師の判断を優先してください。',
-      },
-    },
-  },
-  {
     id: 'test',
     icon: 'Gauge',
     text: {
@@ -230,32 +339,6 @@ const defs = [
         title: '無料オンラインテスト：タイピング・CPS・キーボード・画面',
         description:
           '自分とデバイスをチェックできるツールです。タイピング速度テスト、CPS（クリック速度）テスト、反応速度テストのほか、キーボード、ドット抜け、マイク、Web カメラの動作確認ができます。ソフトのインストールは不要です。',
-      },
-    },
-  },
-  {
-    id: 'generator',
-    icon: 'Sparkles',
-    text: {
-      'zh-TW': {
-        name: '產生器',
-        blurb: '密碼、QR Code、抽籤、亂數',
-        description:
-          '需要隨機或自動產生內容時使用：高強度密碼產生器、QR Code 產生器、抽籤與隨機分組、交換禮物抽籤、亂數產生器。採用瀏覽器內建的加密等級亂數來源，結果公平可信。',
-      },
-      en: {
-        name: 'Generators',
-        blurb: 'Passwords, QR codes, random picks',
-        title: 'Free Online Generators: Passwords, QR Codes & Random Numbers',
-        description:
-          'Generate what you need in a click: strong random passwords, QR codes, random numbers and random name picks. Randomness comes from your browser\'s cryptographically secure generator, so results are fair and unpredictable.',
-      },
-      ja: {
-        name: 'ジェネレーター',
-        blurb: 'パスワード、QR コード、乱数',
-        title: '無料ジェネレーター：パスワード・QR コード・乱数',
-        description:
-          'ランダムな値や自動生成が必要なときに。強力なパスワード生成、QR コード作成、乱数生成、抽選などに対応しています。ブラウザ標準の暗号論的乱数を使うため、公平で予測できない結果が得られます。',
       },
     },
   },

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '線上吹蠟燭：對麥克風吹熄生日蛋糕蠟燭，免費線上生日卡',
   description:
     '做一個專屬的線上生日蛋糕：填好壽星名字、年齡和祝福，產生連結傳給對方。對方許願後對著手機麥克風吹氣，蠟燭就會一根根熄滅，接著灑彩帶、播放生日快樂歌並顯示你的祝福。免註冊，內容不上傳。',
-  category: 'generator',
+  category: 'party',
   icon: 'CakeSlice',
   keywords: [
     '線上吹蠟燭',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '単位変換：長さ・重さ・温度・面積を一括換算（インチ、ポンド、坪、畳、合）',
   description:
     '長さ・重さ・温度・面積・体積・速さ・データ量の単位をまとめて変換できる無料ツールです。インチと cm、ポンドと kg、華氏と摂氏のほか、坪・畳・合・尺などの尺貫法にも対応しています。',
-  category: 'calc',
+  category: 'convert',
   icon: 'Ruler',
   keywords: [
     '単位変換',

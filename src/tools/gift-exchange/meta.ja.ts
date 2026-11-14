@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'プレゼント交換くじ引き：自分に当たらないオンラインツール',
   description:
     'クリスマス会などで使えるプレゼント交換のくじ引きツールです。登録不要で、自分に当たることはありません。専用リンクを送って各自で引くことも、その場でスマホを回して引くこともできます。',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     'プレゼント交換 くじ',

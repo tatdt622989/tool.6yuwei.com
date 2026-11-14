@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '戰鬥陀螺 X 計分器：極限幾分、3on3 規則一次看懂，自動算勝率',
   description:
     '打陀螺不用再拿紙筆記分。免費戰鬥陀螺 X（Beyblade X）計分器，按一下就加分：旋轉 1 分、擊飛 2 分、爆裂 2 分、極限 3 分，先拿 4 分獲勝。支援 3on3 陣容輪替，還會統計每顆陀螺的勝率，幫你找出最強組合。',
-  category: 'calc',
+  category: 'party',
   icon: 'Disc3',
   keywords: [
     '戰鬥陀螺 計分',

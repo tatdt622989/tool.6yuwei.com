@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'オンラインろうそく吹き消し：息で消せる誕生日ケーキ（無料バースデーカード）',
   description:
     '名前とメッセージを入れたバースデーケーキをリンクで贈れます。受け取った人がスマホのマイクに息を吹きかけるとろうそくが一本ずつ消え、紙吹雪とハッピーバースデーの曲のあとにメッセージが表示されます。無料・登録不要です。',
-  category: 'generator',
+  category: 'party',
   icon: 'CakeSlice',
   keywords: [
     'ろうそく 吹き消す オンライン',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Unit Converter: Feet to Meters, Pounds to kg, °F to °C and More',
   description:
     'Unit converter for length, weight, temperature, area, volume, speed and data. Convert inches to cm, lbs to kg, Fahrenheit to Celsius and cups to mL instantly.',
-  category: 'calc',
+  category: 'convert',
   icon: 'Ruler',
   keywords: [
     'unit converter',

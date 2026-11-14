@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '会議コスト計算：会議の人件費をリアルタイムで見える化するタイマー',
   description:
     '会議のコストを見える化する計算ツールです。参加人数と月給・年収・時給を入れて開始すると、会議の人件費がリアルタイムで増えていきます。定例会議や朝会の1か月・1年のコストも試算できます。',
-  category: 'finance',
+  category: 'work',
   icon: 'Flame',
   keywords: [
     '会議コスト',

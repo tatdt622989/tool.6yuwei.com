@@ -29,7 +29,7 @@ const os = getUi(locale).openSource;
         <h2>{s.categories}</h2>
         <ul class="two">
           {populatedCategories(locale).map((c) => <li><a href={categoryPath(c.id, locale)}>{c.name}</a></li>)}
-          {s.conversions && <li><a href="/convert/">{s.conversions}</a></li>}
+          {s.conversions && <li><a href={categoryPath('convert', locale)}>{s.conversions}</a></li>}
         </ul>
       </nav>
       <nav aria-label={s.aboutHeading}>

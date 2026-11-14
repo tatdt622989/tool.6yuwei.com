@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '薪資計算機 2026–2027：實領薪水、勞健保自付額一次算',
   description:
     '2026–2027 薪資計算機，輸入月薪即可算出實領薪水，依 115、116 年勞保、健保、勞退投保級距自動計算勞保自付額（含就保）、健保費（含眷屬）、勞退自提，2027 年最低工資 30,900 元、勞保費率 12% 已納入，並列出雇主負擔與人事成本。',
-  category: 'finance',
+  category: 'work',
   icon: 'Wallet',
   keywords: [
     '薪資計算機',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '國字大寫轉換：金額大寫、支票國字數字一鍵轉換',
   description:
     '國字大寫轉換工具，輸入阿拉伯數字即可轉成支票、收據、合約用的金額大寫「壹貳參肆伍陸柒捌玖拾佰仟萬億」，自動加上元整、角分並正確處理「零」，也可轉小寫國字或把國字轉回數字。',
-  category: 'finance',
+  category: 'convert',
   icon: 'PenLine',
   keywords: [
     '國字大寫',

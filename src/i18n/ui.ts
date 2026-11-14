@@ -56,6 +56,10 @@ export interface UiStrings {
     empty: string;
     /** {count} */
     categoryAll: string;
+    /** Heading of the category grid under the hero. */
+    browse: string;
+    /** {count} — tools (and conversion pages) in a category tile. */
+    tileCount: string;
   };
   tool: {
     /** {name} */
@@ -152,6 +156,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: '怎麼安裝',
       empty: '找不到符合的工具，換個關鍵字試試。',
       categoryAll: '全部 {count} 個',
+      browse: '依分類找工具',
+      tileCount: '{count} 個',
     },
     tool: {
       howTo: '如何使用{name}',
@@ -236,6 +242,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: 'How to install',
       empty: 'No tools match that search. Try another keyword.',
       categoryAll: 'View all ({count})',
+      browse: 'Browse by category',
+      tileCount: '{count} tools',
     },
     tool: {
       howTo: 'How to use the {name}',
@@ -320,6 +328,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: 'インストール方法',
       empty: '該当するツールが見つかりません。別のキーワードでお試しください。',
       categoryAll: 'すべて見る（{count}）',
+      browse: 'カテゴリから探す',
+      tileCount: '{count} 件',
     },
     tool: {
       howTo: '{name}の使い方',
