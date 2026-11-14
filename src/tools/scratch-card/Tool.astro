@@ -158,6 +158,7 @@ const coverIcons: Partial<Record<(typeof COVERS)[number], string>> = { hearts: '
 
 <script>
   import { $, $$, copyText, debounce, downloadBlob, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { readI18n } from '../../i18n/client';
   import { plural, t } from '../../i18n/format';
   import { exceedsCapacity, type EcLevel } from '../qr-code-generator/logic';
@@ -591,7 +592,7 @@ const coverIcons: Partial<Record<(typeof COVERS)[number], string>> = { hearts: '
       updateLink();
       if (!currentUrl || !currentCard) return;
       const title = currentCard.from ? t(s.shareTitle, { name: currentCard.from }) : s.shareTitleAnon;
-      navigator.share({ title, text: s.shareText, url: currentUrl }).catch(() => {});
+      navigator.share({ title, text: s.shareText, url: currentUrl }).then(() => trackEvent('share', { method: 'native', content_type: 'tool_result' }), () => {});
     });
   }
 

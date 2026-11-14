@@ -67,7 +67,12 @@ const faq = [
         </p>
       </header>
 
-      <section class="tool-card" aria-label={`${pair.keyword}換算器`}>
+      <section
+        class="tool-card"
+        aria-label={`${pair.keyword}換算器`}
+        data-tool-id={`convert/${pair.slug}`}
+        data-tool-locale="zh-TW"
+      >
         <div
           class="tool"
           data-tool="convert-pair"

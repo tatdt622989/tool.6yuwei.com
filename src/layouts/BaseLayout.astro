@@ -123,9 +123,16 @@ const manifest = localePath(locale, '/manifest.webmanifest');
                 dataLayer.push(arguments);
               };
               gtag('js', new Date());
-              // Report only the path: some tools keep personal data in the query or #fragment
-              // (birth dates, scratch-card messages), which must not reach analytics.
-              gtag('config', gaId, { page_location: location.origin + location.pathname });
+              // Report only the path plus utm_* campaign tags: some tools keep personal data in
+              // the query or #fragment (birth dates, scratch-card messages), which must not reach
+              // analytics, but the utm_* tags from the Shorts short links (nginx.conf) must, or
+              // GA4 cannot attribute those visits or the tool events they lead to.
+              var utm = new URLSearchParams();
+              new URLSearchParams(location.search).forEach(function (value, key) {
+                if (/^utm_[a-z_]+$/.test(key)) utm.append(key, value);
+              });
+              var query = utm.toString();
+              gtag('config', gaId, { page_location: location.origin + location.pathname + (query ? '?' + query : '') });
             }
           </script>
         </>
@@ -152,8 +159,10 @@ const manifest = localePath(locale, '/manifest.webmanifest');
     }
     <script>
       import { installCopyButtons } from '../lib/client';
+      import { installToolTracking } from '../lib/analytics';
       import { setupInstallPrompt } from '../lib/pwa';
       installCopyButtons();
+      installToolTracking();
       setupInstallPrompt();
       // Language menu is a plain <details>; just close it on outside click / Escape.
       document.addEventListener('click', (event) => {

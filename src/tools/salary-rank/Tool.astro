@@ -178,6 +178,7 @@ const simpleFilters = [
 
 <script>
   import { $, $$, copyText, downloadBlob } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
   import {
     AGES,
@@ -606,6 +607,7 @@ const simpleFilters = [
       if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
+          trackEvent('share', { method: 'native', content_type: 'tool_result' });
           return;
         } catch (error) {
           if ((error as DOMException).name === 'AbortError') return;

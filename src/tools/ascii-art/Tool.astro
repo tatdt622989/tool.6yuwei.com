@@ -119,6 +119,7 @@ const d = DEFAULT_SETTINGS;
 
 <script>
   import { $, $$, copyText, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { isHeic } from '../../lib/heic';
   import { readI18n } from '../../i18n/client';
   import { formatInteger, t } from '../../i18n/format';
@@ -437,6 +438,7 @@ const d = DEFAULT_SETTINGS;
           'text/plain': new Blob([artText(art)], { type: 'text/plain' }),
         }),
       ]);
+      trackEvent('tool_copy');
       flash(htmlBtn, s.copied);
     } catch {
       if (await copyText(artText(art))) flash(htmlBtn, s.copied);
