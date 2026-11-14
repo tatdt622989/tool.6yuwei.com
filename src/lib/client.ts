@@ -1,5 +1,7 @@
 // Browser-only helpers shared by tool scripts. Import from a tool's <script>.
 
+import { fileExtension, track } from './analytics';
+
 /** querySelector that throws instead of returning null, scoped to a root. */
 export function $<T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T {
   const el = root.querySelector<T>(selector);
@@ -11,7 +13,17 @@ export function $$<T extends Element = HTMLElement>(selector: string, root: Pare
   return Array.from(root.querySelectorAll<T>(selector));
 }
 
-export async function copyText(text: string): Promise<boolean> {
+/**
+ * Copy text to the clipboard. Reports a tool_copy event on success; pass
+ * { track: false } for copies that are not a tool result (e.g. the share link).
+ */
+export async function copyText(text: string, options: { track?: boolean } = {}): Promise<boolean> {
+  const ok = await writeClipboard(text);
+  if (ok && options.track !== false) track('tool_copy');
+  return ok;
+}
+
+async function writeClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -54,6 +66,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  track('tool_download', { file_extension: fileExtension(filename) });
 }
 
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms = 150): (...args: A) => void {

@@ -41,6 +41,7 @@ const networks: Record<ShareNetwork, { label: string; href: string }> = {
       s.networks.map((id) => (
         <a
           class="share-btn"
+          data-share-network={id}
           href={networks[id].href}
           target={id === 'email' ? undefined : '_blank'}
           rel="noopener nofollow"
@@ -54,6 +55,9 @@ const networks: Record<ShareNetwork, { label: string; href: string }> = {
 
 <script>
   import { copyText, flashButton } from '../lib/client';
+  import { track } from '../lib/analytics';
+
+  const shared = (method: string) => track('share', { method, content_type: 'tool' });
 
   for (const root of document.querySelectorAll<HTMLElement>('[data-share]')) {
     const url = root.dataset.url ?? location.href;
@@ -62,13 +66,20 @@ const networks: Record<ShareNetwork, { label: string; href: string }> = {
     if (native && typeof navigator.share === 'function') {
       native.hidden = false;
       native.addEventListener('click', () => {
-        navigator.share({ title, url }).catch(() => {});
+        navigator.share({ title, url }).then(() => shared('native'), () => {});
       });
     }
     const copy = root.querySelector<HTMLButtonElement>('[data-share-copy]');
     copy?.addEventListener('click', async () => {
-      if (await copyText(url)) flashButton(copy);
+      if (await copyText(url, { track: false })) {
+        flashButton(copy);
+        shared('copy_link');
+      }
     });
+    // Network links open in a new tab, so the click is the only signal we get.
+    for (const link of root.querySelectorAll<HTMLAnchorElement>('[data-share-network]')) {
+      link.addEventListener('click', () => shared(link.dataset.shareNetwork ?? 'link'));
+    }
   }
 </script>
 

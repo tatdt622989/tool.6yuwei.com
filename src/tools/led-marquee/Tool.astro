@@ -116,6 +116,7 @@ const palettes = [
 
 <script>
   import { $, $$, copyText, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { readI18n } from '../../i18n/client';
   import { t } from '../../i18n/format';
   import type { Strings } from './i18n';
@@ -449,7 +450,7 @@ const palettes = [
   if (typeof navigator.share === 'function') {
     shareBtn.hidden = false;
     shareBtn.addEventListener('click', () => {
-      navigator.share({ title: s.shareTitle, url: shareUrl() }).catch(() => {
+      navigator.share({ title: s.shareTitle, url: shareUrl() }).then(() => trackEvent('share', { method: 'native', content_type: 'tool_result' })).catch(() => {
         /* dismissed */
       });
     });
