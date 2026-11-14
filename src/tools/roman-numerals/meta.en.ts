@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Roman Numeral Converter – Numbers, Years and Dates',
   description:
     'Convert numbers to Roman numerals and back, from 1 to 3,999 or up to 3,999,999 with the bar. Also converts years and dates and checks if a numeral is valid.',
-  category: 'dev',
+  category: 'convert',
   icon: 'Landmark',
   keywords: [
     'roman numeral converter',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'ビンゴ抽選マシーン：無料のビンゴ番号抽選とカード作成（大画面対応）',
   description:
     '無料で使えるオンラインのビンゴ抽選マシーンです。ボタンを押すだけで番号を重複なしで抽選し、出た番号を一覧で表示します。全画面表示、効果音、読み上げに対応。番号付きのビンゴカードを作って印刷することもでき、忘年会や新年会、子ども会にそのまま使えます。',
-  category: 'generator',
+  category: 'party',
   icon: 'Grid3x3',
   keywords: [
     'ビンゴ 抽選',

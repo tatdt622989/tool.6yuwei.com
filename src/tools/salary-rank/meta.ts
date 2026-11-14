@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '薪資排名：你的年薪贏過多少台灣人？薪資 PR 值與中位數試算',
   description:
     '輸入月薪或年薪，依主計總處最新全年總薪資統計，算出你贏過多少台灣上班族、離下一個十分位還差多少，也能和同年齡、同學歷、同行業與同縣市比較，還可下載不顯示金額的結果圖。',
-  category: 'finance',
+  category: 'work',
   icon: 'Trophy',
   keywords: [
     '薪資排名',

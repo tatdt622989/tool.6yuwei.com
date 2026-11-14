@@ -11,6 +11,7 @@ import { localeHome, localePath, type Locale } from '../i18n/locales';
 import { getUi } from '../i18n/ui';
 import { categoryPath, populatedCategories, toolPath, toolsFor, toolsInCategory } from '../tools/registry';
 import { itemListJsonLd, websiteJsonLd } from '../lib/seo';
+import { conversionGroups } from '../conversions/pairs';
 
 interface Props {
   locale: Locale;
@@ -23,6 +24,11 @@ const tools = toolsFor(locale);
 const home = localeHome(locale);
 const populated = populatedCategories(locale);
 const popular = tools.slice(0, 7);
+const conversionCount = conversionGroups(locale).reduce((n, g) => n + g.list.length, 0);
+const tiles = populated.map((c) => ({
+  ...c,
+  count: toolsInCategory(c.id, locale).length + (c.id === 'convert' ? conversionCount : 0),
+}));
 ---
 
 <BaseLayout
@@ -62,6 +68,23 @@ const popular = tools.slice(0, 7);
   </section>
 
   <div class="container">
+    <nav class="browse" aria-labelledby="browse-title" data-browse>
+      <h2 id="browse-title">{s.browse}</h2>
+      <ul class="tiles">
+        {
+          tiles.map((c) => (
+            <li>
+              <a href={categoryPath(c.id, locale)}>
+                <Icon name={c.icon} size={22} class="tile-icon" />
+                <span class="tile-name">{c.name}</span>
+                <span class="tile-count">{t(s.tileCount, { count: c.count })}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
     <p class="empty" id="empty" hidden>{s.empty}</p>
 
     {
@@ -95,6 +118,7 @@ const popular = tools.slice(0, 7);
   const input = document.getElementById('q') as HTMLInputElement;
   const empty = document.getElementById('empty') as HTMLElement;
   const popular = document.querySelector<HTMLElement>('[data-popular]');
+  const browse = document.querySelector<HTMLElement>('[data-browse]');
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-cat]'));
 
   function filter() {
@@ -111,6 +135,7 @@ const popular = tools.slice(0, 7);
       visible += inSection;
     }
     if (popular) popular.hidden = terms.length > 0;
+    if (browse) browse.hidden = terms.length > 0;
     empty.hidden = visible > 0;
   }
 
@@ -189,6 +214,62 @@ const popular = tools.slice(0, 7);
     text-decoration: none;
     color: var(--accent);
     border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+
+  .browse {
+    padding: 32px 0 4px;
+  }
+  .browse h2 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+  .tiles {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .tiles a {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    align-items: center;
+    height: 100%;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .tiles a:hover {
+    text-decoration: none;
+    border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+  }
+  .tiles a:hover .tile-name {
+    color: var(--accent);
+  }
+  .tiles :global(.tile-icon) {
+    grid-row: span 2;
+    color: var(--accent);
+  }
+  .tile-name {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.3;
+  }
+  .tile-count {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  @media (max-width: 480px) {
+    .tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .notes {

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '綜所稅試算 2026：所得稅計算機，免稅額與級距一次算',
   description:
     '2026 年 5 月報稅適用的綜所稅試算（114 年度所得），輸入薪資與扶養人數，自動套用免稅額、標準或列舉扣除額、薪資與幼兒學前、長照、租金特別扣除額及基本生活費差額，算出應納稅額與適用稅率。',
-  category: 'finance',
+  category: 'work',
   icon: 'Receipt',
   keywords: [
     '綜所稅試算',

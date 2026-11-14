@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '住宅ローン計算：毎月の返済額と総返済額をシミュレーション（元利均等・元金均等）',
   description:
     '借入金額（万円）・金利・返済期間を入れるだけで、住宅ローンの毎月の返済額、利息の総額、総返済額を計算します。元利均等返済と元金均等返済の比較や、年ごとの返済予定表も表示します。',
-  category: 'calc',
+  category: 'finance',
   icon: 'House',
   keywords: [
     '住宅ローン 計算',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'スマホ電光掲示板：文字を流す LED ボード（ライブ応援・お迎えボードに）',
   description:
     'スマホを電光掲示板にできる無料ツールです。文字を入力するだけで LED のような大きな文字が流れ、色や速さ、点滅、ドット表示も選べます。全画面なら画面が消えにくく、ライブの応援ボードや空港のお迎えボードに使えます。',
-  category: 'generator',
+  category: 'party',
   icon: 'Megaphone',
   keywords: [
     '電光掲示板 スマホ',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Mortgage Calculator: Monthly Payment with Taxes, Insurance and HOA',
   description:
     'Free mortgage calculator. Enter home price, down payment, rate and term to estimate your monthly payment with property tax, insurance and HOA, plus total interest.',
-  category: 'calc',
+  category: 'finance',
   icon: 'House',
   keywords: [
     'mortgage calculator',

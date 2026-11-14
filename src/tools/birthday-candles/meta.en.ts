@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Blow Out Birthday Candles Online: Virtual Cake & Birthday Card',
   description:
     'Make a virtual birthday cake and send it as a link. They make a wish and blow into the mic to put out the candles, then get confetti, the song and your message.',
-  category: 'generator',
+  category: 'party',
   icon: 'CakeSlice',
   keywords: [
     'blow out candles online',

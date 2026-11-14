@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '加班費計算 2026–2027：平日、休息日、國定假日加班費試算',
   description:
     '免費加班費計算機，依勞基法第 24 條與第 39 條，輸入月薪與加班時數，自動算出平日加班、休息日出勤、國定假日與例假日出勤的加班費，列出每段倍數明細並檢查每月 46 小時上限。',
-  category: 'finance',
+  category: 'work',
   icon: 'Briefcase',
   keywords: [
     '加班費計算',

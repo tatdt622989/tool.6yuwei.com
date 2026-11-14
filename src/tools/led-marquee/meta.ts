@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '手機跑馬燈：LED 跑馬燈線上製作，演唱會應援、接機牌全螢幕',
   description:
     '免費手機跑馬燈：輸入文字，手機就變成大字 LED 跑馬燈。可調顏色、速度與大小，支援向左、向右捲動或靜止置中，還有閃爍和 LED 點陣效果。演唱會應援、接機牌都好用，全螢幕時螢幕不自動關閉，也能用連結分享給朋友。',
-  category: 'generator',
+  category: 'party',
   icon: 'Megaphone',
   keywords: [
     '手機跑馬燈',

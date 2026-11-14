@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'BMI 計算機：線上算 BMI 與健康體重範圍（國健署標準）',
   description:
     '免費線上 BMI 計算機，輸入身高與體重即可算出身體質量指數，依衛福部國健署標準判斷過輕、正常、過重或肥胖，並列出你身高對應的健康體重範圍與需增減的公斤數。',
-  category: 'calc',
+  category: 'health',
   icon: 'Scale',
   keywords: ['BMI 計算', 'BMI 計算機', 'BMI', '身體質量指數', '標準體重', '理想體重', 'BMI 標準'],
   intro: '輸入身高與體重，立即算出 BMI、判斷體位分級，並告訴你這個身高的健康體重範圍。',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Ichiban Kuji Simulator: Online Kuji Draw Board with Live Odds',
   description:
     'Free ichiban kuji simulator: set up prize tiers A to Last One, then open tickets on a numbered board or draw 10 at once. See prizes left, next-draw odds and the cost to buy out the board, plus a hash to prove fairness on stream.',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     'ichiban kuji simulator',

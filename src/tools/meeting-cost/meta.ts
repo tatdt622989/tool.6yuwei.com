@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '會議燒錢計數器：會議成本計算，即時看這場會燒掉多少薪水',
   description:
     '會議成本計算工具：輸入與會人數和月薪、年薪或時薪，按下開始就即時顯示這場會議燒掉多少薪水，還換算成幾個便當。也能試算每週例會、每天站立會議一個月、一年要花多少錢。',
-  category: 'finance',
+  category: 'work',
   icon: 'Flame',
   keywords: [
     '會議燒錢計數器',

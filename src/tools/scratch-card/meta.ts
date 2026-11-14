@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '刮刮卡產生器：線上刮刮樂、告白刮刮卡製作，傳連結就能刮',
   description:
     '免費線上刮刮卡產生器：寫下想說的話，選擇金色、銀色或愛心刮層，產生連結傳給對方，用手指一刮就揭曉。適合告白、生日驚喜、性別揭曉、求婚與抽獎刮刮樂，內容只存在連結裡，不上傳伺服器。',
-  category: 'generator',
+  category: 'party',
   icon: 'Ticket',
   keywords: [
     '刮刮卡',

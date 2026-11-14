@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Salary Per Second Calculator: Watch Your Pay Tick Up Live',
   description:
     'Enter your salary or hourly wage and watch today’s earnings tick up live. See pay per day, hour and second, a workday progress bar and a clock-out countdown.',
-  category: 'finance',
+  category: 'work',
   icon: 'Zap',
   keywords: [
     'salary per second',

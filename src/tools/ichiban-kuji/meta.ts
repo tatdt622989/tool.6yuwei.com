@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '一番賞抽獎模擬器：線上自製一番賞、籤板抽籤與中獎機率計算',
   description:
     '免費線上一番賞抽獎模擬器：自訂 A賞到最後賞的獎項與數量，在籤板上點籤開獎或連抽 10 抽，即時顯示剩餘獎項、下一抽機率與包台金額。適合自製一番賞、直播團抽與聚會抽獎，並可用雜湊值證明籤表沒有被偷換。',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     '一番賞',

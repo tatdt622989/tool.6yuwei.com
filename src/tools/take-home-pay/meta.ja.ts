@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '手取り計算 2026：月給・年収から手取りを計算（社会保険料・所得税・住民税の内訳付き）',
   description:
     '月給や年収を入れるだけで、2026 年（令和8年）の手取りを計算できる無料ツールです。協会けんぽの都道府県別料率、子ども・子育て支援金、厚生年金、雇用保険、所得税、住民税の内訳を表示し、令和8年度税制改正の基礎控除の引き上げにも対応しています。',
-  category: 'finance',
+  category: 'work',
   icon: 'ReceiptJapaneseYen',
   keywords: [
     '手取り 計算',

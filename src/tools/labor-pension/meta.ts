@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '勞退試算 2026：勞工退休金新制月退休金計算',
   description:
     '勞工退休金新制試算，輸入月薪、年齡、雇主提繳 6% 與勞退自提比例，依 2026 年勞退月提繳分級表估算退休時個人專戶累積金額、投資收益與每月可領的月退休金。',
-  category: 'finance',
+  category: 'work',
   icon: 'PiggyBank',
   keywords: [
     '勞退試算',

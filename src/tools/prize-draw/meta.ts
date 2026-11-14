@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '尾牙抽獎程式：免費線上抽獎，投影大螢幕、多獎項、不重複中獎',
   description:
     '免費的尾牙抽獎程式，打開瀏覽器就能線上抽獎，不必安裝也不用註冊。貼上名單與獎項，投影到大螢幕全螢幕抽獎，有名字滾動、音效和彩帶；可設定不重複中獎、得獎者不在場重抽、臨時加碼獎，抽完還能下載 CSV 得獎名單，春酒和公司活動也適用。',
-  category: 'generator',
+  category: 'party',
   icon: 'Trophy',
   keywords: [
     '尾牙抽獎',
