@@ -27,16 +27,33 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: npm
 
       - name: Fetch latest winning numbers
         run: node scripts/update-invoice.mjs
 
-      - name: Commit and push if changed
+      - name: Check for a new period
+        id: diff
         run: |
           if git diff --quiet -- src/tools/invoice-lottery/data.json; then
             echo "No new period."
-            exit 0
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # A push to main deploys the site, so the new data must pass the tests first.
+      - name: Install dependencies
+        if: steps.diff.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Run tests
+        if: steps.diff.outputs.changed == 'true'
+        run: npm test
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/tools/invoice-lottery/data.json
