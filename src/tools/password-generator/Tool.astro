@@ -155,7 +155,9 @@ const s = pickStrings(i18n, locale);
   .meter-text {
     font-size: 14px;
     color: var(--text-2);
-    white-space: nowrap;
+    /* Sits beside the bar when there is room; on a narrow phone it drops below and may wrap. */
+    min-width: 0;
+    text-wrap: balance;
   }
   .opts {
     display: grid;

@@ -471,6 +471,12 @@ const s = pickStrings(i18n, locale);
 </script>
 
 <style>
+  /* 「Record 5 seconds and play back」 is wider than a 320px phone: let the label wrap inside the button. */
+  .mt-rec .btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: start;
+  }
   .mt-state {
     display: inline-flex;
     align-items: center;
