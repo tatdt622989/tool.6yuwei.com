@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-**English** · Free, privacy-first online tools at **https://tool.6yuwei.com** (中文), [/en/](https://tool.6yuwei.com/en/) and [/ja/](https://tool.6yuwei.com/ja/). Every tool runs entirely in your browser: no sign-up, no uploads, no backend. This repository is the complete source of the site, so you can verify that claim yourself. Built with Astro (static output), vanilla TypeScript and Vitest; served by nginx. Each tool lives in `src/tools/<slug>/` (`logic.ts` + tests, `Tool.astro`, localized `meta*.ts`). Issues and pull requests are welcome. Licensed under [AGPL-3.0](LICENSE).
+**English** · Free, privacy-first online tools at **https://tool.6yuwei.com** (中文), [/en/](https://tool.6yuwei.com/en/) and [/ja/](https://tool.6yuwei.com/ja/). Every tool runs entirely in your browser: no sign-up, no uploads, no backend. This repository is the complete source of the site, so you can verify that claim yourself. Built with Astro (static output), vanilla TypeScript and Vitest; served by nginx. Each tool lives in `src/tools/<slug>/` (`logic.ts` + tests, `Tool.astro`, localized `meta*.ts`). Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Copyright (C) 2026 6yuwei, licensed under [AGPL-3.0-only](LICENSE). The 隨手 / Suishou Tools name and logo are not covered by the license (see [License and trademarks](#license-and-trademarks-english)).
 
 **日本語** · ブラウザだけで動く無料オンラインツール集です。登録不要・データ送信なし。サイトのソースコードをすべて公開しているので、データが外部に送られていないことを誰でも確認できます。ライセンスは [AGPL-3.0](LICENSE) です。
 
@@ -14,7 +14,7 @@
 
 ```bash
 npm install
-npm run dev      # http://localhost:4321 ，開發模式會顯示廣告版位佔位框
+npm run dev      # http://localhost:4321
 npm test         # vitest：每個工具的 logic.test.ts
 npm run check    # astro / TypeScript 型別檢查
 npm run build    # 輸出 dist/
@@ -55,27 +55,7 @@ npm run preview
 - 內部連結：麵包屑、分類頁、側欄同類工具、「你可能也需要」相關工具。
 - 首頁有 `WebSite` + `SearchAction`（`/?q=` 會直接篩選工具）與 `ItemList`。
 - `@astrojs/sitemap` 產生 `/sitemap-index.xml`，`/robots.txt` 指向它。
-- 純靜態 HTML、無框架 runtime、系統字型，Core Web Vitals 友善；廣告版位預留高度降低 CLS。
-
-## PWA（可安裝，刻意不支援離線）
-
-- 網站可以「加到主畫面／安裝」，但**不提供離線快取**：每次開啟都從網路載入。
-- `src/pages/manifest.webmanifest.ts`：名稱、icon（含 maskable）、主畫面捷徑。
-- `src/lib/pwa.ts`：安裝提示；有 `data-install` 的按鈕只在瀏覽器支援安裝時出現。
-- `src/pages/sw.js.ts`：自我移除用的 Service Worker（清除快取並註銷），不會被註冊；只用來清掉早期測試版留下的離線快取。
-- `/app/`：各平台安裝教學頁，首頁與頁尾都有連結。
-
-## 廣告
-
-| 版位 | 位置 | 環境變數 |
-| --- | --- | --- |
-| afterTool | 工具正下方 | `PUBLIC_ADSENSE_SLOT_AFTER_TOOL` |
-| inArticle | 說明文章第一段後（In-article 格式） | `PUBLIC_ADSENSE_SLOT_IN_ARTICLE` |
-| bottom | FAQ 之後、相關工具之前 | `PUBLIC_ADSENSE_SLOT_BOTTOM` |
-| sidebar | 桌機右側欄，sticky | `PUBLIC_ADSENSE_SLOT_SIDEBAR` |
-| home | 首頁分類之間、分類頁 | `PUBLIC_ADSENSE_SLOT_HOME` |
-
-只設定 `PUBLIC_ADSENSE_CLIENT` 時會載入 AdSense 並啟用 Auto Ads（在 AdSense 後台開啟），同時自動產生 `/ads.txt`。設定各 slot ID 後才會渲染對應的手動版位；未設定的版位不輸出任何 HTML。
+- 純靜態 HTML、無框架 runtime、系統字型，Core Web Vitals 友善。
 
 ## 自架
 
@@ -83,10 +63,7 @@ npm run preview
 
 | 變數 | 說明 |
 | --- | --- |
-| `PUBLIC_ADSENSE_CLIENT` | AdSense 發布商 ID `ca-pub-xxxxxxxxxxxxxxxx`，不設定就完全不載入廣告 |
-| `PUBLIC_ADSENSE_SLOT_*` | 各手動廣告單元的 slot ID（見上表） |
-| `PUBLIC_AD_PLACEHOLDERS` | `true` 時在未設定 slot 的位置顯示佔位框 |
-| `PUBLIC_GA_ID` | GA4 評估 ID `G-XXXXXXX` |
+| `PUBLIC_GA_ID` | GA4 評估 ID `G-XXXXXXX`；`site.url` 不是官方網域時沒有預設值，請設定自己的 ID |
 | `PUBLIC_GSC_VERIFICATION` | Google Search Console HTML 標記驗證碼 |
 | `PUBLIC_CONTACT_EMAIL` | 顯示在 `/contact/` 的聯絡信箱 |
 
@@ -98,21 +75,36 @@ npm run preview
 
 ```
 src/
-  config/      site.ts（網站 / 品牌 brands / 廣告 / GA 設定，讀環境變數）、categories.ts（各語系分類文案）
+  config/      site.ts（網站 / 品牌 brands / GA 設定，讀環境變數）、categories.ts（各語系分類文案）
   i18n/        locales.ts、ui.ts（外框字串）、format.ts、tool.ts / client.ts（工具字串）、alternates.ts（hreflang）
   tools/       registry.ts + registry-core.ts（自動註冊、語系判斷）、components.ts、types.ts、<slug>/
   lib/         client.ts（瀏覽器 helper）、format.ts、seo.ts（JSON-LD）、feeds.ts（tools.json / manifest）
-  components/  AdSlot、ToolCard、SiteHeader（含語言切換）、SiteFooter、Breadcrumbs、SearchDialog
-  layouts/     BaseLayout（head / SEO / hreflang / 廣告 loader）、ProseLayout
+  components/  ToolCard、SiteHeader（含語言切換）、SiteFooter、Breadcrumbs、SearchDialog
+  layouts/     BaseLayout（head / SEO / hreflang）、ProseLayout
   views/       HomeView、ToolView、CategoryView、NotFoundView、AppView（依 locale 渲染）
   pages/       index、[slug]（工具頁）、category/[id]、about、privacy、terms、contact、app、convert/、
-               ads.txt、robots.txt、tools.json、manifest.webmanifest；en/、ja/ 為各語系路由
+               robots.txt、tools.json、manifest.webmanifest；en/、ja/ 為各語系路由
 docs/i18n.md   多語系做法與工具在地化檢查清單
 ```
 
 ## 開源與授權
 
-- 本專案以 [GNU AGPL-3.0](LICENSE) 授權開源：可以自由閱讀、修改、自架，但若把修改後的版本架成網站提供給他人使用，必須同樣以 AGPL-3.0 公開完整原始碼。
-- 「隨手」名稱、Logo 與網域屬於作者，自架衍生站請使用不同名稱。
+Copyright (C) 2026 6yuwei. All rights reserved except as granted by the license below.
+
+- 本專案以 [GNU AGPL-3.0-only](LICENSE) 授權開源：可以自由閱讀、修改、自架，但若把修改後的版本架成網站提供給他人使用，必須同樣以 AGPL-3.0 公開完整原始碼，並保留原作者的版權聲明。
+- 「隨手」、「Suishou Tools」、「隨手ツール」名稱、Logo、網域 tool.6yuwei.com 與 6yuwei 不在 AGPL 授權範圍內。自架衍生站請改用不同名稱與 Logo，也不要讓人誤以為是官方網站或由作者背書。
+- 官方 GA4 評估 ID 只在 `site.url` 為官方網域時生效，衍生站請設定自己的 `PUBLIC_GA_ID`。
 - 每個工具頁底部的「查看原始碼」連到 `src/tools/<slug>/`，頁尾也有 GitHub 連結。
+- 貢獻程式碼前請先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - 回報安全性問題請見 [SECURITY.md](SECURITY.md)。
+
+### License and trademarks (English)
+
+- The source code is licensed under [AGPL-3.0-only](LICENSE). If you run a modified version as a public website, you must publish its complete source under the same license and keep the original copyright notices.
+- The names "隨手", "Suishou Tools" and "隨手ツール", the logo, the domain tool.6yuwei.com and the name 6yuwei are not licensed under the AGPL. A fork must use a different name and logo, and must not suggest that it is the official site or endorsed by the author.
+- The official GA4 measurement ID applies only when `site.url` is the official domain. A fork must set its own `PUBLIC_GA_ID`.
+
+### ライセンスと商標（日本語）
+
+- ソースコードは [AGPL-3.0-only](LICENSE) で公開しています。改変版を公開サイトとして運営する場合は、同じライセンスで全ソースコードを公開し、原著作者の著作権表示を残してください。
+- 「隨手」「Suishou Tools」「隨手ツール」の名称、ロゴ、ドメイン tool.6yuwei.com、6yuwei の名前は AGPL の対象外です。派生サイトは別の名称とロゴを使い、公式サイトや作者の公認と誤解される表示をしないでください。
