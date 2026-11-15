@@ -139,6 +139,7 @@ const viewBox = `0 ${CAKE.viewTop} ${CAKE.width} ${CAKE.viewBottom - CAKE.viewTo
 
 <script>
   import { $, $$, copyText, debounce, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { readI18n } from '../../i18n/client';
   import { t } from '../../i18n/format';
   import { LOCALE_INFO } from '../../i18n/locales';
@@ -570,6 +571,7 @@ const viewBox = `0 ${CAKE.viewTop} ${CAKE.width} ${CAKE.viewBottom - CAKE.viewTo
     shareBtn.addEventListener('click', async () => {
       try {
         await navigator.share({ title: s.shareTitle, text: s.shareText, url: linkIn.value });
+        trackEvent('share', { method: 'native', content_type: 'tool_result' });
       } catch {
         /* the visitor closed the share sheet */
       }

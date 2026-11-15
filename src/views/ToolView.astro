@@ -61,7 +61,12 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
         <p class="intro">{tool.intro}</p>
       </header>
 
-      <section class="tool-card" aria-label={t(s.tool.toolAria, { name: tool.name })}>
+      <section
+        class="tool-card"
+        aria-label={t(s.tool.toolAria, { name: tool.name })}
+        data-tool-id={tool.slug}
+        data-tool-locale={locale}
+      >
         <ToolUI locale={locale} />
       </section>
 

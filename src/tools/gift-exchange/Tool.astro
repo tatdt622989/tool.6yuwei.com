@@ -225,6 +225,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
 
 <script>
   import { $, $$, copyText, debounce, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
   import { readI18n } from '../../i18n/client';
   import { formatDate, formatList, plural, t } from '../../i18n/format';
   import { confetti } from '../birthday-candles/confetti';
@@ -505,7 +506,10 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
       if (shareBtn && typeof navigator.share === 'function') {
         shareBtn.hidden = false;
         shareBtn.addEventListener('click', () => {
-          navigator.share({ title: s.shareTitle, text: invite.message }).then(() => markLinkSent(person, row), () => {});
+          navigator.share({ title: s.shareTitle, text: invite.message }).then(() => {
+            markLinkSent(person, row);
+            trackEvent('share', { method: 'native', content_type: 'tool_result' });
+          }, () => {});
         });
       }
       return row;
