@@ -51,9 +51,6 @@ export function getBrand(locale: Locale): Brand {
   return brands[locale];
 }
 
-/** The official site. Owner-only defaults (the GA4 ID) apply only while `site.url` points here. */
-const OFFICIAL_URL = 'https://tool.6yuwei.com';
-
 /** Locale-independent settings. zh-TW brand fields are kept here for backward compatibility; prefer getBrand(locale). */
 export const site = {
   name: brands['zh-TW'].name,
@@ -85,12 +82,8 @@ export const ads = {
 };
 
 export const analytics = {
-  /**
-   * GA4 measurement ID (public). PUBLIC_GA_ID overrides it; the layout only loads GA on the production host.
-   * The built-in ID belongs to the official site, so it applies only while `site.url` is the official domain:
-   * a fork that moves to its own domain gets no analytics until it sets its own PUBLIC_GA_ID.
-   */
-  gaId: (env.PUBLIC_GA_ID ?? '').trim() || (site.url === OFFICIAL_URL ? 'G-10LYBK8Q3W' : ''),
+  /** GA4 measurement ID from PUBLIC_GA_ID. Empty = no analytics; the layout only loads GA on the production host. */
+  gaId: (env.PUBLIC_GA_ID ?? '').trim(),
 };
 
 /** Absolute URL for a site path. */

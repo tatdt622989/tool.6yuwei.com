@@ -63,7 +63,7 @@ npm run preview
 
 | 變數 | 說明 |
 | --- | --- |
-| `PUBLIC_GA_ID` | GA4 評估 ID `G-XXXXXXX`；`site.url` 不是官方網域時沒有預設值，請設定自己的 ID |
+| `PUBLIC_GA_ID` | GA4 評估 ID `G-XXXXXXX`，不設定就不載入 GA |
 | `PUBLIC_GSC_VERIFICATION` | Google Search Console HTML 標記驗證碼 |
 | `PUBLIC_CONTACT_EMAIL` | 顯示在 `/contact/` 的聯絡信箱 |
 
@@ -93,7 +93,6 @@ Copyright (C) 2026 6yuwei. All rights reserved except as granted by the license 
 
 - 本專案以 [GNU AGPL-3.0-only](LICENSE) 授權開源：可以自由閱讀、修改、自架，但若把修改後的版本架成網站提供給他人使用，必須同樣以 AGPL-3.0 公開完整原始碼，並保留原作者的版權聲明。
 - 「隨手」、「Suishou Tools」、「隨手ツール」名稱、Logo、網域 tool.6yuwei.com 與 6yuwei 不在 AGPL 授權範圍內。自架衍生站請改用不同名稱與 Logo，也不要讓人誤以為是官方網站或由作者背書。
-- 官方 GA4 評估 ID 只在 `site.url` 為官方網域時生效，衍生站請設定自己的 `PUBLIC_GA_ID`。
 - 每個工具頁底部的「查看原始碼」連到 `src/tools/<slug>/`，頁尾也有 GitHub 連結。
 - 貢獻程式碼前請先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - 回報安全性問題請見 [SECURITY.md](SECURITY.md)。
@@ -102,7 +101,6 @@ Copyright (C) 2026 6yuwei. All rights reserved except as granted by the license 
 
 - The source code is licensed under [AGPL-3.0-only](LICENSE). If you run a modified version as a public website, you must publish its complete source under the same license and keep the original copyright notices.
 - The names "隨手", "Suishou Tools" and "隨手ツール", the logo, the domain tool.6yuwei.com and the name 6yuwei are not licensed under the AGPL. A fork must use a different name and logo, and must not suggest that it is the official site or endorsed by the author.
-- The official GA4 measurement ID applies only when `site.url` is the official domain. A fork must set its own `PUBLIC_GA_ID`.
 
 ### ライセンスと商標（日本語）
 
