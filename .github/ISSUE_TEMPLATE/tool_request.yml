@@ -1,0 +1,21 @@
+name: Tool request / 新工具建議
+description: Suggest a new tool or an improvement to an existing one. / 建議新工具或改進現有工具。
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do? / 你想完成什麼？
+      description: Describe the task, not only the tool name. / 描述要解決的問題，不只是工具名稱。
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example input and output / 輸入與輸出範例
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope / 範圍
+      options:
+        - label: It can run entirely in the browser, with no uploads or account. / 可以完全在瀏覽器執行，不需上傳或註冊。
