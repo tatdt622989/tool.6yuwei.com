@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.4",
+    "astro": "^7.4.12",
     "dompurify": "^3.4.17",
     "heic-to": "1.6.6",
     "lucide": "^1.64.0",
