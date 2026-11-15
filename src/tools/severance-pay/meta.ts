@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '資遣費試算：資遣費怎麼算？新制、舊制與預告工資一次算',
   description:
     '資遣費試算：輸入到職日、最後工作日與平均工資，依勞退新制（每滿 1 年 0.5 個月、上限 6 個月）與勞基法舊制（每滿 1 年 1 個月）自動分段計算資遣費，並算出預告期間、預告工資與謀職假。支援 2005 年前到職的新舊制併計，附勞動部官方範例說明。',
-  category: 'finance',
+  category: 'work',
   icon: 'DoorOpen',
   keywords: [
     '資遣費試算',

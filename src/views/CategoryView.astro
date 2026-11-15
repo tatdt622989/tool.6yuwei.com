@@ -11,6 +11,7 @@ import { localeHome, type Locale } from '../i18n/locales';
 import { getUi } from '../i18n/ui';
 import { categoryAlternates, categoryPath, populatedCategories, toolsInCategory } from '../tools/registry';
 import { breadcrumbJsonLd, itemListJsonLd } from '../lib/seo';
+import { conversionGroups, convertPath } from '../conversions/pairs';
 
 interface Props {
   locale: Locale;
@@ -25,6 +26,8 @@ const crumbs = [
   { name: s.homeCrumb, path: localeHome(locale) },
   { name: category.name, path },
 ];
+// The converters category doubles as the hub for the /convert/<pair>/ long-tail pages.
+const conversions = category.id === 'convert' ? conversionGroups(locale) : [];
 const others = populatedCategories(locale).filter((c) => c.id !== category.id);
 const title = category.title ?? t(s.category.title, { name: category.name, blurb: category.blurb });
 ---
@@ -50,6 +53,25 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
     <div class="grid">
       {list.map((tool) => <ToolCard tool={tool} />)}
     </div>
+    {
+      conversions.length > 0 && (
+        <section class="pairs" aria-labelledby="pairs-title">
+          <h2 id="pairs-title">{s.tool.conversions}</h2>
+          {conversions.map((g) => (
+            <div class="pair-group">
+              <h3>{g.name}</h3>
+              <ul>
+                {g.list.map((p) => (
+                  <li>
+                    <a href={convertPath(p.slug)}>{p.keyword}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )
+    }
     <AdSlot slot="home" />
     <nav class="others" aria-label={s.category.others}>
       <h2>{s.category.others}</h2>
@@ -100,6 +122,11 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
     gap: 14px;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
+  .pairs {
+    display: grid;
+    gap: 18px;
+  }
+  .pairs h2,
   .others h2 {
     font-size: 20px;
     font-weight: 800;
@@ -123,5 +150,32 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
   }
   .others span {
     font-size: 14px;
+  }
+  .pair-group h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--text-2);
+  }
+  .pair-group ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pair-group a {
+    display: inline-block;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 15px;
+  }
+  .pair-group a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    text-decoration: none;
   }
 </style>

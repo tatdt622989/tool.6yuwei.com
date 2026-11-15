@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Secret Santa Generator: Free Name Draw With Private Links',
   description:
     'Free Secret Santa generator with no sign-up. Nobody draws themselves, couples can be kept apart, and everyone gets a private scratch-off link or draws live.',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     'secret santa generator',

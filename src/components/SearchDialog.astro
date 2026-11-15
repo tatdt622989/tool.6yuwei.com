@@ -5,6 +5,7 @@ import { getCategory } from '../config/categories';
 import { DEFAULT_LOCALE, type Locale } from '../i18n/locales';
 import { getUi } from '../i18n/ui';
 import { toolPath, toolsFor } from '../tools/registry';
+import { conversionGroups, convertPath } from '../conversions/pairs';
 
 interface Props {
   locale?: Locale;
@@ -21,6 +22,18 @@ const index = toolsFor(locale).map((t) => {
     s: [t.name, t.seoTitle, ...t.keywords, category].join(' ').toLowerCase(),
   };
 });
+// Long-tail conversion pages come after the tools, so a tool still wins when both match.
+const convertName = conversionGroups(locale).length > 0 ? getCategory('convert', locale).name : '';
+for (const group of conversionGroups(locale)) {
+  for (const p of group.list) {
+    index.push({
+      n: p.keyword,
+      c: convertName,
+      u: convertPath(p.slug),
+      s: [p.keyword, ...p.aliases, p.from, p.to, group.name, convertName].join(' ').toLowerCase(),
+    });
+  }
+}
 ---
 
 <dialog class="search-dialog" aria-label={s.aria}>

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Beyblade X Score Tracker: Official Points, 3on3 and Combo Win Rates',
   description:
     'Tap to score Beyblade X battles with official points (Spin 1, Over 2, Burst 2, Xtreme 3, first to 4), rotate 3on3 decks and find your best combo by win rate.',
-  category: 'calc',
+  category: 'party',
   icon: 'Disc3',
   keywords: [
     'beyblade x score tracker',

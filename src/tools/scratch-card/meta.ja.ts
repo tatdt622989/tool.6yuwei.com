@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'スクラッチカードメーカー：削って読むサプライズメッセージを無料で作成',
   description:
     '削ると文字が出てくるスクラッチカードを無料で作成し、リンクで送れます。告白や誕生日のサプライズ、性別発表、プロポーズ、くじ引きに。受け取った人は指やマウスで削って読みます。内容はリンクの中だけにあり、サーバーには送信されません。',
-  category: 'generator',
+  category: 'party',
   icon: 'Ticket',
   keywords: [
     'スクラッチカード 作成',

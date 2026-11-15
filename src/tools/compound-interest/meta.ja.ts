@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '複利計算：積立と元本の運用シミュレーション（年ごとの推移つき）',
   description:
     '初期投資額・毎月の積立額・年利・運用期間を入れるだけで、複利で増える最終積立金額と運用収益を計算します。新NISA の積立シミュレーションや 72 の法則の確認にも使えます。無料・登録不要です。',
-  category: 'calc',
+  category: 'finance',
   icon: 'TrendingUp',
   keywords: [
     '複利計算',

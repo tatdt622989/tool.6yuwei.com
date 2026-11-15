@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '線上抽籤：公平隨機抽名字、隨機分組與排順序',
   description:
     '免費線上抽籤工具，貼上名單即可隨機抽出得獎者、平均分組或打亂上台順序，採用瀏覽器加密等級亂數，抽出不重複、每人機率相同，適合尾牙抽獎、課堂分組與活動抽籤。',
-  category: 'generator',
+  category: 'party',
   icon: 'Shuffle',
   keywords: ['線上抽籤', '抽籤', '隨機分組', '抽名字', '分組工具', '抽獎程式', 'random name picker', '隨機排序'],
   intro: '貼上名單，一鍵公平抽出得獎者、平均分組或排出上台順序，名單只保存在你的瀏覽器。',

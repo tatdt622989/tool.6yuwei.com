@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '漢数字変換：数字を漢数字・大字（壱弐参萬）に（祝儀袋・領収書の金額の書き方）',
   description:
     '数字を漢数字や大字（壱・弐・参・拾・萬）に変換する無料ツールです。祝儀袋・香典袋・のし袋の「金参萬円」、領収書の「金壱萬円也」の書き方をすぐに確認できます。漢数字や大字から算用数字への逆変換、縦書き用の「二〇二六」表記にも対応します。',
-  category: 'text',
+  category: 'convert',
   icon: 'Signature',
   keywords: [
     '漢数字 変換',

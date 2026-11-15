@@ -34,7 +34,6 @@ export interface UiStrings {
     categories: string;
     aboutHeading: string;
     /** null hides the /convert/ link (zh-only pages). */
-    conversions: string | null;
     app: string;
     aboutSite: string;
     contact: string;
@@ -56,6 +55,10 @@ export interface UiStrings {
     empty: string;
     /** {count} */
     categoryAll: string;
+    /** Heading of the category grid under the hero. */
+    browse: string;
+    /** {count} — tools (and conversion pages) in a category tile. */
+    tileCount: string;
   };
   tool: {
     /** {name} */
@@ -132,7 +135,6 @@ export const ui: Record<Locale, UiStrings> = {
       about: '所有工具都在你的瀏覽器裡執行，免安裝、免註冊，資料不會上傳。',
       categories: '分類',
       aboutHeading: '關於',
-      conversions: '常用單位換算',
       app: '安裝成 App',
       aboutSite: '關於隨手',
       contact: '聯絡我們',
@@ -152,6 +154,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: '怎麼安裝',
       empty: '找不到符合的工具，換個關鍵字試試。',
       categoryAll: '全部 {count} 個',
+      browse: '依分類找工具',
+      tileCount: '{count} 個',
     },
     tool: {
       howTo: '如何使用{name}',
@@ -216,7 +220,6 @@ export const ui: Record<Locale, UiStrings> = {
       about: 'Every tool runs in your browser: nothing to install, no account, and your data never leaves your device.',
       categories: 'Categories',
       aboutHeading: 'About',
-      conversions: null,
       app: 'Install as an app',
       aboutSite: 'About Suishou Tools',
       contact: 'Contact',
@@ -236,6 +239,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: 'How to install',
       empty: 'No tools match that search. Try another keyword.',
       categoryAll: 'View all ({count})',
+      browse: 'Browse by category',
+      tileCount: '{count} tools',
     },
     tool: {
       howTo: 'How to use the {name}',
@@ -300,7 +305,6 @@ export const ui: Record<Locale, UiStrings> = {
       about: 'すべてのツールはブラウザ内で動作します。インストールも登録も不要で、入力したデータが外部に送信されることはありません。',
       categories: 'カテゴリ',
       aboutHeading: 'サイトについて',
-      conversions: null,
       app: 'アプリとして使う',
       aboutSite: '隨手ツールについて',
       contact: 'お問い合わせ',
@@ -320,6 +324,8 @@ export const ui: Record<Locale, UiStrings> = {
       appNoteLink: 'インストール方法',
       empty: '該当するツールが見つかりません。別のキーワードでお試しください。',
       categoryAll: 'すべて見る（{count}）',
+      browse: 'カテゴリから探す',
+      tileCount: '{count} 件',
     },
     tool: {
       howTo: '{name}の使い方',

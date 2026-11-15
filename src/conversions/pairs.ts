@@ -1,4 +1,5 @@
-import type { CategoryKey } from '../tools/unit-converter/logic';
+import type { Locale } from '../i18n/locales';
+import { CATEGORIES, type CategoryKey } from '../tools/unit-converter/logic';
 
 /**
  * Long-tail landing pages: one page per popular "A 轉 B" search, served at /convert/<slug>/.
@@ -313,4 +314,17 @@ export function getPair(slug: string): ConversionPair {
 
 export function convertPath(slug: string): string {
   return `/convert/${slug}/`;
+}
+
+/** Locales that have /convert/ long-tail pages. Pair copy is written in Traditional Chinese only for now. */
+export function hasConversionPages(locale: Locale): boolean {
+  return locale === 'zh-TW';
+}
+
+/** Conversion pages of `locale`, grouped by unit category in the unit converter's order. Empty groups are dropped. */
+export function conversionGroups(locale: Locale): { key: CategoryKey; name: string; list: ConversionPair[] }[] {
+  if (!hasConversionPages(locale)) return [];
+  return CATEGORIES.map((c) => ({ key: c.key, name: c.name, list: pairs.filter((p) => p.category === c.key) })).filter(
+    (g) => g.list.length > 0,
+  );
 }

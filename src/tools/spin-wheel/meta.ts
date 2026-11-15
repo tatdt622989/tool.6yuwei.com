@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '轉盤抽獎：線上隨機轉盤，午餐吃什麼一轉就決定',
   description:
     '免費線上隨機轉盤，自訂選項與權重即可轉盤抽獎，內建午餐吃什麼、是或否、數字 1–10 等常用轉盤。使用加密等級亂數先決定結果再轉動，公平可信，可抽中後移除、保留抽獎紀錄，資料不上傳。',
-  category: 'generator',
+  category: 'party',
   icon: 'LoaderPinwheel',
   keywords: [
     '轉盤',

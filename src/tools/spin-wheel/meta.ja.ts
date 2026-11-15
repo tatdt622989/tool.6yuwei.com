@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'ルーレット作成：自由に項目を入れて回せる抽選ルーレット（無料）',
   description:
     '項目を入力するだけでオリジナルのルーレットを作成して回せる無料ツールです。ランチ決め・名前ルーレット・罰ゲームなどのテンプレート付き。当たりやすさの重み付け、当選項目の除外、全画面表示に対応し、登録不要で使えます。',
-  category: 'generator',
+  category: 'party',
   icon: 'LoaderPinwheel',
   keywords: [
     'ルーレット',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Meeting Cost Calculator: Live Timer for What Your Meeting Costs',
   description:
     'Meeting cost calculator with a live timer. Enter attendees and salaries, watch the cost tick up as you talk, and see what a weekly meeting costs per year.',
-  category: 'finance',
+  category: 'work',
   icon: 'Flame',
   keywords: [
     'meeting cost calculator',

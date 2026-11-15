@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'BMI 計算：身長と体重から肥満度と標準体重を計算（日本肥満学会の基準）',
   description:
     '身長と体重を入力するだけで BMI を自動計算。日本肥満学会の基準で低体重・普通体重・肥満（1〜4度）を判定し、標準体重（BMI 22）と普通体重の範囲も表示します。無料・登録不要です。',
-  category: 'calc',
+  category: 'health',
   icon: 'Scale',
   keywords: [
     'BMI 計算',

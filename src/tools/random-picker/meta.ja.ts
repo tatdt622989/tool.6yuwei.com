@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '抽選ツール：名前をランダムに選ぶくじ引き・班分け・順番決め',
   description:
     '名前のリストを貼り付けるだけで、当選者をランダムに抽選したり、均等にグループ分け（班分け）したり、発表の順番を決めたりできる無料のくじ引きツールです。登録不要で、リストは送信されません。',
-  category: 'generator',
+  category: 'party',
   icon: 'Shuffle',
   keywords: [
     '抽選 ツール',

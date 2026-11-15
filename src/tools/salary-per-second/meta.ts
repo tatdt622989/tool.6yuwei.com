@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '薪動力：上班沒動力就看薪水跳！月薪換算秒薪、下班倒數',
   description:
     '上班沒動力？輸入月薪、年薪或時薪，自動換算日薪、時薪與每秒薪水，畫面即時跳動顯示今天已經賺了多少錢。附上班進度條與下班倒數，還會告訴你今天已經賺到幾杯珍奶、幾個便當，幫你找回上班動力。',
-  category: 'finance',
+  category: 'work',
   icon: 'Zap',
   keywords: [
     '薪動力',

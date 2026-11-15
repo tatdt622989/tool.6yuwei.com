@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '失業給付試算：失業補助怎麼算？可領多少、領多久一次看',
   description:
     '失業給付試算：輸入離職前 6 個月平均月投保薪資、年齡與受扶養眷屬人數，依就業保險法算出每月可領的失業給付（60%，眷屬每人加 10%）、可領 6 或 9 個月與總額，附請領資格檢查、提早就業獎助津貼與失業期間打工收入扣除試算，以及勞保局官方計算範例。',
-  category: 'finance',
+  category: 'work',
   icon: 'LifeBuoy',
   keywords: [
     '失業給付',

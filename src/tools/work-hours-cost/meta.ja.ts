@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '労働時間換算ツール：何時間働けば買える？値段を時給換算で勤務時間に',
   description:
     '値段を自分の労働時間に換算するツールです。月給・年収・時給と値段を入れると、何時間・何日働けば買えるか、月給の何割にあたるかがわかります。毎日のコーヒーなど繰り返す出費の1年分も時給換算できます。',
-  category: 'finance',
+  category: 'work',
   icon: 'ShoppingBag',
   keywords: [
     '労働時間換算',

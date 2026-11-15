@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'BMI Calculator: Check Your Body Mass Index in lb/ft or kg/cm',
   description:
     'Free BMI calculator for adults. Enter height and weight in feet, inches and pounds or in metric units to get your BMI, WHO category and healthy weight range.',
-  category: 'calc',
+  category: 'health',
   icon: 'Scale',
   keywords: [
     'bmi calculator',

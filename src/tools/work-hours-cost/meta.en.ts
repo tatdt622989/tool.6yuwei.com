@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Work Hours Calculator: How Long Do You Work to Afford It?',
   description:
     'Turn any price into work time. Enter your salary or hourly wage and a price to see how many hours and working days it costs you, for one-off buys and habits.',
-  category: 'finance',
+  category: 'work',
   icon: 'ShoppingBag',
   keywords: [
     'work hours calculator',

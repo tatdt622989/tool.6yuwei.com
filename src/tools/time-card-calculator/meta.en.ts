@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Time Card Calculator – Weekly Hours, Breaks, Overtime and Pay',
   description:
     'Free weekly time card calculator. Enter clock-in and clock-out times with lunch breaks to total hours in decimal and h:mm, with overtime and gross pay.',
-  category: 'time',
+  category: 'work',
   icon: 'ClipboardClock',
   keywords: [
     'time card calculator',

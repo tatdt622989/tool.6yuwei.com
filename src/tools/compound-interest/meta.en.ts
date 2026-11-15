@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Compound Interest Calculator with Monthly Contributions',
   description:
     'Free compound interest calculator with monthly contributions. See your future balance, total interest earned, APY and a year-by-year growth table.',
-  category: 'calc',
+  category: 'finance',
   icon: 'TrendingUp',
   keywords: [
     'compound interest calculator',

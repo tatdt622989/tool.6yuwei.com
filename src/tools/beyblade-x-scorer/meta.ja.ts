@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'ベイブレードX 得点カウンター：エクストリームは何pt？3on3 も自動で記録',
   description:
     'ベイブレードXのバトルをタップで記録できる無料の得点カウンター。公式ルール（スピン 1pt・オーバー 2pt・バースト 2pt・エクストリーム 3pt、先に 4pt で勝利）に対応し、3on3 の自動ローテーションとベイ別勝率で最強の組み合わせ探しにも使えます。',
-  category: 'calc',
+  category: 'party',
   icon: 'Disc3',
   keywords: [
     'ベイブレードX 得点',

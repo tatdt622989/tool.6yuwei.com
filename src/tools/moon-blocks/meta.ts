@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '線上擲筊：博杯問神明，聖筊、笑筊、陰筊一擲就知道',
   description:
     '免費線上擲筊，心裡想著問題按一下或搖一搖手機，就能博杯問神明。紅色筊杯拋起落地，馬上看出是聖筊、笑筊還是陰筊與代表的意思，還有連續三聖筊模式與擲筊紀錄，適合沉澱心情、整理想法。',
-  category: 'generator',
+  category: 'party',
   icon: 'MoonStar',
   keywords: [
     '線上擲筊',

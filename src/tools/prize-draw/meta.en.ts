@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Raffle Generator: Big-Screen Prize Draw for Office Parties',
   description:
     'Free raffle generator for office parties. Paste names and prizes, then run a big-screen prize draw with door prizes, redraws for no-shows and a CSV winner list.',
-  category: 'generator',
+  category: 'party',
   icon: 'Trophy',
   keywords: [
     'raffle generator',

@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'Spin the Wheel: Free Random Wheel Picker with Custom Entries',
   description:
     'Make your own spinner wheel and spin to pick a random name, meal or prize. Set weighted odds, remove winners as you go and go full screen. Free, no sign-up.',
-  category: 'generator',
+  category: 'party',
   icon: 'LoaderPinwheel',
   keywords: [
     'spin the wheel',

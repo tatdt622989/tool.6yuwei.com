@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: 'LED Scrolling Text: Phone Marquee and LED Banner Online',
   description:
     'Turn your phone into an LED scrolling text sign. Type a message, pick colors and speed, then go full screen for concerts, airport pickups and cheering.',
-  category: 'generator',
+  category: 'party',
   icon: 'Megaphone',
   keywords: [
     'led scrolling text',

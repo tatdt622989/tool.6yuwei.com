@@ -6,7 +6,7 @@ export default defineTool({
   seoTitle: '一番くじシミュレーター：オンラインくじ引きと当選確率の計算',
   description:
     '無料の一番くじシミュレーターです。A賞からラストワン賞まで景品と本数を設定し、番号のくじを開けたり 10 連で引いたりできます。残りの景品、次の 1 回の確率、残りを全部買う金額もすぐにわかります。',
-  category: 'generator',
+  category: 'party',
   icon: 'Gift',
   keywords: [
     '一番くじ シミュレーター',

@@ -13,7 +13,7 @@ export default defineTool({
   name: '統一發票對獎',
   seoTitle: `統一發票對獎：${latest}發票中獎號碼、末三碼快速對獎`,
   description: `統一發票對獎工具：依財政部公告整理最新${latest}發票中獎號碼（特別獎 ${LATEST.special}），輸入末三碼即時對獎，對中再補前 5 碼確認獎別與獎金，附近 12 期中獎號碼、領獎期限與地點、中獎扣稅後實領金額，以及 ${nextLabel}開獎倒數。`,
-  category: 'finance',
+  category: 'calc',
   icon: 'Receipt',
   keywords: [
     '統一發票對獎',
