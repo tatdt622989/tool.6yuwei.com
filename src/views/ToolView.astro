@@ -15,6 +15,7 @@ import { categoryPath, getTool, relatedTools, toolAlternates, toolPath, toolsInC
 import { getToolComponent } from '../tools/components';
 import { breadcrumbJsonLd, faqJsonLd, toolJsonLd } from '../lib/seo';
 import { convertPath, pairs } from '../conversions/pairs';
+import { nameHtml } from '../lib/wrap';
 
 interface Props {
   locale: Locale;
@@ -56,7 +57,7 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
       <header class="head">
         <div class="title-row">
           <Icon name={tool.icon} size={34} strokeWidth={1.6} class="title-icon" />
-          <h1>{tool.name}</h1>
+          <h1 class="name-wrap" set:html={nameHtml(tool.name, locale)} />
         </div>
         <p class="intro">{tool.intro}</p>
       </header>
@@ -204,8 +205,12 @@ const conversionLinks = locale === 'zh-TW' && ['unit-converter', 'ping-converter
     font-size: clamp(30px, 4.5vw, 42px);
     font-weight: 800;
     letter-spacing: -0.02em;
-    /* A long Japanese phrase has no break point of its own and would widen the page on a phone. */
-    overflow-wrap: anywhere;
+  }
+  @media (max-width: 480px) {
+    /* Fits a 9-character Japanese or Chinese name (アイロンビーズ図案) on one line of a small phone. */
+    h1 {
+      font-size: 26px;
+    }
   }
   .title-row {
     display: flex;

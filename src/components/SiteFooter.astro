@@ -45,8 +45,8 @@ const os = getUi(locale).openSource;
       </nav>
     </div>
     <div class="legal">
-      © {year} {site.author} · <a href={`${site.repoUrl}/blob/main/LICENSE`} rel="noopener license">{t(os.legal, { license: site.license })}</a>
-      · <a href="/third-party-licenses.txt">{os.notices}</a>
+      © {year} {site.author} · <a class="nowrap" href={`${site.repoUrl}/blob/main/LICENSE`} rel="noopener license">{t(os.legal, { license: site.license })}</a>
+      · <a class="nowrap" href="/third-party-licenses.txt">{os.notices}</a>
     </div>
   </div>
 </footer>

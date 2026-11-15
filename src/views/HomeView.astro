@@ -12,6 +12,7 @@ import { getUi } from '../i18n/ui';
 import { categoryPath, populatedCategories, toolPath, toolsFor, toolsInCategory } from '../tools/registry';
 import { itemListJsonLd, websiteJsonLd } from '../lib/seo';
 import { conversionGroups } from '../conversions/pairs';
+import { nameHtml } from '../lib/wrap';
 
 interface Props {
   locale: Locale;
@@ -40,8 +41,8 @@ const tiles = populated.map((c) => ({
 >
   <section class="hero">
     <div class="container hero-inner">
-      <h1>{s.heroBefore}<span class="accent">{s.heroAccent}</span>{s.heroAfter}</h1>
-      <p class="lead">
+      <h1><span class="phrase">{s.heroBefore}</span><span class="phrase accent">{s.heroAccent}</span>{s.heroAfter}</h1>
+      <p class="lead phrase-wrap">
         {t(s.lead, { count: tools.length })}
       </p>
       <form class="search" role="search" action={home} method="get" onsubmit="return false">
@@ -57,11 +58,11 @@ const tiles = populated.map((c) => ({
       <div class="notes">
         <p class="app-note">
           <Icon name="Smartphone" size={16} />
-          {s.appNote}<a href={localePath(locale, '/app/')}>{s.appNoteLink}</a>
+          <span class="phrase-wrap">{s.appNote}<a class="nowrap" href={localePath(locale, '/app/')}>{s.appNoteLink}</a></span>
         </p>
         <p class="app-note">
           <Icon name="ShieldCheck" size={16} />
-          {os.homeNote}<a href={site.repoUrl} rel="noopener">{os.homeLink}</a>
+          <span class="phrase-wrap">{os.homeNote}<a class="nowrap" href={site.repoUrl} rel="noopener">{os.homeLink}</a></span>
         </p>
       </div>
     </div>
@@ -76,7 +77,7 @@ const tiles = populated.map((c) => ({
             <li>
               <a href={categoryPath(c.id, locale)}>
                 <Icon name={c.icon} size={22} class="tile-icon" />
-                <span class="tile-name">{c.name}</span>
+                <span class="tile-name name-wrap" set:html={nameHtml(c.name, locale)} />
                 <span class="tile-count">{t(s.tileCount, { count: c.count })}</span>
               </a>
             </li>
@@ -95,7 +96,7 @@ const tiles = populated.map((c) => ({
               <Icon name={category.icon} size={24} class="cat-icon" />
               <div class="cat-title">
                 <h2 id={`cat-${category.id}`}>{category.name}</h2>
-                <p>{category.blurb}</p>
+                <p class="phrase-wrap">{category.blurb}</p>
               </div>
               <a class="cat-all" href={categoryPath(category.id, locale)}>
                 {t(s.categoryAll, { count: toolsInCategory(category.id, locale).length })}
@@ -161,7 +162,12 @@ const tiles = populated.map((c) => ({
   .accent {
     color: var(--accent);
   }
+  /* Each half of the headline wraps as a unit: 「打開就能用的／線上工具」, never 「…線上工／具」. */
+  .phrase {
+    display: inline-block;
+  }
   .lead {
+    text-wrap: balance;
     max-width: 36em;
     margin: 18px auto 30px;
     font-size: 18px;
@@ -183,6 +189,7 @@ const tiles = populated.map((c) => ({
   .search input {
     height: 62px;
     padding: 0 24px 0 54px;
+    text-overflow: ellipsis;
     font-size: 17px;
     border-radius: 999px;
     border: 1px solid var(--border);
@@ -234,10 +241,8 @@ const tiles = populated.map((c) => ({
   }
   .tiles a {
     display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 10px;
-    align-items: center;
+    align-content: start;
+    gap: 2px;
     height: 100%;
     padding: 12px 14px;
     background: var(--surface);
@@ -254,8 +259,8 @@ const tiles = populated.map((c) => ({
     color: var(--accent);
   }
   .tiles :global(.tile-icon) {
-    grid-row: span 2;
     color: var(--accent);
+    margin-bottom: 6px;
   }
   .tile-name {
     font-weight: 700;
@@ -270,6 +275,12 @@ const tiles = populated.map((c) => ({
     .tiles {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .tiles a {
+      padding: 12px;
+    }
+    .tile-name {
+      font-size: 14px;
+    }
   }
 
   .notes {
@@ -281,11 +292,19 @@ const tiles = populated.map((c) => ({
   }
   .app-note {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 6px;
     margin: 0;
     font-size: 14px;
     color: var(--muted);
+    text-align: left;
+  }
+  .app-note :global(svg) {
+    flex: none;
+    margin-top: 0.2em;
+  }
+  .app-note span {
+    text-wrap: balance;
   }
   .app-note a {
     font-weight: 600;
@@ -327,6 +346,14 @@ const tiles = populated.map((c) => ({
     color: var(--accent);
   }
   @media (max-width: 520px) {
+    .search svg {
+      left: 18px;
+    }
+    .search input {
+      height: 56px;
+      padding: 0 18px 0 46px;
+      font-size: 16px;
+    }
     .cat-head {
       grid-template-columns: auto 1fr;
     }

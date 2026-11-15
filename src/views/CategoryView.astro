@@ -12,6 +12,7 @@ import { getUi } from '../i18n/ui';
 import { categoryAlternates, categoryPath, populatedCategories, toolsInCategory } from '../tools/registry';
 import { breadcrumbJsonLd, itemListJsonLd } from '../lib/seo';
 import { conversionGroups, convertPath } from '../conversions/pairs';
+import { nameHtml } from '../lib/wrap';
 
 interface Props {
   locale: Locale;
@@ -46,7 +47,7 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
     <header class="head">
       <Icon name={category.icon} size={40} strokeWidth={1.6} class="head-icon" />
       <div>
-        <h1>{category.name}</h1>
+        <h1 class="name-wrap" set:html={nameHtml(category.name, locale)} />
         <p>{category.description}</p>
       </div>
     </header>
@@ -80,7 +81,7 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
           others.map((c) => (
             <li>
               <a href={categoryPath(c.id, locale)}>{c.name}</a>
-              <span class="muted">{c.blurb}</span>
+              <span class="muted phrase-wrap">{c.blurb}</span>
             </li>
           ))
         }
@@ -149,6 +150,7 @@ const title = category.title ?? t(s.category.title, { name: category.name, blurb
     font-weight: 600;
   }
   .others span {
+    text-wrap: pretty;
     font-size: 14px;
   }
   .pair-group h3 {

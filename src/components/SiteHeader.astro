@@ -58,7 +58,7 @@ const languages = switcherLinks(locale, alternates);
       </details>
     </nav>
   </div>
-  <nav class="container cats" aria-label={s.categoriesAria}>
+  <nav class="container cats" aria-label={s.categoriesAria} data-cats>
     {
       populatedCategories(locale).map((c) => (
         <a href={categoryPath(c.id, locale)} aria-current={c.id === activeCategory ? 'page' : undefined}>
@@ -68,6 +68,23 @@ const languages = switcherLinks(locale, alternates);
     }
   </nav>
 </header>
+
+<script>
+  // The category row scrolls sideways on small screens. Fade the edge that has more items behind it,
+  // and bring the current category into view so it is not hidden off-screen.
+  const cats = document.querySelector<HTMLElement>('[data-cats]');
+  if (cats) {
+    const update = () => {
+      const max = cats.scrollWidth - cats.clientWidth;
+      cats.dataset.more = max <= 1 ? '' : [cats.scrollLeft > 1 && 'start', cats.scrollLeft < max - 1 && 'end'].filter(Boolean).join(' ');
+    };
+    const current = cats.querySelector<HTMLElement>('[aria-current="page"]');
+    if (current) cats.scrollLeft = current.offsetLeft - (cats.clientWidth - current.offsetWidth) / 2 - cats.offsetLeft;
+    update();
+    cats.addEventListener('scroll', update, { passive: true });
+    addEventListener('resize', update);
+  }
+</script>
 
 <style>
   .site-header {
@@ -138,6 +155,15 @@ const languages = switcherLinks(locale, alternates);
     overflow-x: auto;
     scrollbar-width: none;
     padding-bottom: 10px;
+  }
+  .cats[data-more~='end'] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+  .cats[data-more~='start'] {
+    mask-image: linear-gradient(to right, transparent, #000 40px);
+  }
+  .cats[data-more~='start'][data-more~='end'] {
+    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
   }
   .cats::-webkit-scrollbar {
     display: none;

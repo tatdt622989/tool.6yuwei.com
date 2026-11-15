@@ -70,6 +70,8 @@ body {
   color: var(--text);
   font: 16px/1.65 var(--font);
   -webkit-font-smoothing: antialiased;
+  /* A long token in running text (a command, a URL) wraps instead of widening the page on a phone. */
+  overflow-wrap: break-word;
 }
 
 a {
@@ -92,9 +94,54 @@ h3 {
   margin: 0;
 }
 
-/* Japanese has no spaces: break long katakana names between phrases, not mid-word. */
-:lang(ja) :is(h1, h2, h3) {
+/* ---------- Line breaking ---------- */
+/* Headings and short labels: even out the lines so one or two characters never sit alone on the last line. */
+:is(h1, h2, h3, h4, summary, legend, figcaption) {
+  text-wrap: balance;
+}
+/* Running text: same idea, cheaper algorithm for long paragraphs. */
+:is(p, li, dd, dt, td, th, label, blockquote, caption) {
+  text-wrap: pretty;
+}
+/* Japanese headings have no spaces: break between phrases, not mid-word (Chromium; others fall back to normal
+   breaking). Body text keeps normal breaking, which is how Japanese paragraphs are set and keeps lines even. */
+:lang(ja) :is(h1, h2, h3, h4) {
   word-break: auto-phrase;
+}
+/* Short UI text (lead lines, notes, card and tile names): in Chinese, break only at punctuation and spaces so
+   words like 「主畫面」 stay whole; anything too long for the line still breaks rather than overflowing. */
+.phrase-wrap {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* Japanese clauses run long without punctuation: use phrase detection where available (it falls back to normal
+   breaking when a phrase is wider than the line), normal breaking otherwise. */
+:lang(ja) .phrase-wrap {
+  word-break: normal;
+  overflow-wrap: normal;
+  line-break: strict;
+}
+@supports (word-break: auto-phrase) {
+  :lang(ja) .phrase-wrap {
+    word-break: auto-phrase;
+  }
+}
+/* Tool and category names, rendered with nameHtml() from src/lib/wrap.ts: break only at spaces, punctuation and the
+   <wbr> hints it adds (「パスワード生成<wbr>ツール」), so a name never ends with a lone 「ル」 or starts a line with 「ー」. */
+.name-wrap,
+:lang(ja) .name-wrap {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+/* Chinese disclosure labels (「進階設定：自訂投保級距、所得稅預扣…」) break at punctuation, not inside a word. */
+:lang(zh) summary {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* Short link labels inside running text (「看原始碼」, 「インストール方法」) stay on one line. */
+.nowrap {
+  white-space: nowrap;
 }
 
 ::selection {
@@ -165,6 +212,7 @@ pre {
 .hint {
   font-size: 13px;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 input[type='text'],
@@ -372,16 +420,23 @@ input[type='color'] {
   background: var(--surface-2);
   border-radius: var(--radius-sm);
 }
+.stat {
+  /* Lets .stat-value shrink with the box, so 「414,348 元」 stays on one line in narrow two-column grids. */
+  container-type: inline-size;
+}
 .stat-value {
   font-size: 22px;
+  font-size: clamp(15px, 13cqi, 22px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .stat-label {
   font-size: 13px;
   color: var(--muted);
+  text-wrap: balance;
 }
 
 /* Highlighted primary result */

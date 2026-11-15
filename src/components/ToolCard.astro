@@ -3,6 +3,7 @@ import Icon from './Icon.astro';
 import { getCategory } from '../config/categories';
 import { toolPath } from '../tools/registry';
 import type { LocalizedTool } from '../tools/types';
+import { nameHtml } from '../lib/wrap';
 
 interface Props {
   /** Registry entry; its `locale` decides the link and category name. */
@@ -18,7 +19,7 @@ const searchText = [tool.name, tool.seoTitle, tool.description, ...tool.keywords
 <a class:list={['card', { compact }]} href={toolPath(tool.slug, tool.locale)} data-search={searchText}>
   <Icon name={tool.icon} size={compact ? 18 : 22} class="icon" />
   <span class="body">
-    <span class="name">{tool.name}</span>
+    <span class="name name-wrap" set:html={nameHtml(tool.name, tool.locale)} />
     {!compact && <span class="desc">{tool.intro}</span>}
   </span>
 </a>
