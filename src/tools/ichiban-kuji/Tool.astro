@@ -1235,6 +1235,22 @@ const hashTool = localePath(locale, '/hash-generator/');
   .ik-board[data-size='xs'] :global(.ik-t.is-peek) :global(.ik-t-l) {
     font-size: 11px;
   }
+  /* Phones: 80 tickets at 52px took 16 rows, so the remaining-prize odds sat about
+     two and a half screens below the draw buttons. Eight columns cut that to 10 rows. */
+  @media (max-width: 480px) {
+    .ik-board,
+    .ik-board[data-size='s'] {
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .ik-board :global(.ik-t-n) {
+      font-size: 13px;
+    }
+    .ik-board :global(.ik-t.is-open) :global(.ik-t-l),
+    .ik-board :global(.ik-t.is-peek) :global(.ik-t-l) {
+      font-size: 11px;
+    }
+  }
   .ik-board :global(.ik-t.is-open:disabled) {
     opacity: 1;
   }
@@ -1290,6 +1306,8 @@ const hashTool = localePath(locale, '/hash-generator/');
   }
   .ik-status :global(.ik-prize-line) {
     display: block;
+    /* Long prize names must wrap, or the odds column is pushed off a phone screen. */
+    white-space: normal;
     margin-top: 2px;
     line-height: 1.35;
   }
