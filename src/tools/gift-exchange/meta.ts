@@ -91,7 +91,7 @@ export default defineTool({
       a: '要重新抽籤，因為每個人抽到的對象都可能改變。重抽後，舊連結還是打得開，但結果已經不算數，請把新連結重傳給所有人。',
     },
   ],
-  related: ['random-picker', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji', 'moon-blocks'],
+  related: ['bingo', 'prize-draw', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji'],
   priority: 85,
   updated: '2026-11-09',
 });

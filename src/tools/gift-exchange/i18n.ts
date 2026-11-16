@@ -42,6 +42,7 @@ export interface Strings {
   revealAll: string;
   canvasAria: string;
   makeOwn: string;
+  moreParty: string;
   doneHeading: string;
   client: {
     sampleNames: string[];
@@ -140,6 +141,7 @@ export default defineToolI18n<Strings>({
     revealAll: '全部刮開',
     canvasAria: '刮開塗層就能看到結果，用手指或滑鼠刮開，也可以按「全部刮開」',
     makeOwn: '我也要辦一場',
+    moreParty: '派對還可以用',
     doneHeading: '全部抽完了',
     client: {
       sampleNames: ['小明', '小美', '阿傑', '雅婷', '志豪', '怡君'],
@@ -235,6 +237,7 @@ export default defineToolI18n<Strings>({
     revealAll: 'Reveal all',
     canvasAria: 'Scratch-off layer hiding your result. Scratch it with your finger or mouse, or use “Reveal all”.',
     makeOwn: 'Start your own draw',
+    moreParty: 'More for your party',
     doneHeading: 'That’s everyone!',
     client: {
       sampleNames: ['Alex', 'Sam', 'Jordan', 'Taylor', 'Morgan', 'Riley'],
@@ -330,6 +333,7 @@ export default defineToolI18n<Strings>({
     revealAll: '全部削る',
     canvasAria: '結果を隠すスクラッチ部分。指やマウスで削るか、「全部削る」ボタンを押してください',
     makeOwn: '自分もくじを作る',
+    moreParty: 'パーティーで使えるツール',
     doneHeading: '全員引き終わりました',
     client: {
       sampleNames: ['たろう', 'はなこ', 'けんた', 'ゆい', 'そうた', 'みさき'],

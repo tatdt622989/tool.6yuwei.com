@@ -71,7 +71,7 @@ export default defineTool({
       a: 'くじを引き直してください。全員の相手が変わる可能性があります。古いリンクも開けますが、結果は無効なので、新しいリンクを全員に送り直してください。',
     },
   ],
-  related: ['random-picker', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji'],
+  related: ['bingo', 'prize-draw', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji'],
   priority: 85,
   updated: '2026-11-09',
 });

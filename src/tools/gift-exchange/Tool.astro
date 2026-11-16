@@ -5,10 +5,15 @@ import CardStage from '../scratch-card/CardStage.astro';
 import GiftBox from './GiftBox.astro';
 import { LIMITS, MODES, type Mode } from './logic';
 import i18n from './i18n';
+import { findTool, toolPath } from '../registry';
 
 type Props = ToolProps;
 const { locale = 'zh-TW' } = Astro.props;
 const s = pickStrings(i18n, locale);
+// Shown to a guest after they open their gift, so the visit can continue into other party tools.
+const partyTools = ['bingo', 'prize-draw', 'spin-wheel']
+  .map((slug) => findTool(slug, locale))
+  .filter((tool) => tool !== undefined);
 const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stage: 'Presentation' };
 ---
 
@@ -183,6 +188,18 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
           <button class="btn primary ge-cta" type="button" id="ge-next" hidden></button>
           <button class="btn primary" type="button" id="ge-make" hidden><Icon name="Gift" size={18} />{s.makeOwn}</button>
         </div>
+        {
+          partyTools.length > 0 && (
+            <nav class="ge-more" id="ge-more" aria-label={s.moreParty} hidden>
+              <span class="hint">{s.moreParty}</span>
+              {partyTools.map((tool) => (
+                <a class="btn small" href={toolPath(tool.slug, locale)}>
+                  {tool.name}
+                </a>
+              ))}
+            </nav>
+          )
+        }
       </div>
       <p class="visually-hidden" id="ge-live" aria-live="polite"></p>
     </div>
@@ -658,6 +675,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   const revealAllBtn = $<HTMLButtonElement>('#ge-reveal-all', root);
   const nextBtn = $<HTMLButtonElement>('#ge-next', root);
   const makeBtn = $<HTMLButtonElement>('#ge-make', root);
+  const moreNav = root.querySelector<HTMLElement>('#ge-more');
   const liveEl = $('#ge-live', root);
   const cardEl = $('#sc-x-card', root);
   const faceEl = $('#sc-x-face', root);
@@ -696,6 +714,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
       nextBtn.hidden = !opening.nextLabel;
       nextBtn.textContent = opening.nextLabel;
       makeBtn.hidden = Boolean(opening.nextLabel);
+      if (moreNav) moreNav.hidden = makeBtn.hidden;
       liveEl.textContent = t(s.revealed, { text: `${opening.title} ${opening.message}`.replace(/\n/g, ' ') });
       sounds.play('reveal');
       celebrate();
@@ -793,6 +812,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     revealAllBtn.hidden = !opening.scratch;
     nextBtn.hidden = true;
     makeBtn.hidden = true;
+    if (moreNav) moreNav.hidden = true;
     factsEl.hidden = true;
     // Cover first, then write the text, so the result is never painted uncovered.
     layer.reset('gold', 45);
@@ -1701,6 +1721,24 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
+  }
+  .ge-more {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .ge-more[hidden] {
+    display: none;
+  }
+  .ge-more .hint {
+    flex-basis: 100%;
+    text-align: center;
   }
   .ge-done {
     padding-block: 8px;

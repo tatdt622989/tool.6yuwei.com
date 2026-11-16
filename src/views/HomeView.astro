@@ -9,7 +9,7 @@ import { allLocales } from '../i18n/alternates';
 import { t } from '../i18n/format';
 import { localeHome, localePath, type Locale } from '../i18n/locales';
 import { getUi } from '../i18n/ui';
-import { categoryPath, populatedCategories, toolPath, toolsFor, toolsInCategory } from '../tools/registry';
+import { categoryPath, findTool, populatedCategories, toolPath, toolsFor, toolsInCategory } from '../tools/registry';
 import { itemListJsonLd, websiteJsonLd } from '../lib/seo';
 import { conversionGroups } from '../conversions/pairs';
 import { nameHtml } from '../lib/wrap';
@@ -24,7 +24,22 @@ const os = getUi(locale).openSource;
 const tools = toolsFor(locale);
 const home = localeHome(locale);
 const populated = populatedCategories(locale);
-const popular = tools.slice(0, 7);
+// Quick links under the search box. zh-TW mixes the tools people open most with
+// evergreen search tools; other locales fall back to the highest-priority tools.
+const HOME_PICKS: Partial<Record<Locale, string[]>> = {
+  'zh-TW': [
+    'gift-exchange',
+    'word-counter',
+    'salary-calculator',
+    'invoice-lottery',
+    'birthday-candles',
+    'ichiban-kuji',
+    'holidays-2027',
+    'salary-per-second',
+  ],
+};
+const picks = (HOME_PICKS[locale] ?? []).flatMap((slug) => findTool(slug, locale) ?? []);
+const popular = picks.length > 0 ? picks : tools.slice(0, 7);
 const conversionCount = conversionGroups(locale).reduce((n, g) => n + g.list.length, 0);
 const tiles = populated.map((c) => ({
   ...c,

@@ -76,7 +76,7 @@ export default defineTool({
       a: 'No. It runs in any phone or computer browser, and people who receive a link just open it and scratch.',
     },
   ],
-  related: ['random-picker', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji'],
+  related: ['bingo', 'prize-draw', 'scratch-card', 'spin-wheel', 'split-bill', 'ichiban-kuji'],
   priority: 85,
   updated: '2026-11-09',
 });
