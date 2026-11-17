@@ -477,6 +477,8 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
     takenBoxes.clear();
     saveSession();
     savePref(DRAFT_KEY, draft);
+    // Counts and the mode only: names never leave the browser.
+    trackEvent('gift_draw', { method: next.mode, people: names.length });
     resume();
   });
 
@@ -718,6 +720,8 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
       liveEl.textContent = t(s.revealed, { text: `${opening.title} ${opening.message}`.replace(/\n/g, ' ') });
       sounds.play('reveal');
       celebrate();
+      // 'invite' is a guest who opened their own link; otherwise the mode the host is running.
+      trackEvent('gift_open', { method: root.dataset.invite ? 'invite' : (session?.mode ?? 'unknown') });
       (opening.nextLabel ? nextBtn : makeBtn).focus({ preventScroll: true });
     },
   });
@@ -1009,6 +1013,7 @@ const modeIcons: Record<Mode, string> = { link: 'Link', pass: 'Smartphone', stag
   }
 
   makeBtn.addEventListener('click', () => {
+    trackEvent('gift_make_own');
     try {
       sessionStorage.removeItem(INVITE_KEY);
     } catch {

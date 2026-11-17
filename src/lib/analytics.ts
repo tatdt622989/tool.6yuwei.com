@@ -14,6 +14,11 @@
 //   tool_copy      a result was copied
 //   tool_download  a file was saved
 //   share          GA4 recommended event; method = native | copy_link | line | ...
+//
+// A tool may add its own events next to these. gift-exchange sends gift_draw (a draw
+// was made; method = link | pass | stage, people = head count), gift_open (a gift was
+// revealed; method = invite for a guest's own link, else the host's mode) and
+// gift_make_own (a guest started their own draw).
 
 type Params = Record<string, string | number | boolean | undefined>;
 
