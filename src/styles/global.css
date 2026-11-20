@@ -62,6 +62,13 @@ html {
   text-size-adjust: 100%;
   /* Keep in-page anchors clear of the sticky header. */
   scroll-padding-top: 120px;
+  /* AdSense auto ads can leave an unfilled slot whose frame is wider than its container (a 977px frame centred
+     in a collapsed 0px <ins>), which widened the page and let it scroll sideways. Nothing on the site needs
+     horizontal page scrolling. On <html> the value goes to the viewport (as hidden), which stops swiping
+     sideways but still lets scripts scroll it; <body> then clips the overflow itself, so the page is never
+     wider than the screen. `clip` creates no scroll container, so the sticky header keeps working. */
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -72,6 +79,9 @@ body {
   -webkit-font-smoothing: antialiased;
   /* A long token in running text (a command, a URL) wraps instead of widening the page on a phone. */
   overflow-wrap: break-word;
+  /* See the note on html above. No `hidden` fallback here: it would make <body> a scroll container and
+     unstick the header in browsers without `clip`. */
+  overflow-x: clip;
 }
 
 a {
