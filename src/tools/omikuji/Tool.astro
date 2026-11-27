@@ -1,0 +1,1004 @@
+---
+// ja-only tool: strings are written in Japanese here (see docs/i18n.md §3).
+import Icon from '../../components/Icon.astro';
+import type { ToolProps } from '../../i18n/tool';
+import { CATEGORIES, levelPercent, LEVELS, OMIKUJI_YEAR_LABEL, STICK_COUNT, stickLabel } from './logic';
+
+type Props = ToolProps;
+const { locale = 'ja' } = Astro.props;
+
+// 「おみくじ」 written top to bottom on the tube's label.
+const tubeLabel = [...'おみくじ'];
+---
+
+<div class="tool" data-tool="omikuji" data-locale={locale}>
+  <section class="om-stage" id="om-stage" data-phase="idle">
+    <button type="button" class="om-tube-btn" id="om-tube" aria-label="おみくじ筒を振って、おみくじを引く">
+      <svg class="om-svg" viewBox="0 0 320 300" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="om-stick-clip"><rect x="0" y="-80" width="320" height="150"></rect></clipPath>
+        </defs>
+        <circle class="om-sun" cx="160" cy="150" r="104"></circle>
+        <ellipse class="om-shadow" cx="160" cy="244" rx="62" ry="8"></ellipse>
+        <g class="om-tube">
+          <polygon class="om-top" points="116,70 138,62 182,62 204,70 182,78 138,78"></polygon>
+          <ellipse class="om-hole" cx="160" cy="70" rx="8" ry="3.6"></ellipse>
+          <g clip-path="url(#om-stick-clip)">
+            <g class="om-stick">
+              <rect class="om-stick-body" x="156" y="72" width="8" height="128" rx="1.5"></rect>
+              <rect class="om-stick-tip" x="156" y="72" width="8" height="14" rx="1.5"></rect>
+            </g>
+          </g>
+          <polygon class="om-face om-face-left" points="116,70 138,78 138,226 116,218"></polygon>
+          <polygon class="om-face om-face-center" points="138,78 182,78 182,226 138,226"></polygon>
+          <polygon class="om-face om-face-right" points="182,78 204,70 204,218 182,226"></polygon>
+          <polygon class="om-band" points="116,82 138,90 138,98 116,90"></polygon>
+          <polygon class="om-band" points="138,90 182,90 182,98 138,98"></polygon>
+          <polygon class="om-band" points="182,90 204,82 204,90 182,98"></polygon>
+          <polygon class="om-band" points="116,198 138,206 138,214 116,206"></polygon>
+          <polygon class="om-band" points="138,206 182,206 182,214 138,214"></polygon>
+          <polygon class="om-band" points="182,206 204,198 204,206 182,214"></polygon>
+          <rect class="om-label" x="146" y="106" width="28" height="92" rx="2"></rect>
+          {tubeLabel.map((ch, i) => <text class="om-label-text" x="160" y={127 + i * 21} text-anchor="middle">{ch}</text>)}
+        </g>
+      </svg>
+    </button>
+    <p class="om-caption" id="om-caption">筒をタップして、おみくじを引きましょう</p>
+  </section>
+
+  <div class="row om-controls">
+    <button class="btn primary om-draw" type="button" id="om-draw">おみくじを引く</button>
+    <button class="btn om-sound" type="button" id="om-sound" aria-pressed="true" aria-label="音" title="音：オン">
+      <Icon name="Volume2" size={18} class="om-sound-on" />
+      <Icon name="VolumeX" size={18} class="om-sound-off" />
+    </button>
+    <button class="btn om-motion" type="button" id="om-motion" aria-pressed="false" hidden>
+      <Icon name="Smartphone" size={18} />
+      <span id="om-motion-label">振って引く：オフ</span>
+    </button>
+  </div>
+  <p class="hint" id="om-motion-note" hidden>モーションセンサーを使えませんでした。筒をタップして引いてください。</p>
+
+  <p class="visually-hidden" role="status" id="om-status"></p>
+
+  <article class="om-slip" id="om-slip" hidden>
+    <header class="om-slip-head">
+      <p class="om-slip-title">おみくじ<span>{OMIKUJI_YEAR_LABEL}</span></p>
+      <p class="om-slip-no" id="om-slip-no">{stickLabel(1)}</p>
+      <p class="om-slip-level" id="om-slip-level">{LEVELS[0].label}</p>
+    </header>
+    <p class="om-slip-overall" id="om-slip-overall"></p>
+    <dl class="om-slip-items">
+      {
+        CATEGORIES.map((c) => (
+          <div>
+            <dt>{c.label}</dt>
+            <dd data-item={c.id} />
+          </div>
+        ))
+      }
+    </dl>
+    <p class="om-slip-lucky">
+      <span>吉方<b id="om-slip-direction"></b></span>
+      <span>幸運の色<b id="om-slip-color"></b></span>
+    </p>
+  </article>
+
+  <div class="row om-actions" id="om-actions" hidden>
+    <button class="btn primary" type="button" id="om-again">もう一度引く</button>
+    <button class="btn" type="button" id="om-copy">結果をコピー</button>
+    <button class="btn" type="button" id="om-share" hidden>共有する</button>
+  </div>
+
+  <section class="om-history" aria-labelledby="om-history-title">
+    <div class="row between">
+      <h3 class="om-h" id="om-history-title">これまでに出た運勢</h3>
+      <button class="btn small ghost" type="button" id="om-clear" hidden>
+        <Icon name="Trash2" size={16} />
+        リセット
+      </button>
+    </div>
+    <ul class="om-counts">
+      {
+        LEVELS.map((level) => (
+          <li data-count={level.id}>
+            <span class="om-count-label">{level.label}</span>
+            <span class="om-count-n">
+              <b>0</b>回
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="hint" id="om-total">まだ引いていません。回数はこのブラウザにだけ保存されます。</p>
+  </section>
+
+  <section class="om-guide" aria-labelledby="om-guide-title">
+    <h3 class="om-h" id="om-guide-title">運勢の種類と出やすさ</h3>
+    <ul class="om-levels">
+      {
+        LEVELS.map((level) => (
+          <li data-level={level.id}>
+            <p class="om-level-name">
+              <strong>{level.label}</strong>
+              <span>{level.reading}</span>
+              <span class="om-level-pct">{levelPercent(level)}%</span>
+            </p>
+            <p class="om-level-meaning">{level.meaning}</p>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="hint">
+      出やすさは当サイトが独自に決めた割合で、特定の神社やお寺の配分に合わせたものではありません。棒の番号（第一番〜{stickLabel(STICK_COUNT)}）は運勢とは別に抽選しています。
+    </p>
+  </section>
+
+  <p class="notice">
+    このおみくじは遊びとして楽しむためのもので、言葉はすべて当サイトのオリジナルです。神社やお寺のおみくじとは関係がなく、将来を予測するものでもありません。抽選はブラウザの中で行われ、結果が外部に送信されることはありません。
+  </p>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import {
+    addCount,
+    createShakeDetector,
+    drawFortune,
+    emptyCounts,
+    fortuneText,
+    LEVELS,
+    normalizeCounts,
+    stickLabel,
+    totalCount,
+    type Counts,
+    type Fortune,
+  } from './logic';
+
+  interface Prefs {
+    sound: boolean;
+    counts: Counts;
+  }
+  type Phase = 'idle' | 'shake' | 'tilt' | 'out' | 'done';
+
+  const PREF_KEY = 'omikuji';
+  // Keep in step with the CSS: the shake animation, the tilt and the stick sliding out.
+  const SHAKE_MS = 950;
+  const TILT_MS = 480;
+  const OUT_MS = 420;
+  const HOLD_MS = 520;
+
+  const root = $('[data-tool="omikuji"]');
+  const stage = $('#om-stage', root);
+  const tubeBtn = $<HTMLButtonElement>('#om-tube', root);
+  const caption = $('#om-caption', root);
+  const drawBtn = $<HTMLButtonElement>('#om-draw', root);
+  const soundBtn = $<HTMLButtonElement>('#om-sound', root);
+  const motionBtn = $<HTMLButtonElement>('#om-motion', root);
+  const motionLabel = $('#om-motion-label', root);
+  const motionNote = $('#om-motion-note', root);
+  const status = $('#om-status', root);
+  const slip = $('#om-slip', root);
+  const actions = $('#om-actions', root);
+  const againBtn = $<HTMLButtonElement>('#om-again', root);
+  const copyBtn = $<HTMLButtonElement>('#om-copy', root);
+  const shareBtn = $<HTMLButtonElement>('#om-share', root);
+  const clearBtn = $<HTMLButtonElement>('#om-clear', root);
+  const totalEl = $('#om-total', root);
+  const set = (id: string, text: string) => ($(id, root).textContent = text);
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function readPrefs(): Prefs {
+    const raw = loadPref<unknown>(PREF_KEY, null);
+    const obj = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+    return { sound: obj.sound !== false, counts: normalizeCounts(obj.counts) };
+  }
+
+  let prefs = readPrefs();
+  let busy = false;
+  let current: Fortune | null = null;
+  let timers: number[] = [];
+
+  const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+  const setPhase = (phase: Phase) => (stage.dataset.phase = phase);
+
+  /* ---------- Sound: sticks rattling in a wooden tube, synthesized ---------- */
+  type AudioCtor = typeof AudioContext;
+  const AudioCtx: AudioCtor | undefined = window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext;
+  let audio: AudioContext | null = null;
+  /** Everything goes through this, so muting also silences sounds that are already scheduled. */
+  let master: GainNode | null = null;
+  let noise: AudioBuffer | null = null;
+
+  /** Call only from a user gesture (click, key): browsers start audio only then. */
+  function unlockAudio() {
+    if (!prefs.sound || !AudioCtx) return;
+    try {
+      if (!audio) {
+        audio = new AudioCtx();
+        master = audio.createGain();
+        master.connect(audio.destination);
+      }
+      if (audio.state === 'suspended') void audio.resume();
+    } catch {
+      audio = null;
+      master = null;
+    }
+  }
+
+  /** One stick hitting the wood. `at` is in AudioContext time. */
+  function knock(at: number, strength: number, pitch = 1) {
+    if (!audio || !master || !prefs.sound || audio.state === 'closed') return;
+    const ctx = audio;
+    if (!noise) {
+      noise = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.06), ctx.sampleRate);
+      const data = noise.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.009));
+    }
+    const out = ctx.createGain();
+    out.gain.value = 0.5 * strength;
+    out.connect(master);
+
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = (2300 + Math.random() * 900) * pitch;
+    band.Q.value = 2.4;
+    src.connect(band).connect(out);
+    src.start(at);
+
+    const freq = (880 + Math.random() * 160) * pitch;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.4, at + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.05);
+    osc.connect(gain).connect(out);
+    osc.start(at);
+    osc.stop(at + 0.08);
+  }
+
+  /** A small bell when the slip opens. */
+  function bell(at: number) {
+    if (!audio || !master || !prefs.sound || audio.state === 'closed') return;
+    for (const [freq, level, decay] of [
+      [1318.5, 0.12, 1.1],
+      [1975.5, 0.06, 0.8],
+      [2637, 0.03, 0.5],
+    ]) {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(level, at + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+      osc.connect(gain).connect(master);
+      osc.start(at);
+      osc.stop(at + decay + 0.05);
+    }
+  }
+
+  function rattle() {
+    if (!audio) return;
+    const now = audio.currentTime;
+    // Two or three sticks answer every swing of the tube.
+    for (let t = 60; t < SHAKE_MS - 80; t += 125) {
+      knock(now + t / 1000, 0.7 + Math.random() * 0.3);
+      knock(now + (t + 28 + Math.random() * 30) / 1000, 0.35 + Math.random() * 0.25, 1.15);
+    }
+  }
+
+  function renderSound() {
+    soundBtn.setAttribute('aria-pressed', String(prefs.sound));
+    soundBtn.title = prefs.sound ? '音：オン' : '音：オフ';
+    soundBtn.classList.toggle('is-muted', !prefs.sound);
+    if (master && audio) master.gain.setValueAtTime(prefs.sound ? 1 : 0, audio.currentTime);
+  }
+
+  /* ---------- Counts ---------- */
+  function renderCounts() {
+    const total = totalCount(prefs.counts);
+    for (const li of $$('[data-count]', root)) {
+      const level = LEVELS.find((l) => l.id === li.dataset.count);
+      if (!level) continue;
+      const n = prefs.counts[level.id];
+      $('b', li).textContent = String(n);
+      li.classList.toggle('is-zero', n === 0);
+    }
+    totalEl.textContent =
+      total === 0 ? 'まだ引いていません。回数はこのブラウザにだけ保存されます。' : `これまでに${total}回引きました。回数はこのブラウザにだけ保存されます。`;
+    clearBtn.hidden = total === 0;
+  }
+
+  function save() {
+    savePref(PREF_KEY, prefs);
+  }
+
+  /* ---------- Draw ---------- */
+  function renderSlip(fortune: Fortune) {
+    slip.dataset.level = fortune.level.id;
+    set('#om-slip-no', stickLabel(fortune.number));
+    set('#om-slip-level', fortune.level.label);
+    set('#om-slip-overall', fortune.overall);
+    for (const item of fortune.items) set(`[data-item="${item.id}"]`, item.text);
+    set('#om-slip-direction', fortune.direction);
+    set('#om-slip-color', fortune.color);
+  }
+
+  function setBusy(value: boolean) {
+    busy = value;
+    drawBtn.disabled = value;
+    againBtn.disabled = value;
+    tubeBtn.setAttribute('aria-disabled', String(value));
+  }
+
+  /** Height of the site header when it stays on screen while the page scrolls. */
+  function headerOffset(): number {
+    const header = document.querySelector<HTMLElement>('.site-header');
+    if (!header) return 0;
+    const position = getComputedStyle(header).position;
+    return position === 'sticky' || position === 'fixed' ? header.getBoundingClientRect().height : 0;
+  }
+
+  /** Scroll so the element starts just under the header, unless all of it is already on screen. */
+  function bringIntoView(el: HTMLElement) {
+    const top = headerOffset() + 12;
+    const box = el.getBoundingClientRect();
+    if (box.top >= top && box.bottom <= window.innerHeight) return;
+    window.scrollTo({
+      top: Math.max(0, window.scrollY + box.top - top),
+      behavior: reducedMotion.matches ? 'auto' : 'smooth',
+    });
+  }
+
+  function reveal(fortune: Fortune) {
+    current = fortune;
+    renderSlip(fortune);
+    setPhase('done');
+    caption.textContent = stickLabel(fortune.number);
+    caption.classList.add('is-number');
+    slip.hidden = false;
+    actions.hidden = false;
+    drawBtn.textContent = 'もう一度引く';
+    prefs = { ...prefs, counts: addCount(prefs.counts, fortune.level.id) };
+    save();
+    renderCounts();
+    status.textContent = `${stickLabel(fortune.number)}、${fortune.level.label}。${fortune.overall}`;
+    if (audio) bell(audio.currentTime + 0.02);
+    setBusy(false);
+    bringIntoView(slip);
+  }
+
+  function draw() {
+    if (busy) return;
+    setBusy(true);
+    unlockAudio();
+    timers.forEach((id) => window.clearTimeout(id));
+    timers = [];
+    const fortune = drawFortune();
+    status.textContent = '';
+    slip.hidden = true;
+    actions.hidden = true;
+    caption.classList.remove('is-number');
+    bringIntoView(stage);
+
+    if (reducedMotion.matches) {
+      reveal(fortune);
+      return;
+    }
+    setPhase('shake');
+    caption.textContent = 'カラカラ…';
+    rattle();
+    later(SHAKE_MS, () => setPhase('tilt'));
+    later(SHAKE_MS + TILT_MS, () => {
+      setPhase('out');
+      if (audio) knock(audio.currentTime + 0.12, 1, 1.4);
+      caption.textContent = stickLabel(fortune.number);
+      caption.classList.add('is-number');
+    });
+    later(SHAKE_MS + TILT_MS + OUT_MS + HOLD_MS, () => reveal(fortune));
+  }
+
+  tubeBtn.addEventListener('click', draw);
+  drawBtn.addEventListener('click', draw);
+  againBtn.addEventListener('click', draw);
+
+  soundBtn.addEventListener('click', () => {
+    prefs = { ...prefs, sound: !prefs.sound };
+    save();
+    if (prefs.sound) unlockAudio();
+    renderSound();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    prefs = { ...prefs, counts: emptyCounts() };
+    save();
+    renderCounts();
+  });
+
+  /* ---------- Copy and share ---------- */
+  const pageUrl = () => `${location.origin}${location.pathname}`;
+
+  copyBtn.addEventListener('click', async () => {
+    if (!current) return;
+    if (await copyText(`${fortuneText(current)}\n${pageUrl()}`)) flashButton(copyBtn);
+  });
+
+  if (typeof navigator.share === 'function') {
+    shareBtn.hidden = false;
+    shareBtn.addEventListener('click', async () => {
+      if (!current) return;
+      try {
+        await navigator.share({ text: fortuneText(current), url: pageUrl() });
+      } catch {
+        /* the visitor closed the share sheet */
+      }
+    });
+  }
+
+  /* ---------- Shake the phone to draw (opt-in) ---------- */
+  type MotionCtor = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
+  const Motion = (window as unknown as { DeviceMotionEvent?: MotionCtor }).DeviceMotionEvent;
+  const GRAVITY = 9.81;
+  let motionOn = false;
+  let isShake = createShakeDetector();
+
+  function onMotion(event: DeviceMotionEvent) {
+    const a = event.acceleration;
+    const g = event.accelerationIncludingGravity;
+    let magnitude = Number.NaN;
+    if (a && a.x !== null && a.y !== null && a.z !== null) magnitude = Math.hypot(a.x, a.y, a.z);
+    else if (g && g.x !== null && g.y !== null && g.z !== null) magnitude = Math.abs(Math.hypot(g.x, g.y, g.z) - GRAVITY);
+    if (isShake(magnitude, performance.now()) && !busy && !document.hidden) draw();
+  }
+
+  function renderMotion() {
+    motionBtn.setAttribute('aria-pressed', String(motionOn));
+    motionBtn.classList.toggle('is-on', motionOn);
+    motionLabel.textContent = motionOn ? '振って引く：オン' : '振って引く：オフ';
+  }
+
+  async function toggleMotion() {
+    if (motionOn) {
+      window.removeEventListener('devicemotion', onMotion);
+      motionOn = false;
+      renderMotion();
+      return;
+    }
+    // The tap on this button is the gesture that lets audio and (on iOS) the motion sensor start.
+    unlockAudio();
+    let granted = true;
+    if (typeof Motion?.requestPermission === 'function') {
+      try {
+        granted = (await Motion.requestPermission()) === 'granted';
+      } catch {
+        granted = false;
+      }
+    }
+    motionNote.hidden = granted;
+    if (!granted) return;
+    isShake = createShakeDetector();
+    window.addEventListener('devicemotion', onMotion);
+    motionOn = true;
+    renderMotion();
+  }
+
+  if (Motion && window.matchMedia('(pointer: coarse)').matches) {
+    motionBtn.hidden = false;
+    motionBtn.addEventListener('click', () => void toggleMotion());
+  }
+
+  renderSound();
+  renderCounts();
+</script>
+
+<style>
+  /* Every rule here is scoped to this component; keyframes carry the om- prefix because their names are global. */
+  .om-stage {
+    --om-red: #c8372b;
+    --om-red-deep: #a82a20;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 8px 12px 16px;
+    background: linear-gradient(180deg, #fffaf4 0%, #fdf0e6 100%);
+    border: 1px solid #f1dfd0;
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .om-tube-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .om-tube-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+  .om-tube-btn[aria-disabled='true'] {
+    cursor: default;
+  }
+  .om-svg {
+    display: block;
+    width: min(100%, 300px);
+    height: auto;
+    margin: 0 auto;
+  }
+  .om-sun {
+    fill: #fbdcd0;
+    opacity: 0.55;
+  }
+  .om-shadow {
+    fill: rgb(90 50 20 / 0.12);
+    transition: opacity 0.4s;
+  }
+  .om-stage:not([data-phase='idle']) .om-shadow {
+    opacity: 0.45;
+  }
+  .om-tube {
+    transform-origin: 160px 144px;
+    transition: transform 0.48s cubic-bezier(0.3, 1.25, 0.6, 1);
+  }
+  .om-stage[data-phase='idle'] .om-tube {
+    animation: om-wobble 3.2s ease-in-out infinite;
+  }
+  .om-stage[data-phase='shake'] .om-tube {
+    animation: om-shake 0.95s ease-in-out;
+  }
+  .om-stage[data-phase='tilt'] .om-tube,
+  .om-stage[data-phase='out'] .om-tube,
+  .om-stage[data-phase='done'] .om-tube {
+    transform: rotate(152deg);
+  }
+  .om-stick {
+    transition: transform 0.42s cubic-bezier(0.25, 0.9, 0.35, 1.15);
+  }
+  .om-stage[data-phase='out'] .om-stick,
+  .om-stage[data-phase='done'] .om-stick {
+    transform: translateY(-84px);
+  }
+  .om-top {
+    fill: #f6e3ba;
+    stroke: #9a7443;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .om-hole {
+    fill: #4a3320;
+  }
+  .om-stick-body {
+    fill: #f8ecd0;
+    stroke: #b08a4f;
+    stroke-width: 1;
+  }
+  .om-stick-tip {
+    fill: var(--om-red);
+  }
+  .om-face {
+    stroke: #9a7443;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .om-face-left {
+    fill: #dbb57c;
+  }
+  .om-face-center {
+    fill: #ebcd97;
+  }
+  .om-face-right {
+    fill: #c9a067;
+  }
+  .om-band {
+    fill: var(--om-red);
+  }
+  .om-label {
+    fill: #fffdf7;
+    stroke: var(--om-red);
+    stroke-width: 1.5;
+  }
+  .om-label-text {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 17px;
+    font-weight: 700;
+    fill: var(--om-red-deep);
+  }
+  .om-caption {
+    min-height: 34px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 34px;
+    color: var(--text-2);
+    text-align: center;
+  }
+  .om-caption.is-number {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--om-red-deep);
+    animation: om-pop 0.35s ease-out;
+  }
+
+  .om-controls {
+    flex-wrap: nowrap;
+  }
+  .om-draw {
+    flex: 1 1 auto;
+    min-height: 48px;
+    font-size: 17px;
+  }
+  .om-sound,
+  .om-motion {
+    min-height: 48px;
+    flex: none;
+  }
+  .om-sound :global(.om-sound-off),
+  .om-sound.is-muted :global(.om-sound-on) {
+    display: none;
+  }
+  .om-sound.is-muted :global(.om-sound-off) {
+    display: block;
+  }
+  .om-sound.is-muted {
+    color: var(--muted);
+  }
+  .om-motion.is-on {
+    color: var(--accent-hover);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  @media (max-width: 420px) {
+    .om-controls {
+      flex-wrap: wrap;
+    }
+    .om-motion {
+      flex: 1 1 100%;
+      order: 3;
+    }
+  }
+
+  /* The slip: one self-contained card, so a screenshot of it reads on its own. */
+  .om-slip {
+    --om-red: #c8372b;
+    --om-red-deep: #a82a20;
+    --om-level: var(--om-red-deep);
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 18px 16px 16px;
+    background: #fffdf8;
+    border: 1px solid var(--om-red);
+    border-radius: 6px;
+    outline: 1px solid var(--om-red);
+    outline-offset: -5px;
+    box-shadow: var(--shadow);
+    transform-origin: top center;
+    animation: om-unfold 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  .om-slip[data-level='kyo'] {
+    --om-level: #2b2d36;
+  }
+  .om-slip p {
+    margin: 0;
+  }
+  .om-slip-head {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid color-mix(in oklab, var(--om-red) 30%, transparent);
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    text-align: center;
+  }
+  .om-slip-title {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 2px 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--om-red-deep);
+  }
+  .om-slip-title span {
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+  }
+  .om-slip-no {
+    font-size: 14px;
+    letter-spacing: 0.16em;
+    color: var(--text-2);
+  }
+  .om-slip-level {
+    font-size: clamp(48px, 16vw, 64px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    /* The tracking after the last character would push the word off center. */
+    margin-right: -0.08em;
+    color: var(--om-level);
+  }
+  .om-slip-overall {
+    padding: 12px 2px;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    text-wrap: pretty;
+  }
+  .om-slip-items {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin: 0;
+    border-top: 1px solid color-mix(in oklab, var(--om-red) 30%, transparent);
+  }
+  .om-slip-items > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px dashed color-mix(in oklab, var(--om-red) 24%, transparent);
+  }
+  .om-slip-items dt {
+    padding: 1px 5px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--om-red-deep);
+    border: 1px solid color-mix(in oklab, var(--om-red) 55%, transparent);
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .om-slip-items dd {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    text-wrap: pretty;
+  }
+  @media (min-width: 620px) {
+    .om-slip {
+      padding: 22px 26px 18px;
+    }
+    .om-slip-overall {
+      font-size: 16px;
+    }
+    .om-slip-items > div {
+      gap: 12px;
+      padding: 7px 2px;
+    }
+    .om-slip-items dd {
+      font-size: 15px;
+    }
+  }
+  .om-slip-lucky {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 22px;
+    padding-top: 12px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .om-slip-lucky b {
+    margin-left: 8px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 16px;
+    color: var(--om-red-deep);
+  }
+
+  .om-actions {
+    justify-content: center;
+  }
+  .om-actions .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+  @media (min-width: 620px) {
+    .om-actions .btn {
+      flex: 0 1 auto;
+    }
+  }
+
+  .om-h {
+    margin: 0;
+    font-size: 16px;
+  }
+  .om-history,
+  .om-guide {
+    display: grid;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .om-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 620px) {
+    .om-counts {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+  .om-counts li {
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    padding: 8px 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .om-count-label {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .om-count-n {
+    font-size: 13px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .om-count-n b {
+    margin-right: 1px;
+    font-size: 16px;
+    color: var(--text);
+  }
+  .om-counts li.is-zero .om-count-n b {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .om-levels {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 720px) {
+    .om-levels {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .om-levels li {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .om-levels p {
+    margin: 0;
+  }
+  .om-level-name {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .om-level-name strong {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-size: 18px;
+    color: #a82a20;
+  }
+  .om-levels li[data-level='kyo'] .om-level-name strong {
+    color: #2b2d36;
+  }
+  .om-level-name span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .om-level-name .om-level-pct {
+    margin-left: auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .om-level-meaning {
+    font-size: 14px;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+
+  @keyframes om-wobble {
+    0%,
+    60%,
+    100% {
+      transform: rotate(0deg);
+    }
+    70% {
+      transform: rotate(-4deg);
+    }
+    80% {
+      transform: rotate(3deg);
+    }
+    90% {
+      transform: rotate(-1.5deg);
+    }
+  }
+  @keyframes om-shake {
+    0%,
+    100% {
+      transform: rotate(0deg) translateY(0);
+    }
+    12% {
+      transform: rotate(-17deg) translateY(-7px);
+    }
+    26% {
+      transform: rotate(15deg) translateY(5px);
+    }
+    40% {
+      transform: rotate(-14deg) translateY(-6px);
+    }
+    54% {
+      transform: rotate(13deg) translateY(5px);
+    }
+    68% {
+      transform: rotate(-11deg) translateY(-4px);
+    }
+    84% {
+      transform: rotate(8deg) translateY(2px);
+    }
+  }
+  @keyframes om-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+  @keyframes om-unfold {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scaleY(0.7);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .om-tube,
+    .om-stick,
+    .om-shadow {
+      transition: none;
+    }
+    .om-stage[data-phase] .om-tube,
+    .om-caption.is-number,
+    .om-slip {
+      animation: none;
+    }
+  }
+
+  /* Printing the page: keep the slip, drop the controls around it. */
+  @media print {
+    .om-stage,
+    .om-controls,
+    .om-actions,
+    .om-history {
+      display: none;
+    }
+    .om-slip {
+      box-shadow: none;
+      animation: none;
+      break-inside: avoid;
+    }
+  }
+</style>

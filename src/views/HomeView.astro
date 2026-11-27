@@ -1,0 +1,389 @@
+---
+// Home page for one locale. Routes: pages/index.astro, pages/en/index.astro, pages/ja/index.astro.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AdSlot from '../components/AdSlot.astro';
+import Icon from '../components/Icon.astro';
+import ToolCard from '../components/ToolCard.astro';
+import { getBrand, site } from '../config/site';
+import { allLocales } from '../i18n/alternates';
+import { t } from '../i18n/format';
+import { localeHome, localePath, type Locale } from '../i18n/locales';
+import { getUi } from '../i18n/ui';
+import { categoryPath, findTool, populatedCategories, toolPath, toolsFor, toolsInCategory } from '../tools/registry';
+import { itemListJsonLd, websiteJsonLd } from '../lib/seo';
+import { conversionGroups } from '../conversions/pairs';
+import { nameHtml } from '../lib/wrap';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const brand = getBrand(locale);
+const s = getUi(locale).home;
+const os = getUi(locale).openSource;
+const tools = toolsFor(locale);
+const home = localeHome(locale);
+const populated = populatedCategories(locale);
+// Quick links under the search box. zh-TW mixes the tools people open most with
+// evergreen search tools; other locales fall back to the highest-priority tools.
+const HOME_PICKS: Partial<Record<Locale, string[]>> = {
+  'zh-TW': [
+    'gift-exchange',
+    'word-counter',
+    'salary-calculator',
+    'invoice-lottery',
+    'birthday-candles',
+    'ichiban-kuji',
+    'holidays-2027',
+    'salary-per-second',
+  ],
+};
+const picks = (HOME_PICKS[locale] ?? []).flatMap((slug) => findTool(slug, locale) ?? []);
+const popular = picks.length > 0 ? picks : tools.slice(0, 7);
+const conversionCount = conversionGroups(locale).reduce((n, g) => n + g.list.length, 0);
+const tiles = populated.map((c) => ({
+  ...c,
+  count: toolsInCategory(c.id, locale).length + (c.id === 'convert' ? conversionCount : 0),
+}));
+---
+
+<BaseLayout
+  locale={locale}
+  alternates={allLocales('/')}
+  description={brand.description}
+  path={home}
+  jsonLd={[websiteJsonLd(locale), itemListJsonLd(brand.name, tools)]}
+>
+  <section class="hero">
+    <div class="container hero-inner">
+      <h1><span class="phrase">{s.heroBefore}</span><span class="phrase accent">{s.heroAccent}</span>{s.heroAfter}</h1>
+      <p class="lead phrase-wrap">
+        {t(s.lead, { count: tools.length })}
+      </p>
+      <form class="search" role="search" action={home} method="get" onsubmit="return false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5" stroke-linecap="round"></path>
+        </svg>
+        <label class="visually-hidden" for="q">{s.searchLabel}</label>
+        <input id="q" name="q" type="search" placeholder={s.searchPlaceholder} autocomplete="off" />
+      </form>
+      <ul class="chips" aria-label={s.popularAria} data-popular>
+        {popular.map((tool) => <li><a href={toolPath(tool.slug, locale)}>{tool.name}</a></li>)}
+      </ul>
+      <div class="notes">
+        <p class="app-note">
+          <Icon name="Smartphone" size={16} />
+          <span class="phrase-wrap">{s.appNote}<a class="nowrap" href={localePath(locale, '/app/')}>{s.appNoteLink}</a></span>
+        </p>
+        <p class="app-note">
+          <Icon name="ShieldCheck" size={16} />
+          <span class="phrase-wrap">{os.homeNote}<a class="nowrap" href={site.repoUrl} rel="noopener">{os.homeLink}</a></span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <nav class="browse" aria-labelledby="browse-title" data-browse>
+      <h2 id="browse-title">{s.browse}</h2>
+      <ul class="tiles">
+        {
+          tiles.map((c) => (
+            <li>
+              <a href={categoryPath(c.id, locale)}>
+                <Icon name={c.icon} size={22} class="tile-icon" />
+                <span class="tile-name name-wrap" set:html={nameHtml(c.name, locale)} />
+                <span class="tile-count">{t(s.tileCount, { count: c.count })}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <p class="empty" id="empty" hidden>{s.empty}</p>
+
+    {
+      populated.map((category, index) => (
+        <>
+          <section class="cat" aria-labelledby={`cat-${category.id}`} data-cat>
+            <header class="cat-head">
+              <Icon name={category.icon} size={24} class="cat-icon" />
+              <div class="cat-title">
+                <h2 id={`cat-${category.id}`}>{category.name}</h2>
+                <p class="phrase-wrap">{category.blurb}</p>
+              </div>
+              <a class="cat-all" href={categoryPath(category.id, locale)}>
+                {t(s.categoryAll, { count: toolsInCategory(category.id, locale).length })}
+              </a>
+            </header>
+            <div class="grid">
+              {toolsInCategory(category.id, locale).map((tool) => (
+                <ToolCard tool={tool} />
+              ))}
+            </div>
+          </section>
+          {(index === 0 || index === 2 || index === 5) && <AdSlot slot="home" />}
+        </>
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<script>
+  const input = document.getElementById('q') as HTMLInputElement;
+  const empty = document.getElementById('empty') as HTMLElement;
+  const popular = document.querySelector<HTMLElement>('[data-popular]');
+  const browse = document.querySelector<HTMLElement>('[data-browse]');
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-cat]'));
+
+  function filter() {
+    const terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let visible = 0;
+    for (const section of sections) {
+      let inSection = 0;
+      for (const card of section.querySelectorAll<HTMLElement>('[data-search]')) {
+        const match = terms.every((t) => card.dataset.search!.includes(t));
+        card.hidden = !match;
+        if (match) inSection++;
+      }
+      section.hidden = inSection === 0;
+      visible += inSection;
+    }
+    if (popular) popular.hidden = terms.length > 0;
+    if (browse) browse.hidden = terms.length > 0;
+    empty.hidden = visible > 0;
+  }
+
+  const initial = new URLSearchParams(location.search).get('q');
+  if (initial) input.value = initial;
+  input.addEventListener('input', filter);
+  filter();
+</script>
+
+<style>
+  .hero {
+    padding: 64px 0 44px;
+    text-align: center;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  h1 {
+    font-weight: 800;
+    font-size: clamp(32px, 5.5vw, 52px);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .accent {
+    color: var(--accent);
+  }
+  /* Each half of the headline wraps as a unit: 「打開就能用的／線上工具」, never 「…線上工／具」. */
+  .phrase {
+    display: inline-block;
+  }
+  .lead {
+    text-wrap: balance;
+    max-width: 36em;
+    margin: 18px auto 30px;
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .search {
+    position: relative;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .search svg {
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+  }
+  .search input {
+    height: 62px;
+    padding: 0 24px 0 54px;
+    text-overflow: ellipsis;
+    font-size: 17px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 720px;
+    margin: 22px auto 0;
+    padding: 0;
+    list-style: none;
+  }
+  .chips a {
+    display: inline-block;
+    padding: 7px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .chips a:hover {
+    text-decoration: none;
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+
+  .browse {
+    padding: 32px 0 4px;
+  }
+  .browse h2 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+  .tiles {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .tiles a {
+    display: grid;
+    align-content: start;
+    gap: 2px;
+    height: 100%;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .tiles a:hover {
+    text-decoration: none;
+    border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+  }
+  .tiles a:hover .tile-name {
+    color: var(--accent);
+  }
+  .tiles :global(.tile-icon) {
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .tile-name {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.3;
+  }
+  .tile-count {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  @media (max-width: 480px) {
+    .tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .tiles a {
+      padding: 12px;
+    }
+    .tile-name {
+      font-size: 14px;
+    }
+  }
+
+  .notes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 22px;
+    margin-top: 22px;
+  }
+  .app-note {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: left;
+  }
+  .app-note :global(svg) {
+    flex: none;
+    margin-top: 0.2em;
+  }
+  .app-note span {
+    text-wrap: balance;
+  }
+  .app-note a {
+    font-weight: 600;
+  }
+  .cat {
+    margin-top: 52px;
+  }
+  .cat-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .cat-head :global(.cat-icon) {
+    color: var(--accent);
+  }
+  .cat-title h2 {
+    font-size: 21px;
+    font-weight: 800;
+  }
+  .cat-title p {
+    margin: 1px 0 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .cat-all {
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .cat-all:hover {
+    text-decoration: none;
+    color: var(--accent);
+  }
+  @media (max-width: 520px) {
+    .search svg {
+      left: 18px;
+    }
+    .search input {
+      height: 56px;
+      padding: 0 18px 0 46px;
+      font-size: 16px;
+    }
+    .cat-head {
+      grid-template-columns: auto 1fr;
+    }
+    .cat-all {
+      display: none;
+    }
+  }
+  .grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 0;
+  }
+</style>

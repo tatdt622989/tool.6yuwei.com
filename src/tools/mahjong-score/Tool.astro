@@ -1,0 +1,1726 @@
+---
+import type { ToolProps } from '../../i18n/tool';
+import { NAME_MAX, SEATS, STAKE_PRESETS, WINDS } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const quickTai = [1, 2, 3, 4, 5, 6, 8, 10];
+---
+
+<div class="tool" data-tool="mahjong-score" data-locale={locale}>
+  <details class="mj-setup" id="mj-setup" open>
+    <summary>
+      <span class="mj-setup-title">設定</span>
+      <span class="mj-setup-sum" id="mj-setup-sum"></span>
+    </summary>
+    <div class="mj-setup-body">
+      <fieldset class="mj-fieldset">
+        <legend>玩家（照座位順序，東家的下家是南家）</legend>
+        <div class="mj-names">
+          {
+            SEATS.map((i) => (
+              <label class="mj-name">
+                <span class="mj-wind">{WINDS[i]}</span>
+                <input
+                  type="text"
+                  data-name={i}
+                  maxlength={NAME_MAX}
+                  placeholder={`${WINDS[i]}家`}
+                  aria-label={`${WINDS[i]}家的名字`}
+                  autocomplete="off"
+                />
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+
+      <fieldset class="mj-fieldset">
+        <legend>底／每台</legend>
+        <div class="mj-chips mj-presets" role="radiogroup" aria-label="常見的底和每台">
+          {
+            STAKE_PRESETS.map((p, i) => (
+              <label>
+                <input type="radio" name="mj-preset" value={i} />
+                <span>
+                  {p.base}/{p.perTai}
+                </span>
+              </label>
+            ))
+          }
+          <label>
+            <input type="radio" name="mj-preset" value="custom" />
+            <span>自訂</span>
+          </label>
+        </div>
+        <div class="mj-stakes">
+          <div class="field">
+            <label for="mj-base">底</label>
+            <input id="mj-base" type="text" inputmode="numeric" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="mj-per">每台</label>
+            <input id="mj-per" type="text" inputmode="numeric" autocomplete="off" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mj-fieldset">
+        <legend>起莊（第一個當莊家的人）</legend>
+        <div class="mj-chips mj-seats" role="radiogroup" aria-label="起莊">
+          {
+            SEATS.map((i) => (
+              <label>
+                <input type="radio" name="mj-start" value={i} />
+                <span data-seat-name={i}>{WINDS[i]}家</span>
+              </label>
+            ))
+          }
+        </div>
+        <p class="hint">改底、每台或起莊，已經記下的牌局會跟著重算。</p>
+      </fieldset>
+
+      <div class="mj-fieldset">
+        <label class="check mj-bonus">
+          <input type="checkbox" id="mj-bonus" checked />
+          <span>自動加莊家台（連N拉N）</span>
+        </label>
+        <p class="hint">
+          開啟時，台數請填「不含莊家台」的數字，工具會在莊家和對方之間多算 2N＋1 台（莊家 1 台，加上連 N 拉 N 共 2N
+          台），兩個閒家之間不加。關閉後不會自動加任何台，請把莊家台、連莊拉莊都算進你填的台數。這個開關只影響之後記下的牌局。
+        </p>
+      </div>
+
+      <button class="btn primary mj-big" type="button" id="mj-start-btn">開始記分</button>
+    </div>
+  </details>
+
+  <section class="mj-board" id="mj-board" aria-label="目前輸贏">
+    <div class="mj-status">
+      <div class="mj-status-text">
+        <strong class="mj-round" id="mj-round">東風東</strong>
+        <span class="mj-dealer-line" id="mj-dealer-line"></span>
+      </div>
+      <button class="btn mj-mid" type="button" id="mj-dealer-btn" aria-expanded="false" aria-controls="mj-dealer-panel">
+        改莊家
+      </button>
+    </div>
+
+    <div class="mj-dealer-panel" id="mj-dealer-panel" hidden>
+      <div class="mj-panel-field">
+        <span class="mj-label" id="mj-dealer-seat-label">莊家</span>
+        <div class="mj-chips mj-seats" role="radiogroup" aria-labelledby="mj-dealer-seat-label">
+          {
+            SEATS.map((i) => (
+              <label>
+                <input type="radio" name="mj-dealer-seat" value={i} />
+                <span data-seat-name={i}>{WINDS[i]}家</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+      <div class="mj-panel-field">
+        <label class="mj-label" for="mj-streak">連莊次數 N</label>
+        <div class="mj-stepper">
+          <button class="btn" type="button" id="mj-streak-minus" aria-label="連莊次數減 1">−</button>
+          <input id="mj-streak" type="text" inputmode="numeric" autocomplete="off" />
+          <button class="btn" type="button" id="mj-streak-plus" aria-label="連莊次數加 1">+</button>
+        </div>
+      </div>
+      <div class="mj-panel-field">
+        <span class="mj-label" id="mj-wind-label">圈風</span>
+        <div class="mj-chips mj-winds" role="radiogroup" aria-labelledby="mj-wind-label">
+          {
+            WINDS.map((w, i) => (
+              <label>
+                <input type="radio" name="mj-wind" value={i} />
+                <span>{w}風</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+      <p class="hint">套用後會在紀錄裡留一筆「改莊家」，之後的牌局從這裡接著算；刪掉那一筆就會還原。</p>
+      <div class="mj-actions">
+        <button class="btn primary mj-big" type="button" id="mj-dealer-apply">套用</button>
+        <button class="btn mj-big" type="button" id="mj-dealer-cancel">取消</button>
+      </div>
+    </div>
+
+    <div class="mj-players">
+      {
+        SEATS.map((i) => (
+          <div class="mj-player" data-seat={i}>
+            <div class="mj-player-top">
+              <span class="mj-wind">{WINDS[i]}</span>
+              <span class="mj-player-name" data-seat-name={i}>
+                {WINDS[i]}家
+              </span>
+              <span class="mj-dealer-tag" hidden />
+            </div>
+            <div class="mj-total">0</div>
+          </div>
+        ))
+      }
+    </div>
+    <p class="notice ok mj-flash" id="mj-flash" role="status" hidden></p>
+  </section>
+
+  <div class="mj-chips mj-mode" role="radiogroup" aria-label="記錄方式">
+    <label>
+      <input type="radio" name="mj-mode" value="hand" checked />
+      <span>逐局記錄</span>
+    </label>
+    <label>
+      <input type="radio" name="mj-mode" value="direct" />
+      <span>直接輸入輸贏</span>
+    </label>
+  </div>
+
+  <section class="mj-form" id="mj-hand" aria-label="記下這一局">
+    <p class="notice mj-editing" id="mj-hand-editing" hidden></p>
+
+    <div class="mj-step">
+      <h3>誰胡牌？</h3>
+      <div class="mj-winners" id="mj-winner">
+        {
+          SEATS.map((i) => (
+            <button class="btn mj-pick" type="button" data-seat={i} aria-pressed="false">
+              <span class="mj-wind">{WINDS[i]}</span>
+              <span class="mj-pick-name" data-seat-name={i}>
+                {WINDS[i]}家
+              </span>
+              <span class="mj-dealer-tag" hidden>
+                莊
+              </span>
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="mj-step">
+      <h3>怎麼胡？</h3>
+      <div class="mj-how" id="mj-how">
+        <button class="btn mj-pick mj-self" type="button" data-how="self" aria-pressed="false">自摸（其他三家都付）</button>
+        {
+          SEATS.map((i) => (
+            <button class="btn mj-pick mj-from" type="button" data-how={i} aria-pressed="false">
+              <span class="mj-pick-name" data-seat-name={i}>
+                {WINDS[i]}家
+              </span>
+              <span class="mj-from-label">放槍</span>
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="mj-step">
+      <h3>
+        <label for="mj-tai">台數</label>
+        <span class="mj-tai-note" id="mj-tai-note">不含莊家台</span>
+      </h3>
+      <div class="mj-stepper mj-tai-row">
+        <button class="btn" type="button" id="mj-tai-minus" aria-label="台數減 1">−</button>
+        <input id="mj-tai" type="text" inputmode="numeric" autocomplete="off" placeholder="幾台" aria-describedby="mj-tai-hint" />
+        <button class="btn" type="button" id="mj-tai-plus" aria-label="台數加 1">+</button>
+      </div>
+      <div class="mj-quick" aria-label="常用台數">
+        {
+          quickTai.map((n) => (
+            <button class="btn mj-quick-btn" type="button" data-tai={n} aria-pressed="false">
+              {n}
+            </button>
+          ))
+        }
+      </div>
+      <p class="hint" id="mj-tai-hint"></p>
+    </div>
+
+    <div class="mj-preview" id="mj-preview" aria-live="polite"></div>
+
+    <div class="mj-actions">
+      <button class="btn primary mj-big" type="button" id="mj-record" disabled>記下這一局</button>
+      <button class="btn mj-big" type="button" id="mj-draw">流局</button>
+      <button class="btn mj-big" type="button" id="mj-hand-cancel" hidden>取消修改</button>
+    </div>
+  </section>
+
+  <section class="mj-form" id="mj-direct" aria-label="直接輸入輸贏" hidden>
+    <p class="notice mj-editing" id="mj-direct-editing" hidden></p>
+    <p class="hint">每個人選「贏」或「輸」再填金額，四個人加起來要等於 0。直接輸入的紀錄不會換莊，也不會加任何台。</p>
+    <div class="mj-direct-rows">
+      {
+        SEATS.map((i) => (
+          <div class="mj-direct-row" data-seat={i}>
+            <span class="mj-direct-name" data-seat-name={i}>
+              {WINDS[i]}家
+            </span>
+            <div class="mj-chips mj-sign" role="radiogroup" aria-label={`${WINDS[i]}家贏或輸`}>
+              <label>
+                <input type="radio" name={`mj-sign-${i}`} value="1" checked />
+                <span>贏</span>
+              </label>
+              <label>
+                <input type="radio" name={`mj-sign-${i}`} value="-1" />
+                <span>輸</span>
+              </label>
+            </div>
+            <input class="mj-direct-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="金額" aria-label={`${WINDS[i]}家的金額`} />
+          </div>
+        ))
+      }
+    </div>
+    <p class="mj-direct-sum" id="mj-direct-sum" aria-live="polite"></p>
+    <div class="mj-actions">
+      <button class="btn mj-big" type="button" id="mj-fill" disabled>補上最後一人</button>
+      <button class="btn primary mj-big" type="button" id="mj-direct-record" disabled>記下這一輪</button>
+      <button class="btn mj-big" type="button" id="mj-direct-cancel" hidden>取消修改</button>
+    </div>
+  </section>
+
+  <section class="mj-history" aria-label="牌局紀錄">
+    <div class="mj-history-head">
+      <h3>牌局紀錄</h3>
+      <button class="btn mj-mid" type="button" id="mj-undo" disabled>復原上一筆</button>
+    </div>
+    <ol class="mj-log" id="mj-log"></ol>
+    <p class="hint" id="mj-log-empty">還沒有紀錄。記下的每一局都會列在這裡，可以修改或刪除，後面的莊家和金額會自動重算。</p>
+  </section>
+
+  <section class="mj-settle" id="mj-settle" aria-label="結算">
+    <button class="btn primary mj-big" type="button" id="mj-settle-btn">結算：看誰付給誰</button>
+    <div class="result mj-settle-panel" id="mj-settle-panel" hidden>
+      <h3>結算</h3>
+      <ul class="mj-transfers" id="mj-transfers"></ul>
+      <p class="hint" id="mj-settle-note"></p>
+      <div class="mj-actions">
+        <button class="btn primary mj-big" type="button" id="mj-copy">複製結算文字</button>
+        <button class="btn mj-big" type="button" id="mj-settle-close">繼續打</button>
+        <button class="btn mj-big" type="button" id="mj-new">開新的一場</button>
+      </div>
+      <div class="mj-confirm" id="mj-new-confirm" hidden>
+        <p id="mj-new-text"></p>
+        <div class="mj-actions">
+          <button class="btn primary mj-big" type="button" id="mj-new-yes">清空並開新的一場</button>
+          <button class="btn mj-big" type="button" id="mj-new-no">先不要</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="hint mj-disclaimer">
+    各地、各家的麻將算法不一樣，這裡用的是常見的一種：莊家胡牌或流局就連莊，連莊次數加 1；閒家胡牌就換下家當莊。和你們的規則不同時，可以關掉自動加莊家台、用「改莊家」調整，或改用「直接輸入輸贏」。本工具只做記分，給家人朋友同樂用；資料只存在這台裝置的瀏覽器裡。
+  </p>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
+  import { formatInteger, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import {
+    MAX_AMOUNT,
+    MAX_ENTRIES,
+    MAX_STREAK,
+    MAX_TAI,
+    SEATS,
+    STAKE_PRESETS,
+    WINDS,
+    cleanName,
+    cleanStakes,
+    dealerExtraTai,
+    directDeltas,
+    fillFourth,
+    handPayments,
+    presetIndex,
+    removeEntry,
+    replaceEntry,
+    replay,
+    roundInfo,
+    sanitizeGame,
+    settle,
+    sumOf,
+    type DealerState,
+    type Entry,
+    type Game,
+    type Row,
+    type Seat,
+    type WinEntry,
+  } from './logic';
+
+  interface Ui {
+    mode: 'hand' | 'direct';
+    /** Add the dealer bonus automatically to hands recorded from now on. */
+    bonus: boolean;
+    settleOpen: boolean;
+  }
+  interface Draft {
+    winner: Seat | null;
+    how: Seat | 'self' | null;
+    tai: number | null;
+  }
+
+  const KEY = 'mahjong-score';
+  const root = $('[data-tool="mahjong-score"]');
+  const { locale } = readI18n<Record<string, never>>(root);
+  const num = (v: number) => formatInteger(v, locale);
+  const signed = (v: number) => (v > 0 ? `+${num(v)}` : v < 0 ? `−${num(-v)}` : '0');
+
+  const stored = loadPref<{ game?: unknown; ui?: Partial<Ui> } | null>(KEY, null);
+  const game: Game = sanitizeGame(stored?.game);
+  const ui: Ui = {
+    mode: stored?.ui?.mode === 'direct' ? 'direct' : 'hand',
+    bonus: stored?.ui?.bonus !== false,
+    settleOpen: stored?.ui?.settleOpen === true && game.entries.length > 0,
+  };
+
+  let rep = replay(game);
+  let draft: Draft = { winner: null, how: null, tai: null };
+  /** Index of the entry loaded into a form for editing. */
+  let editing: number | null = null;
+  let confirmDelete: number | null = null;
+
+  const setup = $<HTMLDetailsElement>('#mj-setup', root);
+  const nameInputs = $$<HTMLInputElement>('[data-name]', root);
+  const baseInput = $<HTMLInputElement>('#mj-base', root);
+  const perInput = $<HTMLInputElement>('#mj-per', root);
+  const bonusBox = $<HTMLInputElement>('#mj-bonus', root);
+  const taiInput = $<HTMLInputElement>('#mj-tai', root);
+  const streakInput = $<HTMLInputElement>('#mj-streak', root);
+  const dealerPanel = $('#mj-dealer-panel', root);
+  const dealerBtn = $<HTMLButtonElement>('#mj-dealer-btn', root);
+  const directRows = $$<HTMLElement>('.mj-direct-row', root);
+  const flashBox = $('#mj-flash', root);
+
+  const nameOf = (seat: number) => game.names[seat] || `${WINDS[seat]}家`;
+  const save = () => savePref(KEY, { game, ui });
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text?: string) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function button(className: string, text: string, action: string, index: number) {
+    const b = el('button', className, text);
+    b.type = 'button';
+    b.dataset.action = action;
+    b.dataset.index = String(index);
+    return b;
+  }
+
+  function parseWhole(raw: string, max: number): number | null {
+    if (raw.trim() === '') return null;
+    const n = parseNumber(raw);
+    if (!Number.isFinite(n)) return null;
+    return Math.min(max, Math.max(0, Math.round(Math.abs(n))));
+  }
+
+  function flash(message: string) {
+    flashBox.textContent = message;
+    flashBox.hidden = message === '';
+  }
+
+  function toBoard() {
+    $('#mj-board', root).scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  // ---------- What the forms are working on ----------
+
+  const editedEntry = () => (editing === null ? null : game.entries[editing] ?? null);
+
+  /** The dealer when the hand in the form is played: now, or back then for a hand being edited. */
+  function formDealer(): DealerState {
+    return editing !== null && rep.rows[editing] ? rep.rows[editing].before : rep.dealer;
+  }
+
+  function formBonus(): boolean {
+    const entry = editedEntry();
+    return entry?.kind === 'win' ? entry.bonus : ui.bonus;
+  }
+
+  function draftHand(): WinEntry | null {
+    if (draft.winner === null || draft.how === null || draft.tai === null) return null;
+    return { kind: 'win', winner: draft.winner, from: draft.how === 'self' ? null : draft.how, tai: draft.tai, bonus: formBonus() };
+  }
+
+  function directValues(): (number | null)[] {
+    return directRows.map((row) => {
+      const amount = parseWhole($<HTMLInputElement>('.mj-direct-amount', row).value, MAX_AMOUNT);
+      if (amount === null) return null;
+      const sign = $<HTMLInputElement>('input[type="radio"]:checked', row).value === '-1' ? -1 : 1;
+      return amount === 0 ? 0 : sign * amount;
+    });
+  }
+
+  function setDirectValues(values: readonly (number | null)[]) {
+    directRows.forEach((row, i) => {
+      const v = values[i];
+      $<HTMLInputElement>('.mj-direct-amount', row).value = v === null ? '' : String(Math.abs(v));
+      if (v !== null && v !== 0) $<HTMLInputElement>(`input[value="${v < 0 ? '-1' : '1'}"]`, row).checked = true;
+    });
+  }
+
+  function resetForms() {
+    draft = { winner: null, how: null, tai: null };
+    editing = null;
+    taiInput.value = '';
+    setDirectValues([null, null, null, null]);
+    for (const row of directRows) $<HTMLInputElement>('input[value="1"]', row).checked = true;
+  }
+
+  // ---------- Text ----------
+
+  function dealerLabel(state: Pick<DealerState, 'dealer' | 'streak'>): string {
+    return state.streak > 0 ? `莊家 ${nameOf(state.dealer)}・連 ${state.streak}` : `莊家 ${nameOf(state.dealer)}`;
+  }
+
+  function bonusLabel(streak: number): string {
+    const extra = dealerExtraTai(streak);
+    return streak > 0 ? `莊家台 ${extra} 台（莊家 1 台＋連 ${streak} 拉 ${streak} 共 ${2 * streak} 台）` : `莊家台 ${extra} 台`;
+  }
+
+  function roundText(passes: number): string {
+    const info = roundInfo(passes);
+    return info.game > 1 ? `第 ${info.game} 將 ${info.label}` : info.label;
+  }
+
+  function handTitle(hand: WinEntry): string {
+    return hand.from === null ? `${nameOf(hand.winner)} 自摸・${hand.tai} 台` : `${nameOf(hand.winner)} 胡牌，${nameOf(hand.from)} 放槍・${hand.tai} 台`;
+  }
+
+  function rowTitle(row: Row): string {
+    const e = row.entry;
+    if (e.kind === 'win') return handTitle(e);
+    if (e.kind === 'draw') return '流局';
+    if (e.kind === 'direct') return '四個人的輸贏';
+    return `改莊家：${nameOf(e.dealer)}・連 ${e.streak}`;
+  }
+
+  function rowLabel(row: Row): string {
+    if (row.handNo !== null) return `第 ${row.handNo} 局`;
+    return row.entry.kind === 'direct' ? '直接輸入' : '改莊家';
+  }
+
+  function settlementText(): string {
+    const order = [...SEATS].sort((a, b) => rep.totals[b] - rep.totals[a]);
+    const transfers = settle(rep.totals);
+    const asciiSigned = (v: number) => (v > 0 ? `+${num(v)}` : v < 0 ? `-${num(-v)}` : '0');
+    const lines = [
+      `麻將結算（${countText()}，底 ${num(game.stakes.base)}／每台 ${num(game.stakes.perTai)}）`,
+      ...order.map((seat) => `${nameOf(seat)} ${asciiSigned(rep.totals[seat])}`),
+      '',
+      ...(transfers.length > 0 ? transfers.map((t) => `${nameOf(t.from)} 付 ${nameOf(t.to)} ${num(t.amount)} 元`) : ['大家都是 0，不用付錢']),
+    ];
+    return lines.join('\n');
+  }
+
+  function countText(): string {
+    const direct = game.entries.filter((e) => e.kind === 'direct').length;
+    if (direct === 0) return `共 ${num(rep.hands)} 局`;
+    return rep.hands === 0 ? `共 ${num(direct)} 筆` : `共 ${num(rep.hands)} 局，另外直接輸入 ${num(direct)} 筆`;
+  }
+
+  // ---------- Render ----------
+
+  function renderNames() {
+    for (const node of $$('[data-seat-name]', root)) node.textContent = nameOf(Number(node.dataset.seatName));
+  }
+
+  function renderSetup() {
+    const preset = presetIndex(game.stakes);
+    for (const radio of $$<HTMLInputElement>('input[name="mj-preset"]', root)) {
+      radio.checked = radio.value === (preset < 0 ? 'custom' : String(preset));
+    }
+    if (document.activeElement !== baseInput) baseInput.value = String(game.stakes.base);
+    if (document.activeElement !== perInput) perInput.value = String(game.stakes.perTai);
+    for (const radio of $$<HTMLInputElement>('input[name="mj-start"]', root)) radio.checked = Number(radio.value) === game.startDealer;
+    bonusBox.checked = ui.bonus;
+    $('#mj-start-btn', root).textContent = game.entries.length > 0 ? '收起設定' : '開始記分';
+    $('#mj-setup-sum', root).textContent =
+      `${num(game.stakes.base)}/${num(game.stakes.perTai)}・${ui.bonus ? '自動加莊家台' : '不自動加莊家台'}`;
+  }
+
+  function renderBoard() {
+    $('#mj-round', root).textContent = roundText(rep.dealer.passes);
+    $('#mj-dealer-line', root).textContent = ui.bonus
+      ? `${dealerLabel(rep.dealer)}（莊家台 ${dealerExtraTai(rep.dealer.streak)} 台）`
+      : dealerLabel(rep.dealer);
+    for (const tile of $$<HTMLElement>('.mj-player', root)) {
+      const seat = Number(tile.dataset.seat);
+      const isDealer = seat === rep.dealer.dealer;
+      tile.classList.toggle('is-dealer', isDealer);
+      const tag = $('.mj-dealer-tag', tile);
+      tag.hidden = !isDealer;
+      tag.textContent = rep.dealer.streak > 0 ? `莊 連${rep.dealer.streak}` : '莊';
+      const total = $('.mj-total', tile);
+      total.textContent = signed(rep.totals[seat]);
+      total.classList.toggle('is-long', total.textContent.length > 6);
+      total.classList.toggle('is-minus', rep.totals[seat] < 0);
+    }
+  }
+
+  function renderHand() {
+    const dealer = formDealer();
+    const bonus = formBonus();
+    const entry = editedEntry();
+    const row = editing === null ? null : rep.rows[editing];
+
+    const banner = $('#mj-hand-editing', root);
+    banner.hidden = !(entry?.kind === 'win' && row);
+    if (entry?.kind === 'win' && row) {
+      banner.textContent = `正在修改${rowLabel(row)}（當時${dealerLabel(dealer)}，${bonus ? '有' : '沒有'}自動加莊家台）。`;
+    }
+
+    for (const b of $$<HTMLButtonElement>('#mj-winner .mj-pick', root)) {
+      const seat = Number(b.dataset.seat);
+      b.setAttribute('aria-pressed', String(draft.winner === seat));
+      $('.mj-dealer-tag', b).hidden = seat !== dealer.dealer;
+    }
+    for (const b of $$<HTMLButtonElement>('#mj-how .mj-pick', root)) {
+      const how = b.dataset.how === 'self' ? 'self' : (Number(b.dataset.how) as Seat);
+      b.hidden = how === draft.winner;
+      b.disabled = draft.winner === null;
+      b.setAttribute('aria-pressed', String(draft.how === how && draft.winner !== null));
+    }
+    for (const b of $$<HTMLButtonElement>('.mj-quick-btn', root)) {
+      b.setAttribute('aria-pressed', String(draft.tai === Number(b.dataset.tai)));
+    }
+    if (document.activeElement !== taiInput) taiInput.value = draft.tai === null ? '' : String(draft.tai);
+
+    $('#mj-tai-note', root).textContent = bonus ? '不含莊家台' : '含莊家台的總台數';
+    $('#mj-tai-hint', root).textContent = bonus
+      ? `只填這副牌自己的台數（自摸、門清、花牌等請自己加總）。${dealerLabel(dealer)}，和莊家之間會自動多算${bonusLabel(dealer.streak)}。`
+      : '已關閉自動加莊家台：請把莊家台、連莊拉莊都算進去，填總台數。';
+
+    const hand = draftHand();
+    const preview = $('#mj-preview', root);
+    if (!hand) {
+      const missing = draft.winner === null ? '先選胡牌的人' : draft.how === null ? '再選自摸或誰放槍' : '最後填台數';
+      preview.replaceChildren(el('p', 'mj-preview-empty', `${missing}，這裡會列出每個人要付多少。`));
+    } else {
+      const payments = handPayments(hand, dealer, game.stakes);
+      const list = el('ul', 'mj-pay-list');
+      for (const p of payments) {
+        const li = el('li');
+        const who = el('span', 'mj-pay-who', `${nameOf(p.payer)}${p.payer === dealer.dealer ? '（莊家）' : ''} 付`);
+        const formula =
+          p.extraTai > 0
+            ? `${num(game.stakes.base)} + (${p.tai} + ${p.extraTai}) × ${num(game.stakes.perTai)}`
+            : `${num(game.stakes.base)} + ${p.tai} × ${num(game.stakes.perTai)}`;
+        li.append(who, el('span', 'mj-pay-formula', formula), el('strong', 'mj-pay-amount', `${num(p.amount)} 元`));
+        list.append(li);
+      }
+      const total = payments.reduce((sum, p) => sum + p.amount, 0);
+      const title = el('p', 'mj-preview-title', handTitle(hand));
+      const note = payments.some((p) => p.extraTai > 0)
+        ? `括號裡後面的數字是${bonusLabel(dealer.streak)}，只算在莊家和對方之間。`
+        : bonus
+          ? '這一局和莊家無關，不加莊家台。'
+          : '這一局沒有自動加莊家台。';
+      preview.replaceChildren(
+        title,
+        list,
+        el('p', 'mj-preview-total', `${nameOf(hand.winner)}${hand.winner === dealer.dealer ? '（莊家）' : ''} 共收 ${num(total)} 元`),
+        el('p', 'hint', note),
+      );
+    }
+
+    const record = $<HTMLButtonElement>('#mj-record', root);
+    record.disabled = !hand;
+    record.textContent = entry?.kind === 'win' ? '儲存修改' : '記下這一局';
+    $('#mj-draw', root).hidden = editing !== null;
+    $('#mj-hand-cancel', root).hidden = entry?.kind !== 'win';
+  }
+
+  function renderDirect() {
+    const values = directValues();
+    const entry = editedEntry();
+    const row = editing === null ? null : rep.rows[editing];
+    const banner = $('#mj-direct-editing', root);
+    banner.hidden = !(entry?.kind === 'direct' && row);
+    if (entry?.kind === 'direct') banner.textContent = '正在修改一筆直接輸入的紀錄。';
+
+    const missing = values.filter((v) => v === null).length;
+    const sum = sumOf(values);
+    const filled = fillFourth(values);
+    const ok = directDeltas(values) !== null;
+    let text = '';
+    if (missing === 4) text = '';
+    else if (filled) {
+      const seat = values.findIndex((v) => v === null);
+      text = `目前合計 ${signed(sum)}，${nameOf(seat)} 應該是 ${signed(filled[seat])}。`;
+    } else if (missing > 0) text = `目前合計 ${signed(sum)}，還有 ${missing} 個人沒填。`;
+    else if (sum !== 0) text = `合計 ${signed(sum)}，要等於 0 才能記下，請檢查贏和輸有沒有選對。`;
+    else if (!ok) text = '四個人都是 0，沒有東西可以記。';
+    else text = '合計 0，可以記下。';
+    const sumBox = $('#mj-direct-sum', root);
+    sumBox.textContent = text;
+    sumBox.classList.toggle('is-error', missing === 0 && sum !== 0);
+
+    $<HTMLButtonElement>('#mj-fill', root).disabled = !filled;
+    const record = $<HTMLButtonElement>('#mj-direct-record', root);
+    record.disabled = !ok;
+    record.textContent = entry?.kind === 'direct' ? '儲存修改' : '記下這一輪';
+    $('#mj-direct-cancel', root).hidden = entry?.kind !== 'direct';
+  }
+
+  function renderMode() {
+    for (const radio of $$<HTMLInputElement>('input[name="mj-mode"]', root)) radio.checked = radio.value === ui.mode;
+    $('#mj-hand', root).hidden = ui.mode !== 'hand';
+    $('#mj-direct', root).hidden = ui.mode !== 'direct';
+  }
+
+  function renderLog() {
+    const log = $('#mj-log', root);
+    const rows = [...rep.rows].reverse();
+    log.replaceChildren(
+      ...rows.map((row) => {
+        const e = row.entry;
+        const li = el('li', `mj-row mj-row-${e.kind}`);
+        if (row.index === editing) li.classList.add('is-editing');
+        const head = el('div', 'mj-row-head');
+        head.append(el('span', 'mj-row-no', rowLabel(row)));
+        if (e.kind === 'win' || e.kind === 'draw') head.append(el('span', 'mj-row-round', roundText(row.before.passes)));
+        li.append(head, el('div', 'mj-row-title', rowTitle(row)));
+
+        if (e.kind === 'win') {
+          const extra = row.payments.find((p) => p.extraTai > 0)?.extraTai ?? 0;
+          const parts = [dealerLabel(row.before)];
+          if (extra > 0) parts.push(`加莊家台 ${extra} 台`);
+          else if (!e.bonus) parts.push('沒有自動加莊家台');
+          li.append(el('div', 'mj-row-meta', parts.join('・')));
+        } else if (e.kind === 'draw') {
+          li.append(el('div', 'mj-row-meta', `${dealerLabel(row.before)}，連莊`));
+        } else if (e.kind === 'dealer') {
+          li.append(el('div', 'mj-row-meta', `改完是 ${roundText(row.after.passes)}`));
+        }
+
+        if (e.kind === 'win' || e.kind === 'direct') {
+          const deltas = el('div', 'mj-row-deltas');
+          for (const seat of SEATS) {
+            const cell = el('span', row.deltas[seat] === 0 ? 'is-zero' : '');
+            cell.append(el('span', 'mj-delta-name', nameOf(seat)), el('span', 'mj-delta-value', signed(row.deltas[seat])));
+            deltas.append(cell);
+          }
+          li.append(deltas);
+        }
+
+        const actions = el('div', 'mj-row-actions');
+        if (confirmDelete === row.index) {
+          actions.append(
+            el('span', 'mj-row-ask', `確定刪除${rowLabel(row)}？`),
+            button('btn primary mj-mid', '刪除', 'delete-yes', row.index),
+            button('btn mj-mid', '取消', 'delete-no', row.index),
+          );
+        } else {
+          if (e.kind === 'win' || e.kind === 'direct') actions.append(button('btn mj-mid', '修改', 'edit', row.index));
+          actions.append(button('btn ghost mj-mid', '刪除', 'delete', row.index));
+        }
+        li.append(actions);
+        return li;
+      }),
+    );
+    $('#mj-log-empty', root).hidden = rows.length > 0;
+    $<HTMLButtonElement>('#mj-undo', root).disabled = rows.length === 0;
+  }
+
+  function renderSettle() {
+    $('#mj-settle-btn', root).hidden = ui.settleOpen;
+    $('#mj-settle-panel', root).hidden = !ui.settleOpen;
+    if (!ui.settleOpen) return;
+    const transfers = settle(rep.totals);
+    const list = $('#mj-transfers', root);
+    list.replaceChildren(
+      ...transfers.map((t) => {
+        const li = el('li');
+        li.append(el('span', 'mj-transfer-who', `${nameOf(t.from)} 付 ${nameOf(t.to)}`), el('strong', '', `${num(t.amount)} 元`));
+        return li;
+      }),
+    );
+    $('#mj-settle-note', root).textContent =
+      transfers.length > 0
+        ? `${countText()}。照上面 ${transfers.length} 筆付完，四個人就都結清了。`
+        : game.entries.length > 0
+          ? `${countText()}。大家都是 0，沒有人需要付錢。`
+          : '還沒有紀錄，沒有人需要付錢。';
+    $('#mj-new-text', root).textContent =
+      `確定要清空 ${num(game.entries.length)} 筆紀錄、重新開始嗎？名字和底台會留著，紀錄清掉就救不回來。`;
+  }
+
+  function render() {
+    rep = replay(game);
+    if (editing !== null && !game.entries[editing]) editing = null;
+    renderNames();
+    renderSetup();
+    renderBoard();
+    renderMode();
+    renderHand();
+    renderDirect();
+    renderLog();
+    renderSettle();
+  }
+
+  function commit(message: string) {
+    confirmDelete = null;
+    save();
+    render();
+    flash(message);
+  }
+
+  // ---------- Setup ----------
+
+  nameInputs.forEach((input, i) => {
+    input.value = game.names[i];
+    input.addEventListener('input', () => {
+      game.names[i] = cleanName(input.value);
+      save();
+      render();
+    });
+    input.addEventListener('blur', () => (input.value = game.names[i]));
+  });
+
+  for (const radio of $$<HTMLInputElement>('input[name="mj-preset"]', root)) {
+    radio.addEventListener('change', () => {
+      if (radio.value === 'custom') {
+        baseInput.focus();
+        baseInput.select();
+        return;
+      }
+      game.stakes = { ...STAKE_PRESETS[Number(radio.value)] };
+      commit('');
+    });
+  }
+
+  for (const input of [baseInput, perInput]) {
+    input.addEventListener('input', () => {
+      const base = parseWhole(baseInput.value, MAX_AMOUNT);
+      const perTai = parseWhole(perInput.value, MAX_AMOUNT);
+      if (base === null || perTai === null) return;
+      game.stakes = cleanStakes({ base, perTai });
+      commit('');
+    });
+    input.addEventListener('blur', () => renderSetup());
+  }
+
+  for (const radio of $$<HTMLInputElement>('input[name="mj-start"]', root)) {
+    radio.addEventListener('change', () => {
+      game.startDealer = Number(radio.value) as Seat;
+      commit('');
+    });
+  }
+
+  bonusBox.addEventListener('change', () => {
+    ui.bonus = bonusBox.checked;
+    commit('');
+  });
+
+  $('#mj-start-btn', root).addEventListener('click', () => {
+    setup.open = false;
+    toBoard();
+  });
+
+  // ---------- Dealer by hand ----------
+
+  function openDealerPanel(open: boolean) {
+    dealerPanel.hidden = !open;
+    dealerBtn.setAttribute('aria-expanded', String(open));
+    if (!open) return;
+    for (const radio of $$<HTMLInputElement>('input[name="mj-dealer-seat"]', root)) radio.checked = Number(radio.value) === rep.dealer.dealer;
+    for (const radio of $$<HTMLInputElement>('input[name="mj-wind"]', root)) radio.checked = Number(radio.value) === roundInfo(rep.dealer.passes).wind;
+    streakInput.value = String(rep.dealer.streak);
+  }
+
+  function stepStreak(by: number) {
+    const now = parseWhole(streakInput.value, MAX_STREAK) ?? 0;
+    streakInput.value = String(Math.min(MAX_STREAK, Math.max(0, now + by)));
+  }
+
+  dealerBtn.addEventListener('click', () => openDealerPanel(dealerPanel.hasAttribute('hidden')));
+  $('#mj-dealer-cancel', root).addEventListener('click', () => openDealerPanel(false));
+  $('#mj-streak-minus', root).addEventListener('click', () => stepStreak(-1));
+  $('#mj-streak-plus', root).addEventListener('click', () => stepStreak(1));
+  $('#mj-dealer-apply', root).addEventListener('click', () => {
+    if (game.entries.length >= MAX_ENTRIES) return;
+    const dealer = Number($<HTMLInputElement>('input[name="mj-dealer-seat"]:checked', root).value) as Seat;
+    const wind = Number($<HTMLInputElement>('input[name="mj-wind"]:checked', root).value);
+    const streak = parseWhole(streakInput.value, MAX_STREAK) ?? 0;
+    game.entries.push({ kind: 'dealer', dealer, streak, wind: wind === roundInfo(rep.dealer.passes).wind ? null : wind });
+    resetForms();
+    openDealerPanel(false);
+    commit(`已改莊家：${nameOf(dealer)}・連 ${streak}。`);
+  });
+
+  // ---------- Hand by hand ----------
+
+  for (const radio of $$<HTMLInputElement>('input[name="mj-mode"]', root)) {
+    radio.addEventListener('change', () => {
+      ui.mode = radio.value === 'direct' ? 'direct' : 'hand';
+      if (editing !== null) resetForms();
+      commit('');
+    });
+  }
+
+  $('#mj-winner', root).addEventListener('click', (event) => {
+    const b = (event.target as Element).closest<HTMLButtonElement>('.mj-pick');
+    if (!b) return;
+    const seat = Number(b.dataset.seat) as Seat;
+    draft.winner = seat;
+    if (draft.how === seat) draft.how = null;
+    renderHand();
+  });
+
+  $('#mj-how', root).addEventListener('click', (event) => {
+    const b = (event.target as Element).closest<HTMLButtonElement>('.mj-pick');
+    if (!b || draft.winner === null) return;
+    draft.how = b.dataset.how === 'self' ? 'self' : (Number(b.dataset.how) as Seat);
+    renderHand();
+  });
+
+  function setTai(value: number | null) {
+    draft.tai = value === null ? null : Math.min(MAX_TAI, Math.max(0, value));
+    renderHand();
+  }
+
+  taiInput.addEventListener('input', () => setTai(parseWhole(taiInput.value, MAX_TAI)));
+  taiInput.addEventListener('blur', () => renderHand());
+  $('#mj-tai-minus', root).addEventListener('click', () => setTai((draft.tai ?? 1) - 1));
+  $('#mj-tai-plus', root).addEventListener('click', () => setTai((draft.tai ?? 0) + 1));
+  for (const b of $$<HTMLButtonElement>('.mj-quick-btn', root)) b.addEventListener('click', () => setTai(Number(b.dataset.tai)));
+
+  $('#mj-record', root).addEventListener('click', () => {
+    const hand = draftHand();
+    if (!hand) return;
+    const wasEditing = editing;
+    if (wasEditing !== null) game.entries = replaceEntry(game.entries, wasEditing, hand);
+    else if (game.entries.length < MAX_ENTRIES) game.entries.push(hand);
+    else return;
+    const index = wasEditing ?? game.entries.length - 1;
+    resetForms();
+    rep = replay(game);
+    const row = rep.rows[index];
+    const total = row.payments.reduce((sum, p) => sum + p.amount, 0);
+    commit(`${wasEditing !== null ? '已修改' : '已記下'}${rowLabel(row)}：${handTitle(hand)}，共收 ${num(total)} 元。`);
+    if (wasEditing === null) {
+      trackEvent('mahjong_hand', { method: hand.from === null ? 'self_draw' : 'discard', tai: hand.tai, dealer_bonus: hand.bonus });
+    }
+    toBoard();
+  });
+
+  $('#mj-draw', root).addEventListener('click', () => {
+    if (game.entries.length >= MAX_ENTRIES) return;
+    const dealer = rep.dealer;
+    game.entries.push({ kind: 'draw' });
+    resetForms();
+    commit(`已記下流局：${nameOf(dealer.dealer)} 連莊，連 ${dealer.streak + 1}。`);
+    trackEvent('mahjong_hand', { method: 'draw' });
+    toBoard();
+  });
+
+  $('#mj-hand-cancel', root).addEventListener('click', () => {
+    resetForms();
+    commit('');
+  });
+
+  // ---------- Direct entry ----------
+
+  for (const row of directRows) {
+    const amount = $<HTMLInputElement>('.mj-direct-amount', row);
+    amount.addEventListener('input', () => {
+      // A typed minus sign flips the row to "lost", for people on a keyboard.
+      if (/^\s*[-−－]/.test(amount.value)) {
+        $<HTMLInputElement>('input[value="-1"]', row).checked = true;
+        amount.value = amount.value.replace(/[-−－]/g, '');
+      }
+      renderDirect();
+    });
+    for (const radio of $$<HTMLInputElement>('input[type="radio"]', row)) radio.addEventListener('change', () => renderDirect());
+  }
+
+  $('#mj-fill', root).addEventListener('click', () => {
+    const filled = fillFourth(directValues());
+    if (!filled) return;
+    setDirectValues(filled);
+    renderDirect();
+  });
+
+  $('#mj-direct-record', root).addEventListener('click', () => {
+    const deltas = directDeltas(directValues());
+    if (!deltas) return;
+    const wasEditing = editing;
+    const entry: Entry = { kind: 'direct', deltas };
+    if (wasEditing !== null) game.entries = replaceEntry(game.entries, wasEditing, entry);
+    else if (game.entries.length < MAX_ENTRIES) game.entries.push(entry);
+    else return;
+    resetForms();
+    commit(wasEditing !== null ? '已修改這筆直接輸入的紀錄。' : '已記下這一輪的輸贏。');
+    if (wasEditing === null) trackEvent('mahjong_hand', { method: 'direct' });
+    toBoard();
+  });
+
+  $('#mj-direct-cancel', root).addEventListener('click', () => {
+    resetForms();
+    commit('');
+  });
+
+  // ---------- History ----------
+
+  $('#mj-undo', root).addEventListener('click', () => {
+    const last = rep.rows[rep.rows.length - 1];
+    if (!last) return;
+    game.entries = removeEntry(game.entries, last.index);
+    resetForms();
+    commit(`已復原上一筆（${rowLabel(last)}：${rowTitle(last)}）。`);
+  });
+
+  $('#mj-log', root).addEventListener('click', (event) => {
+    const b = (event.target as Element).closest<HTMLButtonElement>('button[data-action]');
+    if (!b) return;
+    const index = Number(b.dataset.index);
+    const row = rep.rows[index];
+    if (!row) return;
+    switch (b.dataset.action) {
+      case 'delete':
+        confirmDelete = index;
+        renderLog();
+        break;
+      case 'delete-no':
+        confirmDelete = null;
+        renderLog();
+        break;
+      case 'delete-yes': {
+        const later = index < rep.rows.length - 1;
+        game.entries = removeEntry(game.entries, index);
+        resetForms();
+        commit(`已刪除${rowLabel(row)}${later ? '，後面的莊家和金額已經重算' : ''}。`);
+        break;
+      }
+      case 'edit': {
+        const e = row.entry;
+        resetForms();
+        editing = index;
+        confirmDelete = null;
+        if (e.kind === 'win') {
+          ui.mode = 'hand';
+          draft = { winner: e.winner, how: e.from ?? 'self', tai: e.tai };
+        } else if (e.kind === 'direct') {
+          ui.mode = 'direct';
+          setDirectValues(e.deltas);
+        }
+        save();
+        render();
+        flash('');
+        $(ui.mode === 'hand' ? '#mj-hand' : '#mj-direct', root).scrollIntoView({ block: 'start', behavior: 'smooth' });
+        break;
+      }
+    }
+  });
+
+  // ---------- Settlement ----------
+
+  function openConfirm(open: boolean) {
+    const box = $('#mj-new-confirm', root);
+    box.hidden = !open;
+    if (open) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  $('#mj-settle-btn', root).addEventListener('click', () => {
+    ui.settleOpen = true;
+    openConfirm(false);
+    save();
+    renderSettle();
+    trackEvent('mahjong_settle', { hands: rep.hands, entries: game.entries.length, transfers: settle(rep.totals).length });
+    $('#mj-settle', root).scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+
+  $('#mj-settle-close', root).addEventListener('click', () => {
+    ui.settleOpen = false;
+    openConfirm(false);
+    save();
+    renderSettle();
+  });
+
+  const copyBtn = $<HTMLButtonElement>('#mj-copy', root);
+  copyBtn.addEventListener('click', async () => {
+    if (await copyText(settlementText())) flashButton(copyBtn);
+  });
+
+  $('#mj-new', root).addEventListener('click', () => openConfirm(true));
+  $('#mj-new-no', root).addEventListener('click', () => openConfirm(false));
+  $('#mj-new-yes', root).addEventListener('click', () => {
+    const hands = rep.hands;
+    game.entries = [];
+    ui.settleOpen = false;
+    openConfirm(false);
+    resetForms();
+    commit('已清空紀錄，開新的一場。');
+    trackEvent('mahjong_new_game', { hands });
+    toBoard();
+  });
+
+  setup.open = game.entries.length === 0;
+  render();
+</script>
+
+<style is:global>
+  /* Rows are built by the script, so these rules are global; every selector is scoped to this tool. */
+  [data-tool='mahjong-score'] h3 {
+    font-size: 16px;
+  }
+  [data-tool='mahjong-score'] .hint {
+    margin: 0;
+  }
+  [data-tool='mahjong-score'] .mj-big {
+    min-height: 52px;
+    font-size: 17px;
+    white-space: normal;
+  }
+  [data-tool='mahjong-score'] .mj-mid {
+    min-height: 44px;
+    padding: 6px 14px;
+  }
+  [data-tool='mahjong-score'] .mj-wind {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-dealer-tag {
+    flex: none;
+    padding: 2px 7px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--on-accent);
+    background: var(--accent);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  [data-tool='mahjong-score'] .mj-label,
+  [data-tool='mahjong-score'] .mj-fieldset > legend {
+    padding: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-tool='mahjong-score'] .mj-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  /* Chip-style radio groups, sized for a thumb. */
+  [data-tool='mahjong-score'] .mj-chips {
+    display: grid;
+    gap: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-chips label {
+    position: relative;
+    display: block;
+    min-width: 0;
+    cursor: pointer;
+  }
+  [data-tool='mahjong-score'] .mj-chips input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  [data-tool='mahjong-score'] .mj-chips span {
+    display: block;
+    min-height: 44px;
+    padding: 10px 6px;
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 22px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='mahjong-score'] .mj-chips input:checked + span {
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  [data-tool='mahjong-score'] .mj-chips input:focus-visible + span {
+    box-shadow: var(--focus);
+  }
+  [data-tool='mahjong-score'] .mj-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  [data-tool='mahjong-score'] .mj-seats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-tool='mahjong-score'] .mj-winds {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  [data-tool='mahjong-score'] .mj-mode {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-tool='mahjong-score'] .mj-sign {
+    grid-template-columns: repeat(2, 44px);
+    gap: 4px;
+  }
+
+  /* Setup */
+  [data-tool='mahjong-score'] .mj-setup {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  [data-tool='mahjong-score'] .mj-setup > summary {
+    min-height: 48px;
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+  [data-tool='mahjong-score'] .mj-setup-title {
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  [data-tool='mahjong-score'] .mj-setup-sum {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-setup-body {
+    display: grid;
+    gap: 18px;
+    padding: 4px 14px 14px;
+  }
+  [data-tool='mahjong-score'] .mj-fieldset {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  [data-tool='mahjong-score'] .mj-fieldset > legend {
+    margin-bottom: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-names {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  [data-tool='mahjong-score'] .mj-name input {
+    min-height: 44px;
+  }
+  [data-tool='mahjong-score'] .mj-stakes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-stakes input,
+  [data-tool='mahjong-score'] .mj-stepper input,
+  [data-tool='mahjong-score'] .mj-direct-amount {
+    min-height: 48px;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='mahjong-score'] .mj-bonus {
+    align-items: flex-start;
+    min-height: 44px;
+    padding: 10px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  [data-tool='mahjong-score'] .mj-bonus input {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+  }
+
+  /* Board */
+  [data-tool='mahjong-score'] .mj-board {
+    display: grid;
+    gap: 10px;
+    scroll-margin-top: 12px;
+  }
+  [data-tool='mahjong-score'] .mj-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  [data-tool='mahjong-score'] .mj-status-text {
+    display: grid;
+    min-width: 0;
+  }
+  [data-tool='mahjong-score'] .mj-round {
+    font-family: var(--display);
+    font-size: 22px;
+    line-height: 1.3;
+  }
+  [data-tool='mahjong-score'] .mj-dealer-line {
+    font-size: 14px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='mahjong-score'] .mj-dealer-panel {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+  }
+  [data-tool='mahjong-score'] .mj-panel-field {
+    display: grid;
+    gap: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-stepper {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-stepper .btn {
+    min-height: 48px;
+    padding: 0;
+    font-size: 24px;
+    line-height: 1;
+  }
+  [data-tool='mahjong-score'] .mj-stepper input {
+    text-align: center;
+    font-weight: 700;
+  }
+  [data-tool='mahjong-score'] .mj-players {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-player {
+    position: relative;
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  /* The badge sits on the tile's top edge so it never takes room from the name. */
+  [data-tool='mahjong-score'] .mj-player .mj-dealer-tag {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+  }
+  [data-tool='mahjong-score'] .mj-player.is-dealer {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  [data-tool='mahjong-score'] .mj-player-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 24px;
+  }
+  [data-tool='mahjong-score'] .mj-player-name,
+  [data-tool='mahjong-score'] .mj-pick-name,
+  [data-tool='mahjong-score'] .mj-direct-name,
+  [data-tool='mahjong-score'] .mj-delta-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  [data-tool='mahjong-score'] .mj-player-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  [data-tool='mahjong-score'] .mj-total {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 34px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  [data-tool='mahjong-score'] .mj-total.is-long {
+    font-size: 20px;
+  }
+  [data-tool='mahjong-score'] .mj-total.is-minus {
+    color: var(--text-2);
+  }
+  [data-tool='mahjong-score'] .mj-flash {
+    margin: 0;
+  }
+
+  /* Forms */
+  [data-tool='mahjong-score'] .mj-form {
+    display: grid;
+    gap: 16px;
+    scroll-margin-top: 12px;
+  }
+  [data-tool='mahjong-score'] .mj-form > .notice {
+    margin: 0;
+  }
+  [data-tool='mahjong-score'] .mj-editing {
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+  }
+  [data-tool='mahjong-score'] .mj-step {
+    display: grid;
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-step h3 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+  }
+  [data-tool='mahjong-score'] .mj-tai-note {
+    padding: 1px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+    border-radius: 999px;
+  }
+  [data-tool='mahjong-score'] .mj-winners {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-how {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-self {
+    grid-column: 1 / -1;
+  }
+  [data-tool='mahjong-score'] .mj-pick {
+    min-width: 0;
+    min-height: 56px;
+    padding: 8px 10px;
+    font-size: 17px;
+    white-space: normal;
+  }
+  [data-tool='mahjong-score'] .mj-pick[aria-pressed='true'],
+  [data-tool='mahjong-score'] .mj-quick-btn[aria-pressed='true'] {
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  [data-tool='mahjong-score'] .mj-from {
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    line-height: 1.3;
+  }
+  [data-tool='mahjong-score'] .mj-from .mj-pick-name {
+    max-width: 100%;
+  }
+  [data-tool='mahjong-score'] .mj-from-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-from[aria-pressed='true'] .mj-from-label {
+    color: inherit;
+  }
+  [data-tool='mahjong-score'] .mj-quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-quick-btn {
+    min-height: 48px;
+    padding: 0;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='mahjong-score'] .mj-preview {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+  }
+  [data-tool='mahjong-score'] .mj-preview p {
+    margin: 0;
+  }
+  [data-tool='mahjong-score'] .mj-preview-empty {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-preview-title,
+  [data-tool='mahjong-score'] .mj-preview-total {
+    font-weight: 700;
+  }
+  [data-tool='mahjong-score'] .mj-pay-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  [data-tool='mahjong-score'] .mj-pay-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 10px;
+    align-items: baseline;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='mahjong-score'] .mj-pay-who {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='mahjong-score'] .mj-pay-formula {
+    grid-column: 1;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='mahjong-score'] .mj-pay-amount {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Direct entry */
+  [data-tool='mahjong-score'] .mj-direct-rows {
+    display: grid;
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-direct-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 104px);
+    align-items: center;
+    gap: 8px;
+  }
+  [data-tool='mahjong-score'] .mj-direct-name {
+    font-weight: 600;
+  }
+  [data-tool='mahjong-score'] .mj-direct-amount {
+    text-align: right;
+  }
+  [data-tool='mahjong-score'] .mj-direct-sum {
+    min-height: 1.65em;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-tool='mahjong-score'] .mj-direct-sum.is-error {
+    color: var(--danger);
+  }
+
+  /* History */
+  [data-tool='mahjong-score'] .mj-history {
+    display: grid;
+    gap: 10px;
+  }
+  [data-tool='mahjong-score'] .mj-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  [data-tool='mahjong-score'] .mj-log {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  [data-tool='mahjong-score'] .mj-log:empty {
+    display: none;
+  }
+  [data-tool='mahjong-score'] .mj-row {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  [data-tool='mahjong-score'] .mj-row.is-editing {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  [data-tool='mahjong-score'] .mj-row-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-row-no {
+    font-weight: 700;
+    color: var(--text-2);
+  }
+  [data-tool='mahjong-score'] .mj-row-title {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='mahjong-score'] .mj-row-meta {
+    font-size: 13px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='mahjong-score'] .mj-row-deltas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  [data-tool='mahjong-score'] .mj-row-deltas > span {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+    padding: 5px 8px;
+    background: var(--surface-2);
+    border-radius: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-row-deltas > .is-zero {
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-delta-name {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  [data-tool='mahjong-score'] .mj-delta-value {
+    flex: none;
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  [data-tool='mahjong-score'] .mj-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  [data-tool='mahjong-score'] .mj-row-ask {
+    flex: 1 1 100%;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  /* Settlement */
+  [data-tool='mahjong-score'] .mj-settle {
+    display: grid;
+    scroll-margin-top: 12px;
+  }
+  [data-tool='mahjong-score'] .mj-settle-panel {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+  }
+  [data-tool='mahjong-score'] .mj-settle-panel p {
+    margin: 0;
+  }
+  [data-tool='mahjong-score'] .mj-transfers {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  [data-tool='mahjong-score'] .mj-transfers:empty {
+    display: none;
+  }
+  [data-tool='mahjong-score'] .mj-transfers li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
+    padding: 10px 12px;
+    font-size: 17px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='mahjong-score'] .mj-transfer-who {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='mahjong-score'] .mj-transfers strong {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  [data-tool='mahjong-score'] .mj-confirm {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    font-size: 15px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+  }
+
+  @media (min-width: 640px) {
+    [data-tool='mahjong-score'] .mj-presets {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    [data-tool='mahjong-score'] .mj-names,
+    [data-tool='mahjong-score'] .mj-seats,
+    [data-tool='mahjong-score'] .mj-players,
+    [data-tool='mahjong-score'] .mj-winners {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    [data-tool='mahjong-score'] .mj-how {
+      grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+    }
+    [data-tool='mahjong-score'] .mj-self {
+      grid-column: auto;
+    }
+    [data-tool='mahjong-score'] .mj-quick {
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+    }
+    [data-tool='mahjong-score'] .mj-row-deltas {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    [data-tool='mahjong-score'] .mj-stepper {
+      max-width: 320px;
+    }
+    [data-tool='mahjong-score'] .mj-direct-row {
+      grid-template-columns: minmax(0, 200px) auto minmax(0, 160px);
+      justify-content: start;
+    }
+    [data-tool='mahjong-score'] .mj-total,
+    [data-tool='mahjong-score'] .mj-total.is-long {
+      font-size: 30px;
+    }
+  }
+</style>

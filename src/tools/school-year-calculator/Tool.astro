@@ -1,0 +1,372 @@
+---
+// ja-only tool: strings are written in Japanese here (see docs/i18n.md §3).
+import type { ToolProps } from '../../i18n/tool';
+import { warekiYearsText } from '../wareki-converter/logic';
+import { DEFAULT_LAST_SCHOOL, LAST_SCHOOLS, MAX_EXTRA_YEARS, MIN_BIRTH, resumeRows, schoolTimeline } from './logic';
+
+type Props = ToolProps;
+const { locale = 'ja' } = Astro.props;
+
+// Rendered for this default (大学を2027年3月に卒業する学年) so the list is in the HTML; the script takes over on load.
+const DEFAULT_BIRTH = { y: 2004, m: 4, d: 2 };
+const now = new Date();
+const yearMax = Math.max(now.getFullYear(), DEFAULT_BIRTH.y);
+const birthYears = Array.from({ length: yearMax - MIN_BIRTH.y + 1 }, (_, i) => yearMax - i);
+const months = Array.from({ length: 12 }, (_, i) => i + 1);
+const days = Array.from({ length: 31 }, (_, i) => i + 1);
+const extraYears = Array.from({ length: MAX_EXTRA_YEARS + 1 }, (_, i) => i);
+const initial = resumeRows(schoolTimeline(DEFAULT_BIRTH, { last: DEFAULT_LAST_SCHOOL }) ?? [], 'ad', true, {
+  y: now.getFullYear(),
+  m: now.getMonth() + 1,
+});
+---
+
+<div
+  class="tool"
+  data-tool="school-year-calculator"
+  data-locale={locale}
+  data-default-birth={`${DEFAULT_BIRTH.y}-${DEFAULT_BIRTH.m}-${DEFAULT_BIRTH.d}`}
+>
+  <div class="field">
+    <span class="label" id="sy-birth-label">生年月日</span>
+    <div class="sy-birth" role="group" aria-labelledby="sy-birth-label">
+      <select id="sy-year" aria-label="生まれた年">
+        {
+          birthYears.map((y) => (
+            <option value={y} selected={y === DEFAULT_BIRTH.y}>
+              {y}年（{warekiYearsText(y)}）
+            </option>
+          ))
+        }
+      </select>
+      <select id="sy-month" aria-label="月">
+        {months.map((m) => <option value={m} selected={m === DEFAULT_BIRTH.m}>{m}月</option>)}
+      </select>
+      <select id="sy-day" aria-label="日">
+        {days.map((d) => <option value={d} selected={d === DEFAULT_BIRTH.d}>{d}日</option>)}
+      </select>
+    </div>
+    <span class="hint">1月1日〜4月1日生まれは早生まれとして、前の年の4月2日以降に生まれた人と同じ学年で計算します。</span>
+  </div>
+
+  <div class="sy-options">
+    <div class="field">
+      <label for="sy-last">最終学歴</label>
+      <select id="sy-last">
+        {LAST_SCHOOLS.map((o) => <option value={o.id} selected={o.id === DEFAULT_LAST_SCHOOL}>{o.label}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="sy-ronin">浪人</label>
+      <select id="sy-ronin">
+        {extraYears.map((n) => <option value={n}>{n === 0 ? 'なし' : `${n}年`}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="sy-extra">留年・休学</label>
+      <select id="sy-extra">
+        {extraYears.map((n) => <option value={n}>{n === 0 ? 'なし' : `${n}年`}</option>)}
+      </select>
+    </div>
+  </div>
+  <span class="hint" id="sy-target-note">浪人は「大学」に入学するまでの年数、留年・休学は「大学」の在学が延びた年数として計算します。</span>
+
+  <div class="sy-toggles">
+    <div class="field">
+      <span class="label">年の書き方</span>
+      <div class="seg" role="radiogroup" aria-label="年の書き方">
+        <label><input type="radio" name="sy-style" value="ad" checked /><span>西暦（和暦）</span></label>
+        <label><input type="radio" name="sy-style" value="wareki" /><span>和暦（西暦）</span></label>
+        <label><input type="radio" name="sy-style" value="adOnly" /><span>西暦のみ</span></label>
+        <label><input type="radio" name="sy-style" value="warekiOnly" /><span>和暦のみ</span></label>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">表示する範囲</span>
+      <div class="seg" role="radiogroup" aria-label="表示する範囲">
+        <label><input type="radio" name="sy-scope" value="all" checked /><span>小学校入学から</span></label>
+        <label><input type="radio" name="sy-scope" value="resume" /><span>中学校卒業から</span></label>
+      </div>
+    </div>
+  </div>
+
+  <p class="notice error" id="sy-error" hidden></p>
+
+  <div class="result" aria-live="polite">
+    <div class="result-value" id="sy-main">—</div>
+    <div class="result-label" id="sy-sub"></div>
+  </div>
+
+  <div class="field">
+    <span class="label" id="sy-list-title">入学・卒業年の一覧</span>
+    <ol class="sy-list" id="sy-list" aria-labelledby="sy-list-title">
+      {
+        initial.map((row) => (
+          <li>
+            <span class="sy-when">{row.when}</span>
+            <span class="sy-what">{row.what}</span>
+          </li>
+        ))
+      }
+    </ol>
+    <div class="row">
+      <button class="btn primary" type="button" id="sy-copy">履歴書用にコピー</button>
+    </div>
+    <span class="hint">学校名は「○○」にしてあります。貼り付けたあとで自分の学校名に書き換えてください。最後の学校の卒業がまだ先の場合は「卒業見込み」と表示します。</span>
+  </div>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { daysInMonth, type YMD } from '../date-diff/logic';
+  import { isHayaumare, toWareki, warekiYearsText } from '../wareki-converter/logic';
+  import {
+    clampYears,
+    cohortRange,
+    eventWord,
+    findLastSchool,
+    formatDateJa,
+    formatYearMonth,
+    fromJuniorHighEnd,
+    MIN_BIRTH,
+    resumeLines,
+    resumeRows,
+    schoolTimeline,
+    STAGES,
+    targetStage,
+    type YearOrder,
+  } from './logic';
+
+  type YearStyle = 'ad' | 'wareki' | 'adOnly' | 'warekiOnly';
+  type Scope = 'all' | 'resume';
+  interface Prefs {
+    y: number;
+    m: number;
+    d: number;
+    last: string;
+    ronin: number;
+    extra: number;
+    style: YearStyle;
+    scope: Scope;
+  }
+
+  const STYLES: Record<YearStyle, { order: YearOrder; both: boolean }> = {
+    ad: { order: 'ad', both: true },
+    wareki: { order: 'wareki', both: true },
+    adOnly: { order: 'ad', both: false },
+    warekiOnly: { order: 'wareki', both: false },
+  };
+
+  const root = $('[data-tool="school-year-calculator"]');
+  const yearSel = $<HTMLSelectElement>('#sy-year', root);
+  const monthSel = $<HTMLSelectElement>('#sy-month', root);
+  const daySel = $<HTMLSelectElement>('#sy-day', root);
+  const lastSel = $<HTMLSelectElement>('#sy-last', root);
+  const roninSel = $<HTMLSelectElement>('#sy-ronin', root);
+  const extraSel = $<HTMLSelectElement>('#sy-extra', root);
+  const styles = $$<HTMLInputElement>('input[name="sy-style"]', root);
+  const scopes = $$<HTMLInputElement>('input[name="sy-scope"]', root);
+  const list = $('#sy-list', root);
+  const error = $('#sy-error', root);
+  const copyButton = $<HTMLButtonElement>('#sy-copy', root);
+  const set = (id: string, value: string) => ($(id, root).textContent = value);
+  const now = new Date();
+  const today: YMD = { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+  /** Text that the copy button copies: the list as shown. */
+  let copyValue = '';
+
+  // Years after the build year (the page may be older than the visitor's calendar).
+  for (let y = Number(yearSel.options[0]?.value) + 1; y <= today.y; y++) {
+    yearSel.prepend(new Option(`${y}年（${warekiYearsText(y)}）`, String(y)));
+  }
+
+  const isStyle = (v: unknown): v is YearStyle => typeof v === 'string' && v in STYLES;
+  const style = (): YearStyle => {
+    const v = styles.find((o) => o.checked)?.value;
+    return isStyle(v) ? v : 'ad';
+  };
+  const scope = (): Scope => (scopes.find((o) => o.checked)?.value === 'resume' ? 'resume' : 'all');
+
+  /** Days that do not exist in the chosen month are disabled; the selection moves back to the last valid day. */
+  function syncDays() {
+    const max = daysInMonth(Number(yearSel.value), Number(monthSel.value));
+    for (const option of daySel.options) {
+      option.disabled = Number(option.value) > max;
+      option.hidden = option.disabled;
+    }
+    if (Number(daySel.value) > max) daySel.value = String(max);
+  }
+
+  function render() {
+    syncDays();
+    const birth: YMD = { y: Number(yearSel.value), m: Number(monthSel.value), d: Number(daySel.value) };
+    const last = findLastSchool(lastSel.value);
+    const target = targetStage(last.id).name;
+    const ronin = clampYears(Number(roninSel.value));
+    const extra = clampYears(Number(extraSel.value));
+    const { order, both } = STYLES[style()];
+    set('#sy-target-note', `浪人は「${target}」に入学するまでの年数、留年・休学は「${target}」の在学が延びた年数として計算します。`);
+
+    const all = schoolTimeline(birth, { last: last.id, ronin, extra });
+    error.hidden = all !== null;
+    copyButton.disabled = all === null;
+    if (!all) {
+      error.textContent = `${formatDateJa(MIN_BIRTH)}以降の生年月日を選んでください。それより前に生まれた人は旧学制のため、このツールでは計算できません。`;
+      set('#sy-main', '—');
+      set('#sy-sub', '');
+      list.replaceChildren();
+      copyValue = '';
+      return;
+    }
+    const events = scope() === 'resume' ? fromJuniorHighEnd(all) : all;
+    const final = all[all.length - 1];
+    const range = cohortRange(birth);
+    const wareki = toWareki(birth);
+    const delays = [ronin ? `浪人${ronin}年` : '', extra ? `留年・休学${extra}年` : ''].filter(Boolean).join('・');
+    set('#sy-main', formatYearMonth(final.y, final.m, order, both));
+    set(
+      '#sy-sub',
+      `「${STAGES[final.stage].name}」の${eventWord(final)}年月です${delays ? `（${delays}）` : ''}。` +
+        `${formatDateJa(birth)}${wareki ? `（${wareki.label}）` : ''}生まれは、` +
+        `${formatDateJa(range.from)}〜${formatDateJa(range.to)}生まれと同じ学年です${isHayaumare(birth) ? '（早生まれ）' : ''}。`,
+    );
+
+    list.replaceChildren(
+      ...resumeRows(events, order, both, today).map((row) => {
+        const li = document.createElement('li');
+        const when = document.createElement('span');
+        when.className = 'sy-when';
+        when.textContent = row.when;
+        const what = document.createElement('span');
+        what.className = 'sy-what';
+        what.textContent = row.what;
+        li.append(when, what);
+        return li;
+      }),
+    );
+    copyValue = resumeLines(events, order, both, today).join('\n');
+
+    savePref('school-year-calculator', { ...birth, last: last.id, ronin, extra, style: style(), scope: scope() } satisfies Prefs);
+  }
+
+  for (const el of [yearSel, monthSel, daySel, lastSel, roninSel, extraSel, ...styles, ...scopes]) {
+    el.addEventListener('change', render);
+  }
+  copyButton.addEventListener('click', async () => {
+    if (copyValue && (await copyText(copyValue))) flashButton(copyButton);
+  });
+
+  const [dy, dm, dd] = (root.dataset.defaultBirth ?? '').split('-').map(Number);
+  const saved = loadPref<Prefs>('school-year-calculator', {
+    y: dy,
+    m: dm,
+    d: dd,
+    last: lastSel.value,
+    ronin: 0,
+    extra: 0,
+    style: 'ad',
+    scope: 'all',
+  });
+  const pick = (sel: HTMLSelectElement, value: unknown) => {
+    if ([...sel.options].some((o) => o.value === String(value))) sel.value = String(value);
+  };
+  pick(yearSel, saved.y);
+  pick(monthSel, saved.m);
+  pick(daySel, saved.d);
+  pick(lastSel, saved.last);
+  pick(roninSel, saved.ronin);
+  pick(extraSel, saved.extra);
+  const savedStyle: YearStyle = isStyle(saved.style) ? saved.style : 'ad';
+  for (const o of styles) o.checked = o.value === savedStyle;
+  for (const o of scopes) o.checked = o.value === (saved.scope === 'resume' ? 'resume' : 'all');
+  render();
+</script>
+
+<style>
+  /* Phone: the year (with its 和暦) takes a full row, month and day share the next one. */
+  .sy-birth {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 520px;
+  }
+  .sy-birth #sy-year {
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 480px) {
+    .sy-birth {
+      grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .sy-birth #sy-year {
+      grid-column: auto;
+    }
+  }
+  .sy-options {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sy-options .field:first-child {
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 640px) {
+    .sy-options {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .sy-options .field:first-child {
+      grid-column: auto;
+    }
+  }
+  .sy-toggles {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 900px) {
+    .sy-toggles {
+      grid-template-columns: auto auto;
+      justify-content: start;
+      column-gap: 28px;
+    }
+  }
+  .sy-toggles .seg {
+    justify-self: start;
+  }
+  .result-value {
+    font-size: clamp(24px, 6.4vw, 34px);
+  }
+  .sy-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  /* Rows are rebuilt by the script, so they are styled through :global. */
+  .sy-list :global(li) {
+    display: grid;
+    gap: 0 16px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+  }
+  .sy-list :global(li:last-child) {
+    border-bottom: 0;
+  }
+  .sy-list :global(.sy-when) {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .sy-list :global(.sy-what) {
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  @media (min-width: 560px) {
+    .sy-list :global(li) {
+      grid-template-columns: 12.5em minmax(0, 1fr);
+      align-items: baseline;
+    }
+  }
+</style>

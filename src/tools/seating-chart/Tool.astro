@@ -1,0 +1,1366 @@
+---
+import Icon from '../../components/Icon.astro';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+import { LIMITS, type Layout } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const first = s.client.defaultLayout;
+const layouts: { id: Layout; label: string }[] = [
+  { id: 'tables', label: s.layoutTables },
+  { id: 'grid', label: s.layoutGrid },
+];
+if (first === 'grid') layouts.reverse();
+---
+
+<div class="tool" data-tool="seating-chart" data-layout={first} {...i18nAttrs(locale, s.client)}>
+  <div class="seg" role="radiogroup" aria-label={s.layoutAria}>
+    {
+      layouts.map((layout) => (
+        <label>
+          <input type="radio" name="sc-layout" value={layout.id} checked={layout.id === first} />
+          <span>{layout.label}</span>
+        </label>
+      ))
+    }
+  </div>
+
+  <div class="field">
+    <label for="sc-names">{s.namesLabel}</label>
+    <textarea id="sc-names" rows="7" placeholder={s.placeholder} autocomplete="off" spellcheck="false"></textarea>
+    <div class="row between">
+      <span class="hint" id="sc-count"></span>
+      <div class="row">
+        <button class="btn small ghost" type="button" id="sc-sample">{s.sample}</button>
+        <button class="btn small ghost" type="button" id="sc-clear">{s.clear}</button>
+      </div>
+    </div>
+    <p class="hint sc-privacy">{s.privacy}</p>
+  </div>
+
+  <div class="sc-opts" data-for="tables">
+    <div class="field sc-num">
+      <label for="sc-tables">{s.tablesLabel}</label>
+      <input id="sc-tables" type="number" min="1" max={LIMITS.tables} step="1" value="4" inputmode="numeric" />
+    </div>
+    <div class="field sc-num">
+      <label for="sc-seats">{s.seatsLabel}</label>
+      <input id="sc-seats" type="number" min="1" max={LIMITS.seatsPerTable} step="1" value="10" inputmode="numeric" />
+    </div>
+  </div>
+
+  <div class="sc-opts" data-for="grid">
+    <div class="field sc-num">
+      <label for="sc-cols">{s.colsLabel}</label>
+      <input id="sc-cols" type="number" min="1" max={LIMITS.cols} step="1" value="6" inputmode="numeric" />
+    </div>
+    <div class="field sc-num">
+      <label for="sc-rows">{s.rowsLabel}</label>
+      <input id="sc-rows" type="number" min="1" max={LIMITS.rows} step="1" value="6" inputmode="numeric" />
+    </div>
+  </div>
+
+  <details class="sc-front" data-for="grid" id="sc-front-box">
+    <summary>{s.frontSummary}</summary>
+    <div class="sc-front-body">
+      <div class="field">
+        <label for="sc-front">{s.frontLabel}</label>
+        <textarea id="sc-front" rows="3" placeholder={s.frontPlaceholder} autocomplete="off" spellcheck="false"></textarea>
+        <span class="hint sc-warn" id="sc-front-note" hidden></span>
+      </div>
+      <div class="field sc-front-rows">
+        <label for="sc-front-rows">{s.frontRowsLabel}</label>
+        <select id="sc-front-rows">
+          {s.frontRows.map((label, i) => <option value={i + 1}>{label}</option>)}
+        </select>
+      </div>
+    </div>
+  </details>
+
+  <fieldset class="sc-pin" data-for="tables">
+    <legend>{s.pinLegend}</legend>
+    <div class="sc-pin-row">
+      <select id="sc-pin-person" aria-label={s.pinPersonAria}>
+        <option value="">{s.pinPersonNone}</option>
+      </select>
+      <select id="sc-pin-table" aria-label={s.pinTableAria}></select>
+      <button class="btn" type="button" id="sc-pin-add" disabled>{s.pinAdd}</button>
+    </div>
+  </fieldset>
+
+  <div class="field">
+    <label for="sc-title">{s.titleLabel}</label>
+    <input id="sc-title" type="text" maxlength="40" placeholder={s.titlePlaceholder} autocomplete="off" />
+  </div>
+
+  <div class="row">
+    <button class="btn primary" type="button" id="sc-go"><Icon name="Shuffle" size={16} /><span id="sc-go-label">{s.client.go[first]}</span></button>
+    <button class="btn" type="button" id="sc-copy" disabled>{s.copy}</button>
+    <button class="btn" type="button" id="sc-print" disabled><Icon name="Printer" size={16} />{s.print}</button>
+  </div>
+
+  <div class="notice error" id="sc-error" role="alert" hidden></div>
+  <div class="notice" id="sc-stale" hidden>{s.client.stale}</div>
+
+  <div class="seg sc-view" role="radiogroup" aria-label={s.viewAria} data-for="grid">
+    <label><input type="radio" name="sc-view" value="back" checked /><span>{s.viewBack}</span></label>
+    <label><input type="radio" name="sc-view" value="front" /><span>{s.viewFront}</span></label>
+  </div>
+
+  <div class="sc-board" id="sc-board" aria-live="polite"></div>
+
+  <div class="sc-panel" id="sc-panel" hidden>
+    <div class="row between">
+      <strong id="sc-panel-title"></strong>
+      <button class="btn small ghost" type="button" id="sc-panel-close">{s.panelClose}</button>
+    </div>
+    <div class="field" id="sc-panel-field">
+      <label for="sc-panel-pin">{s.panelPinLabel}</label>
+      <select id="sc-panel-pin">
+        <option value="">{s.panelNone}</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="btn small" type="button" id="sc-panel-occupant" hidden></button>
+      <button class="btn small" type="button" id="sc-panel-block"></button>
+    </div>
+  </div>
+
+  <p class="hint" data-for="tables">{s.tablesHelp}</p>
+  <p class="hint" data-for="grid">{s.gridHelp}</p>
+
+  <template id="sc-pin-icon"><Icon name="Pin" size={12} class="sc-pinmark" /></template>
+</div>
+
+<script>
+  import { track } from '../../lib/analytics';
+  import { $, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { formatInteger, plural, t } from '../../i18n/format';
+  import { parseEntries } from '../random-picker/logic';
+  import type { Strings } from './i18n';
+  import {
+    LIMITS,
+    arrangeGrid,
+    arrangeTables,
+    chunkRows,
+    clampInt,
+    displaySeats,
+    fitTableSheet,
+    gridRowHeightMm,
+    remapSeats,
+    resolveNames,
+    sameMembers,
+    seatPosition,
+    type ArrangeError,
+    type GridView,
+    type Layout,
+  } from './logic';
+
+  interface TablesState {
+    count: number;
+    seats: number;
+    names: string[];
+    pins: { name: string; table: number }[];
+    result: string[][] | null;
+  }
+
+  interface GridState {
+    rows: number;
+    cols: number;
+    blocked: number[];
+    pins: { name: string; seat: number }[];
+    front: string;
+    frontRows: number;
+    view: GridView;
+    result: (string | null)[] | null;
+  }
+
+  interface State {
+    layout: Layout;
+    names: string;
+    title: string;
+    tables: TablesState;
+    grid: GridState;
+  }
+
+  const KEY = 'seating-chart';
+
+  const root = $('[data-tool="seating-chart"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const n = (value: number) => formatInteger(value, locale);
+
+  const namesInput = $<HTMLTextAreaElement>('#sc-names', root);
+  const countHint = $('#sc-count', root);
+  const tablesInput = $<HTMLInputElement>('#sc-tables', root);
+  const seatsInput = $<HTMLInputElement>('#sc-seats', root);
+  const colsInput = $<HTMLInputElement>('#sc-cols', root);
+  const rowsInput = $<HTMLInputElement>('#sc-rows', root);
+  const frontBox = $<HTMLDetailsElement>('#sc-front-box', root);
+  const frontInput = $<HTMLTextAreaElement>('#sc-front', root);
+  const frontNote = $('#sc-front-note', root);
+  const frontRowsSelect = $<HTMLSelectElement>('#sc-front-rows', root);
+  const pinPerson = $<HTMLSelectElement>('#sc-pin-person', root);
+  const pinTable = $<HTMLSelectElement>('#sc-pin-table', root);
+  const pinAdd = $<HTMLButtonElement>('#sc-pin-add', root);
+  const titleInput = $<HTMLInputElement>('#sc-title', root);
+  const goBtn = $<HTMLButtonElement>('#sc-go', root);
+  const goLabel = $('#sc-go-label', root);
+  const copyBtn = $<HTMLButtonElement>('#sc-copy', root);
+  const printBtn = $<HTMLButtonElement>('#sc-print', root);
+  const errorBox = $('#sc-error', root);
+  const staleBox = $('#sc-stale', root);
+  const board = $('#sc-board', root);
+  const panel = $('#sc-panel', root);
+  const panelTitle = $('#sc-panel-title', root);
+  const panelField = $('#sc-panel-field', root);
+  const panelPin = $<HTMLSelectElement>('#sc-panel-pin', root);
+  const panelOccupant = $<HTMLButtonElement>('#sc-panel-occupant', root);
+  const panelBlock = $<HTMLButtonElement>('#sc-panel-block', root);
+  const pinIcon = $<HTMLTemplateElement>('#sc-pin-icon', root);
+
+  /* ---------- State ---------- */
+
+  const isLayout = (value: unknown): value is Layout => value === 'tables' || value === 'grid';
+  const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
+
+  /** Rebuilds a saved state field by field, so an old or damaged entry can never break the page. */
+  function restore(raw: unknown): State {
+    const saved = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof State, unknown>>;
+    const tb = (saved.tables && typeof saved.tables === 'object' ? saved.tables : {}) as Partial<Record<keyof TablesState, unknown>>;
+    const gd = (saved.grid && typeof saved.grid === 'object' ? saved.grid : {}) as Partial<Record<keyof GridState, unknown>>;
+    const count = clampInt(tb.count, 1, LIMITS.tables, 4);
+    const seats = clampInt(tb.seats, 1, LIMITS.seatsPerTable, 10);
+    const rows = clampInt(gd.rows, 1, LIMITS.rows, 6);
+    const cols = clampInt(gd.cols, 1, LIMITS.cols, 6);
+    const seatCount = rows * cols;
+    const validSeat = (seat: unknown): seat is number => Number.isInteger(seat) && (seat as number) >= 0 && (seat as number) < seatCount;
+
+    const tableResult =
+      Array.isArray(tb.result) && tb.result.length === count && tb.result.every((m) => Array.isArray(m) && m.length <= seats)
+        ? tb.result.map(strings)
+        : null;
+    const gridResult =
+      Array.isArray(gd.result) && gd.result.length === seatCount
+        ? gd.result.map((name) => (typeof name === 'string' ? name : null))
+        : null;
+
+    return {
+      layout: isLayout(saved.layout) ? saved.layout : s.defaultLayout,
+      names: typeof saved.names === 'string' ? saved.names : '',
+      title: typeof saved.title === 'string' ? saved.title : '',
+      tables: {
+        count,
+        seats,
+        names: strings(tb.names).slice(0, count),
+        pins: (Array.isArray(tb.pins) ? tb.pins : []).filter(
+          (p): p is { name: string; table: number } =>
+            !!p && typeof p.name === 'string' && Number.isInteger(p.table) && p.table >= 0 && p.table < count,
+        ),
+        result: tableResult,
+      },
+      grid: {
+        rows,
+        cols,
+        blocked: (Array.isArray(gd.blocked) ? gd.blocked : []).filter(validSeat),
+        pins: (Array.isArray(gd.pins) ? gd.pins : []).filter(
+          (p): p is { name: string; seat: number } => !!p && typeof p.name === 'string' && validSeat(p.seat),
+        ),
+        front: typeof gd.front === 'string' ? gd.front : '',
+        frontRows: clampInt(gd.frontRows, 1, LIMITS.frontRows, 1),
+        view: gd.view === 'front' ? 'front' : 'back',
+        result: gridResult,
+      },
+    };
+  }
+
+  const state = restore(loadPref<unknown>(KEY, null));
+  let selected: number | null = null;
+
+  const save = () => savePref(KEY, state);
+  const people = () => parseEntries(state.names, false, s.split);
+  const tableLabel = (i: number) => state.tables.names[i]?.trim() || t(s.tableName, { n: n(i + 1) });
+
+  /** Table pins whose name is in the list, with the person's position in the list. */
+  function tablePins(list: string[]) {
+    const g = state.tables;
+    const pins = g.pins.filter((p) => p.table < g.count);
+    const persons = resolveNames(list, pins.map((p) => p.name));
+    return pins.map((p, i) => ({ ...p, person: persons[i] })).filter((p) => p.person >= 0);
+  }
+
+  function seatPins(list: string[]) {
+    const g = state.grid;
+    const off = new Set(g.blocked);
+    const pins = g.pins.filter((p) => p.seat < g.rows * g.cols && !off.has(p.seat));
+    const persons = resolveNames(list, pins.map((p) => p.name));
+    return pins.map((p, i) => ({ ...p, person: persons[i] })).filter((p) => p.person >= 0);
+  }
+
+  /** People who must sit in the front rows, and the names that are not in the list. */
+  function frontPeople(list: string[]) {
+    const names = parseEntries(state.grid.front, false, s.split);
+    const persons = resolveNames(list, names);
+    return {
+      persons: persons.filter((p) => p >= 0),
+      unknown: names.filter((_, i) => persons[i] < 0),
+    };
+  }
+
+  function usableSeats(): number {
+    if (state.layout === 'tables') return state.tables.count * state.tables.seats;
+    return state.grid.rows * state.grid.cols - state.grid.blocked.length;
+  }
+
+  function currentResult(): string[] | null {
+    if (state.layout === 'tables') return state.tables.result ? state.tables.result.flat() : null;
+    return state.grid.result ? state.grid.result.filter((name): name is string => name !== null) : null;
+  }
+
+  function arrange(list: string[]) {
+    if (state.layout === 'tables') {
+      const g = state.tables;
+      return arrangeTables({ people: list.length, tables: g.count, seatsPerTable: g.seats, pins: tablePins(list) });
+    }
+    const g = state.grid;
+    return arrangeGrid({
+      people: list.length,
+      rows: g.rows,
+      cols: g.cols,
+      blocked: g.blocked,
+      pins: seatPins(list),
+      front: frontPeople(list).persons,
+      frontRows: g.frontRows,
+    });
+  }
+
+  function errorText(error: ArrangeError): string {
+    switch (error.code) {
+      case 'empty':
+        return s.errorEmpty;
+      case 'tooMany':
+        return t(s.errorTooMany[state.layout], { people: n(error.people), seats: n(error.seats) });
+      case 'tableFull':
+        return t(s.errorTableFull, { table: tableLabel(error.table), pinned: n(error.pinned), seats: n(error.seats) });
+      case 'frontFull':
+        return t(s.errorFrontFull, { needed: n(error.needed), seats: n(error.seats) });
+    }
+  }
+
+  function showError(message: string) {
+    errorBox.textContent = message;
+    errorBox.hidden = message === '';
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  const pinMark = () => pinIcon.content.cloneNode(true);
+
+  function option(value: string, label: string) {
+    const node = document.createElement('option');
+    node.value = value;
+    node.textContent = label;
+    return node;
+  }
+
+  /** Names appear one after another; the whole reveal takes about a second however many there are. */
+  function stagger(node: HTMLElement, index: number, total: number) {
+    node.classList.add('is-in');
+    node.style.animationDelay = `${Math.round(index * Math.min(45, 900 / Math.max(1, total)))}ms`;
+  }
+
+  function renderTables(list: string[], animate: boolean) {
+    const g = state.tables;
+    const pins = tablePins(list);
+    const wrap = el('div', 'sc-tables');
+    const total = g.result ? g.result.flat().length : 0;
+    let shown = 0;
+    for (let i = 0; i < g.count; i++) {
+      const here = pins.filter((p) => p.table === i).map((p) => p.name);
+      const members = g.result ? (g.result[i] ?? []) : here;
+      const card = el('section', 'sc-table');
+      const head = el('div', 'sc-thead');
+      const name = el('input', 'sc-tname');
+      name.type = 'text';
+      name.maxLength = 24;
+      name.value = g.names[i] ?? '';
+      name.placeholder = t(s.tableName, { n: n(i + 1) });
+      name.setAttribute('aria-label', t(s.tableNameAria, { n: n(i + 1) }));
+      name.dataset.table = String(i);
+      const badge = el(
+        'span',
+        'sc-tcount',
+        members.length > 0 ? plural(locale, members.length, s.members) : plural(locale, g.seats, s.emptyTable),
+      );
+      head.append(name, badge);
+      card.append(head);
+
+      const ul = el('ul', 'sc-members');
+      const left = here.slice();
+      for (const member of members) {
+        const at = left.indexOf(member);
+        const pinned = at >= 0;
+        if (pinned) left.splice(at, 1);
+        const li = el('li', '');
+        const button = el('button', pinned ? 'sc-member is-pinned' : 'sc-member');
+        button.type = 'button';
+        button.dataset.table = String(i);
+        button.dataset.name = member;
+        button.setAttribute('aria-pressed', String(pinned));
+        button.title = t(pinned ? s.memberUnpin : s.memberPin, { name: member });
+        const label = el('span', 'sc-name', member);
+        if (animate) stagger(label, shown, total);
+        shown++;
+        button.append(label);
+        if (pinned) button.append(pinMark());
+        li.append(button);
+        ul.append(li);
+      }
+      card.append(ul);
+      wrap.append(card);
+    }
+    board.replaceChildren(wrap);
+    renderPinSelectors(list);
+  }
+
+  function renderPinSelectors(list: string[]) {
+    const g = state.tables;
+    const taken = new Set(tablePins(list).map((p) => p.person));
+    const keepPerson = pinPerson.value;
+    pinPerson.replaceChildren(pinPerson.options[0]);
+    list.forEach((name, i) => {
+      if (!taken.has(i)) pinPerson.append(option(String(i), name));
+    });
+    pinPerson.value = keepPerson && !taken.has(Number(keepPerson)) && Number(keepPerson) < list.length ? keepPerson : '';
+    const keepTable = pinTable.value;
+    pinTable.replaceChildren();
+    for (let i = 0; i < g.count; i++) pinTable.append(option(String(i), tableLabel(i)));
+    pinTable.value = keepTable && Number(keepTable) < g.count ? keepTable : '0';
+    pinAdd.disabled = pinPerson.value === '';
+  }
+
+  /** Column number counted from the left of the picture, which is mirrored in the front-desk view. */
+  const shownCol = (col: number) => (state.grid.view === 'front' ? state.grid.cols - col : col + 1);
+
+  function renderGrid(list: string[], animate: boolean) {
+    const g = state.grid;
+    const off = new Set(g.blocked);
+    const pinned = new Map(seatPins(list).map((p) => [p.seat, p.name]));
+    const room = el('div', 'sc-room');
+    const desk = el('div', 'sc-desk', s.desk);
+    const grid = el('div', 'sc-grid');
+    grid.style.setProperty('--sc-cols', String(g.cols));
+    const total = g.result ? g.result.filter(Boolean).length : 0;
+    let shown = 0;
+    for (const seat of displaySeats(g.rows, g.cols, g.view)) {
+      const { row, col } = seatPosition(seat, g.cols);
+      const button = el('button', 'sc-seat');
+      button.type = 'button';
+      button.dataset.seat = String(seat);
+      const name = off.has(seat) ? null : g.result ? g.result[seat] : (pinned.get(seat) ?? null);
+      const isPinned = name !== null && pinned.get(seat) === name;
+      let who = name ?? s.seatEmpty;
+      if (off.has(seat)) {
+        button.classList.add('is-off');
+        who = s.seatUnused;
+      } else if (name === null) {
+        button.classList.add('is-empty');
+      } else {
+        const label = el('span', 'sc-name', name);
+        if (animate) stagger(label, shown, total);
+        shown++;
+        button.append(label);
+        if (isPinned) {
+          button.classList.add('is-pinned');
+          button.append(pinMark());
+          who += s.pinnedMark;
+        }
+      }
+      if (seat === selected) button.classList.add('is-selected');
+      button.setAttribute('aria-label', t(s.seatAria, { row: n(row + 1), col: n(shownCol(col)), who }));
+      grid.append(button);
+    }
+    if (g.view === 'front') room.append(grid, desk);
+    else room.append(desk, grid);
+    board.replaceChildren(room);
+    renderPanel(list);
+  }
+
+  function renderPanel(list: string[]) {
+    const g = state.grid;
+    if (state.layout !== 'grid' || selected === null || selected >= g.rows * g.cols) {
+      panel.hidden = true;
+      return;
+    }
+    const seat = selected;
+    const { row, col } = seatPosition(seat, g.cols);
+    const isOff = g.blocked.includes(seat);
+    const pins = seatPins(list);
+    const here = pins.find((p) => p.seat === seat);
+    const occupant = isOff ? null : (g.result?.[seat] ?? null);
+    panel.hidden = false;
+    panelTitle.textContent = t(s.panelTitle, { row: n(row + 1), col: n(shownCol(col)) });
+    panelField.hidden = isOff;
+    const elsewhere = new Set(pins.filter((p) => p.seat !== seat).map((p) => p.person));
+    panelPin.replaceChildren(panelPin.options[0]);
+    list.forEach((name, i) => {
+      if (!elsewhere.has(i)) panelPin.append(option(String(i), name));
+    });
+    panelPin.value = here ? String(here.person) : '';
+    panelOccupant.hidden = occupant === null || here !== undefined;
+    if (occupant !== null) panelOccupant.textContent = t(s.panelPinOccupant, { name: occupant });
+    panelBlock.textContent = isOff ? s.panelUnblock : s.panelBlock;
+  }
+
+  function render(animate = false) {
+    const list = people();
+    root.dataset.layout = state.layout;
+    const dupes = list.length - new Set(list).size;
+    countHint.textContent =
+      plural(locale, list.length, s.count, { seats: n(usableSeats()) }) + (dupes > 0 ? plural(locale, dupes, s.dupes) : '');
+
+    const unknown = state.layout === 'grid' ? frontPeople(list).unknown : [];
+    frontNote.hidden = unknown.length === 0;
+    frontNote.textContent = unknown.length > 0 ? t(s.frontUnknown, { names: unknown.join(s.nameSeparator) }) : '';
+
+    if (state.layout === 'tables') {
+      selected = null;
+      panel.hidden = true;
+      renderTables(list, animate);
+    } else {
+      renderGrid(list, animate);
+    }
+
+    const result = currentResult();
+    goLabel.textContent = (result ? s.again : s.go)[state.layout];
+    copyBtn.disabled = !result;
+    printBtn.disabled = !result;
+    staleBox.hidden = !result || sameMembers(result, list);
+
+    // Problems that would stop the next shuffle are shown as soon as they exist, except an empty list.
+    const check = list.length > 0 ? arrange(list) : null;
+    showError(check && !check.ok ? errorText(check.error) : '');
+  }
+
+  function syncInputs() {
+    for (const input of root.querySelectorAll<HTMLInputElement>('input[name="sc-layout"]')) {
+      input.checked = input.value === state.layout;
+    }
+    for (const input of root.querySelectorAll<HTMLInputElement>('input[name="sc-view"]')) {
+      input.checked = input.value === state.grid.view;
+    }
+    namesInput.value = state.names;
+    titleInput.value = state.title;
+    tablesInput.value = String(state.tables.count);
+    seatsInput.value = String(state.tables.seats);
+    colsInput.value = String(state.grid.cols);
+    rowsInput.value = String(state.grid.rows);
+    frontInput.value = state.grid.front;
+    frontRowsSelect.value = String(state.grid.frontRows);
+    if (state.grid.front.trim() !== '') frontBox.open = true;
+  }
+
+  /* ---------- Shuffling ---------- */
+
+  function shuffleSeats() {
+    const list = people();
+    if (list.length === 0) {
+      showError(s.errorEmpty);
+      namesInput.focus();
+      return;
+    }
+    const result = arrange(list);
+    if (!result.ok) {
+      showError(errorText(result.error));
+      return;
+    }
+    let pinned: number;
+    if (state.layout === 'tables') {
+      const g = state.tables;
+      const pins = tablePins(list);
+      // Pins for people who left the list are dropped once a new seating is made.
+      g.pins = pins.map(({ name, table }) => ({ name, table }));
+      g.result = (result.value as number[][]).map((table) => table.map((i) => list[i]));
+      pinned = pins.length;
+    } else {
+      const g = state.grid;
+      const pins = seatPins(list);
+      g.pins = pins.map(({ name, seat }) => ({ name, seat }));
+      g.result = (result.value as (number | null)[]).map((i) => (i === null ? null : list[i]));
+      pinned = pins.length + frontPeople(list).persons.length;
+    }
+    save();
+    render(true);
+    track('seating_shuffle', { method: state.layout, people: list.length, pinned });
+  }
+
+  /* ---------- Pins ---------- */
+
+  function toggleTablePin(name: string, table: number, pinnedNow: boolean) {
+    const g = state.tables;
+    if (pinnedNow) {
+      const at = g.pins.findIndex((p) => p.name === name && p.table === table);
+      if (at >= 0) g.pins.splice(at, 1);
+    } else {
+      g.pins.push({ name, table });
+      track('seating_pin', { method: 'table' });
+    }
+    save();
+    render();
+  }
+
+  /** Pins a person to a table from the selectors; with a seating on screen they swap places with someone at that table. */
+  function addTablePin(name: string, table: number) {
+    const g = state.tables;
+    const list = people();
+    const before = tablePins(list);
+    g.pins.push({ name, table });
+    if (g.result) {
+      const pinnedAt = (i: number) => before.filter((p) => p.table === i).map((p) => p.name);
+      const alreadyThere = g.result[table].filter((m) => m === name).length > pinnedAt(table).filter((m) => m === name).length;
+      if (!alreadyThere) {
+        const from = g.result.findIndex(
+          (members, i) =>
+            i !== table && members.filter((m) => m === name).length > pinnedAt(i).filter((m) => m === name).length,
+        );
+        if (from < 0) {
+          g.result = null;
+        } else {
+          g.result[from].splice(g.result[from].lastIndexOf(name), 1);
+          const target = g.result[table];
+          const fixed = pinnedAt(table);
+          target.splice(fixed.length, 0, name);
+          if (target.length > g.seats) {
+            // The last person who is not pinned to this table takes the seat that was just freed.
+            const left = fixed.slice();
+            let moved = -1;
+            for (let i = 0; i < target.length; i++) {
+              const at = left.indexOf(target[i]);
+              if (at >= 0) left.splice(at, 1);
+              else if (i !== fixed.length) moved = i;
+            }
+            if (moved < 0) g.result = null;
+            else g.result[from].push(target.splice(moved, 1)[0]);
+          }
+        }
+      }
+    }
+    track('seating_pin', { method: 'table' });
+    save();
+    render();
+  }
+
+  function setSeatPin(seat: number, name: string | null) {
+    const g = state.grid;
+    g.pins = g.pins.filter((p) => p.seat !== seat);
+    if (name !== null) {
+      const others = new Map(g.pins.map((p) => [p.seat, p.name]));
+      g.pins.push({ name, seat });
+      if (g.result && g.result[seat] !== name) {
+        // Swap with the seat where this person sits now, unless that seat is pinned too.
+        const from = g.result.findIndex((who, i) => who === name && others.get(i) !== name);
+        if (from < 0) {
+          g.result = null;
+        } else {
+          g.result[from] = g.result[seat];
+          g.result[seat] = name;
+        }
+      }
+      track('seating_pin', { method: 'seat' });
+    }
+    save();
+    render();
+  }
+
+  function toggleBlocked(seat: number) {
+    const g = state.grid;
+    if (g.blocked.includes(seat)) {
+      g.blocked = g.blocked.filter((b) => b !== seat);
+    } else {
+      g.blocked.push(seat);
+      g.pins = g.pins.filter((p) => p.seat !== seat);
+      const occupant = g.result?.[seat] ?? null;
+      if (g.result && occupant !== null) {
+        // Whoever sat here moves to the frontmost empty seat; without one the seating has to be redone.
+        const free = g.result.findIndex((who, i) => who === null && !g.blocked.includes(i));
+        if (free < 0) {
+          g.result = null;
+        } else {
+          g.result[free] = occupant;
+          g.result[seat] = null;
+        }
+      }
+      track('seating_pin', { method: 'unused' });
+    }
+    save();
+    render();
+  }
+
+  /* ---------- Copy and print ---------- */
+
+  function resultText(): string {
+    const lines: string[] = [];
+    const title = state.title.trim();
+    if (title) lines.push(title);
+    if (state.layout === 'tables') {
+      (state.tables.result ?? []).forEach((members, i) => {
+        if (members.length === 0) return;
+        lines.push(t(s.copyTableLine, { table: tableLabel(i), size: n(members.length), names: members.join(s.nameSeparator) }));
+      });
+    } else {
+      const g = state.grid;
+      const off = new Set(g.blocked);
+      lines.push(s.copyGridHeader);
+      chunkRows(g.result ?? [], g.cols).forEach((row, r) => {
+        const names = row.map((name, c) => (off.has(r * g.cols + c) ? s.copyUnused : (name ?? s.copyEmpty)));
+        lines.push(t(s.copyRowLine, { n: n(r + 1), names: names.join(s.nameSeparator) }));
+      });
+    }
+    return lines.join('\n');
+  }
+
+  /* Printing moves a copy of the seating to a sheet directly under <body>, so the rest of the page can be left out. */
+  let sheet: HTMLElement | null = null;
+
+  function clearSheet() {
+    sheet?.remove();
+    sheet = null;
+    document.documentElement.classList.remove('sc-printing');
+  }
+
+  function buildSheet(): boolean {
+    if (!currentResult()) return false;
+    clearSheet();
+    const page = el('div', 'sc-sheet');
+    page.append(el('h1', 'sc-sheet-title', state.title.trim() || s.defaultTitle[state.layout]));
+    if (state.layout === 'tables') {
+      const g = state.tables;
+      const filled = (g.result ?? []).map((members, i) => ({ members, i })).filter((table) => table.members.length > 0);
+      const fit = fitTableSheet(filled.length, Math.max(...filled.map((table) => table.members.length)));
+      const wrap = el('div', 'sc-sheet-tables');
+      wrap.style.setProperty('--sc-cols', String(fit.cols));
+      wrap.style.setProperty('--sc-name-cols', String(fit.nameCols));
+      wrap.style.fontSize = `${fit.fontMm}mm`;
+      for (const { members, i } of filled) {
+        const card = el('section', 'sc-sheet-table');
+        const head = el('h2', '', tableLabel(i));
+        head.append(el('span', '', plural(locale, members.length, s.members)));
+        const ul = el('ul', '');
+        for (const member of members) ul.append(el('li', '', member));
+        card.append(head, ul);
+        wrap.append(card);
+      }
+      page.append(wrap);
+    } else {
+      const g = state.grid;
+      const off = new Set(g.blocked);
+      const desk = el('div', 'sc-sheet-desk', s.desk);
+      const grid = el('div', 'sc-sheet-grid');
+      grid.style.setProperty('--sc-cols', String(g.cols));
+      grid.style.setProperty('--sc-row', `${gridRowHeightMm(g.rows)}mm`);
+      for (const seat of displaySeats(g.rows, g.cols, g.view)) {
+        const name = off.has(seat) ? null : (g.result?.[seat] ?? null);
+        const cell = el('div', 'sc-sheet-seat', name ?? '');
+        if (off.has(seat)) cell.classList.add('is-off');
+        else if (name === null) cell.classList.add('is-empty');
+        grid.append(cell);
+      }
+      if (g.view === 'front') page.append(grid, desk);
+      else page.append(desk, grid);
+    }
+    document.body.append(page);
+    document.documentElement.classList.add('sc-printing');
+    sheet = page;
+    return true;
+  }
+
+  /* ---------- Events ---------- */
+
+  function resizeGrid(rows: number, cols: number) {
+    const g = state.grid;
+    if (rows === g.rows && cols === g.cols) return;
+    g.blocked = remapSeats(g.blocked, g.cols, rows, cols);
+    g.pins = g.pins.flatMap((p) => remapSeats([p.seat], g.cols, rows, cols).map((seat) => ({ name: p.name, seat })));
+    g.rows = rows;
+    g.cols = cols;
+    g.result = null;
+    selected = null;
+  }
+
+  function resizeTables(count: number, seats: number) {
+    const g = state.tables;
+    if (count === g.count && seats === g.seats) return;
+    g.count = count;
+    g.seats = seats;
+    g.pins = g.pins.filter((p) => p.table < count);
+    g.result = null;
+  }
+
+  root.addEventListener('input', (event) => {
+    const target = event.target as HTMLElement;
+    if (target === namesInput) state.names = namesInput.value;
+    else if (target === titleInput) state.title = titleInput.value;
+    else if (target === frontInput) state.grid.front = frontInput.value;
+    else if (target === tablesInput || target === seatsInput) {
+      resizeTables(
+        clampInt(tablesInput.value, 1, LIMITS.tables, state.tables.count),
+        clampInt(seatsInput.value, 1, LIMITS.seatsPerTable, state.tables.seats),
+      );
+    } else if (target === colsInput || target === rowsInput) {
+      resizeGrid(clampInt(rowsInput.value, 1, LIMITS.rows, state.grid.rows), clampInt(colsInput.value, 1, LIMITS.cols, state.grid.cols));
+    } else if (target instanceof HTMLInputElement && target.classList.contains('sc-tname')) {
+      // Table names are typed inside the board, so the board is not rebuilt while typing.
+      state.tables.names[Number(target.dataset.table)] = target.value;
+      state.tables.names = Array.from(state.tables.names, (name) => name ?? '');
+      save();
+      return;
+    } else {
+      return;
+    }
+    save();
+    render();
+  });
+
+  root.addEventListener('change', (event) => {
+    const target = event.target as HTMLElement;
+    if (target instanceof HTMLInputElement && target.name === 'sc-layout' && isLayout(target.value)) {
+      state.layout = target.value;
+      selected = null;
+    } else if (target instanceof HTMLInputElement && target.name === 'sc-view') {
+      state.grid.view = target.value === 'front' ? 'front' : 'back';
+    } else if (target === frontRowsSelect) {
+      state.grid.frontRows = clampInt(frontRowsSelect.value, 1, LIMITS.frontRows, 1);
+    } else if (target === pinPerson) {
+      pinAdd.disabled = pinPerson.value === '';
+      return;
+    } else if (target === panelPin) {
+      if (selected === null) return;
+      const list = people();
+      setSeatPin(selected, panelPin.value === '' ? null : (list[Number(panelPin.value)] ?? null));
+      return;
+    } else if (target instanceof HTMLInputElement && target.classList.contains('sc-tname')) {
+      // A finished table name also shows up in the table selector. The board stays as it is, so Tab can move on to the next name.
+      renderPinSelectors(people());
+      return;
+    } else if (target instanceof HTMLInputElement && target.type === 'number') {
+      // Show the value actually in use once the field is left (typing 99 gives the maximum).
+      tablesInput.value = String(state.tables.count);
+      seatsInput.value = String(state.tables.seats);
+      colsInput.value = String(state.grid.cols);
+      rowsInput.value = String(state.grid.rows);
+      return;
+    } else {
+      return;
+    }
+    save();
+    render();
+  });
+
+  board.addEventListener('click', (event) => {
+    const target = event.target as Element;
+    // The board is rebuilt after each change, so keyboard focus is put back on the same name or seat.
+    const member = target.closest<HTMLElement>('.sc-member');
+    if (member) {
+      const { name = '', table = '0' } = member.dataset;
+      toggleTablePin(name, Number(table), member.classList.contains('is-pinned'));
+      const again = Array.from(board.querySelectorAll<HTMLElement>(`.sc-member[data-table="${table}"]`));
+      again.find((button) => button.dataset.name === name)?.focus({ preventScroll: true });
+      return;
+    }
+    const seat = target.closest<HTMLElement>('.sc-seat');
+    if (seat) {
+      const index = Number(seat.dataset.seat);
+      selected = selected === index ? null : index;
+      render();
+      board.querySelector<HTMLElement>(`.sc-seat[data-seat="${index}"]`)?.focus({ preventScroll: true });
+      if (selected !== null) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
+
+  pinAdd.addEventListener('click', () => {
+    const name = people()[Number(pinPerson.value)];
+    if (pinPerson.value === '' || name === undefined) return;
+    pinPerson.value = '';
+    addTablePin(name, Number(pinTable.value) || 0);
+  });
+
+  $('#sc-panel-close', root).addEventListener('click', () => {
+    selected = null;
+    render();
+  });
+  panelOccupant.addEventListener('click', () => {
+    const name = selected === null ? null : (state.grid.result?.[selected] ?? null);
+    if (selected !== null && name !== null) setSeatPin(selected, name);
+  });
+  panelBlock.addEventListener('click', () => {
+    if (selected !== null) toggleBlocked(selected);
+  });
+
+  goBtn.addEventListener('click', shuffleSeats);
+  copyBtn.addEventListener('click', async () => {
+    if (currentResult() && (await copyText(resultText()))) flashButton(copyBtn);
+  });
+  printBtn.addEventListener('click', () => {
+    if (!buildSheet()) return;
+    track('seating_print', { method: state.layout });
+    window.print();
+  });
+  // Also covers the browser's own print command.
+  window.addEventListener('beforeprint', () => {
+    if (!sheet) buildSheet();
+  });
+  window.addEventListener('afterprint', clearSheet);
+
+  $('#sc-sample', root).addEventListener('click', () => {
+    state.names = s.sample.join('\n');
+    namesInput.value = state.names;
+    save();
+    render();
+  });
+  $('#sc-clear', root).addEventListener('click', () => {
+    state.names = '';
+    state.tables.pins = [];
+    state.tables.result = null;
+    state.grid.pins = [];
+    state.grid.front = '';
+    state.grid.result = null;
+    selected = null;
+    namesInput.value = '';
+    frontInput.value = '';
+    save();
+    render();
+    namesInput.focus();
+  });
+
+  syncInputs();
+  render();
+</script>
+
+<style is:global>
+  /* The board is built by the script and every tool's CSS ships on every page, so each rule names this tool. */
+  [data-tool='seating-chart'] [hidden] {
+    display: none !important;
+  }
+  [data-tool='seating-chart'][data-layout='tables'] [data-for='grid'],
+  [data-tool='seating-chart'][data-layout='grid'] [data-for='tables'] {
+    display: none;
+  }
+  [data-tool='seating-chart'] .sc-privacy {
+    margin: 0;
+  }
+  [data-tool='seating-chart'] .sc-opts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px 16px;
+  }
+  [data-tool='seating-chart'] .sc-num {
+    flex: 1 1 130px;
+    max-width: 190px;
+  }
+  [data-tool='seating-chart'] .sc-front {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+  }
+  [data-tool='seating-chart'] .sc-front summary {
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  [data-tool='seating-chart'] .sc-front-body {
+    display: grid;
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+  [data-tool='seating-chart'] .sc-front textarea {
+    min-height: 88px;
+  }
+  [data-tool='seating-chart'] .sc-front-rows {
+    max-width: 260px;
+  }
+  [data-tool='seating-chart'] .sc-warn {
+    color: var(--warning);
+  }
+  [data-tool='seating-chart'] .sc-pin {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  [data-tool='seating-chart'] .sc-pin legend {
+    padding: 0;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-tool='seating-chart'] .sc-pin-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  [data-tool='seating-chart'] .sc-pin-row select {
+    flex: 1 1 120px;
+    width: auto;
+  }
+
+  [data-tool='seating-chart'] .sc-board {
+    padding: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  [data-tool='seating-chart'] .sc-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='seating-chart'] .sc-name.is-in {
+    animation: sc-seat-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+  }
+  @keyframes sc-seat-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.86);
+    }
+  }
+  [data-tool='seating-chart'] .sc-pinmark {
+    flex: none;
+    color: var(--accent);
+  }
+
+  /* Round tables */
+  [data-tool='seating-chart'] .sc-tables {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 10px;
+  }
+  [data-tool='seating-chart'] .sc-table {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  [data-tool='seating-chart'] .sc-thead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  [data-tool='seating-chart'] .sc-tname {
+    flex: 1;
+    padding: 3px 6px;
+    font-weight: 700;
+    background: transparent;
+    border-color: transparent;
+  }
+  [data-tool='seating-chart'] .sc-tname::placeholder {
+    color: var(--text);
+    opacity: 1;
+  }
+  [data-tool='seating-chart'] .sc-tname:hover,
+  [data-tool='seating-chart'] .sc-tname:focus {
+    background: var(--surface);
+    border-color: var(--border-strong);
+  }
+  [data-tool='seating-chart'] .sc-tname:focus {
+    border-color: var(--accent);
+  }
+  [data-tool='seating-chart'] .sc-tname:focus::placeholder {
+    color: var(--muted);
+  }
+  [data-tool='seating-chart'] .sc-tcount {
+    flex: none;
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  [data-tool='seating-chart'] .sc-members {
+    display: grid;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  [data-tool='seating-chart'] .sc-member {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+    min-height: 30px;
+    padding: 3px 6px;
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.3;
+    text-align: left;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  [data-tool='seating-chart'] .sc-member:hover {
+    background: var(--surface-2);
+  }
+  [data-tool='seating-chart'] .sc-member.is-pinned {
+    font-weight: 600;
+    background: var(--accent-soft);
+  }
+  [data-tool='seating-chart'] .sc-member:focus-visible,
+  [data-tool='seating-chart'] .sc-seat:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+
+  /* Classroom */
+  [data-tool='seating-chart'] .sc-room {
+    display: grid;
+    gap: 14px;
+    overflow-x: auto;
+  }
+  [data-tool='seating-chart'] .sc-desk {
+    justify-self: center;
+    min-width: 40%;
+    padding: 7px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='seating-chart'] .sc-grid {
+    container-type: inline-size;
+    display: grid;
+    grid-template-columns: repeat(var(--sc-cols), minmax(36px, 1fr));
+    gap: 6px;
+  }
+  [data-tool='seating-chart'] .sc-seat {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: clamp(46px, 100cqw / var(--sc-cols) * 0.5, 62px);
+    padding: 4px 3px;
+    font: inherit;
+    font-size: clamp(11px, 100cqw / var(--sc-cols) / 4.4, 17px);
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  [data-tool='seating-chart'] .sc-seat.is-empty {
+    background: color-mix(in oklab, var(--surface) 55%, transparent);
+    border-color: var(--border);
+  }
+  [data-tool='seating-chart'] .sc-seat.is-off {
+    background: transparent;
+    border-style: dashed;
+  }
+  [data-tool='seating-chart'] .sc-seat.is-pinned {
+    background: var(--accent-soft);
+    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  [data-tool='seating-chart'] .sc-seat.is-selected {
+    border-color: var(--accent);
+    box-shadow: var(--focus);
+  }
+  [data-tool='seating-chart'] .sc-seat .sc-pinmark {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: clamp(9px, 100cqw / var(--sc-cols) / 5, 12px);
+    height: auto;
+  }
+  [data-tool='seating-chart'] .sc-panel {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+  }
+  [data-tool='seating-chart'] .sc-panel .btn.small {
+    white-space: normal;
+    text-align: left;
+  }
+  /* Phones: thinner gutters, so a three-character name fits a seat in a room six seats wide. */
+  @media (max-width: 520px) {
+    [data-tool='seating-chart'] .sc-board {
+      padding: 8px;
+    }
+    [data-tool='seating-chart'] .sc-tables {
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 8px;
+    }
+    [data-tool='seating-chart'] .sc-table {
+      padding: 8px;
+    }
+    [data-tool='seating-chart'] .sc-thead {
+      flex-wrap: wrap;
+      gap: 2px 6px;
+    }
+    [data-tool='seating-chart'] .sc-tname {
+      flex-basis: 100%;
+    }
+    [data-tool='seating-chart'] .sc-tcount {
+      padding-left: 6px;
+    }
+    [data-tool='seating-chart'] .sc-room {
+      gap: 10px;
+    }
+    [data-tool='seating-chart'] .sc-grid {
+      gap: 4px;
+    }
+    [data-tool='seating-chart'] .sc-seat {
+      padding: 3px 1px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-tool='seating-chart'] .sc-name.is-in {
+      animation: none;
+    }
+  }
+
+  /* Printing: the sheet and the sc-printing class exist only while this tool prints. */
+  html.sc-printing .sc-sheet {
+    display: none;
+  }
+  @page sc-sheet {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  @media print {
+    html.sc-printing body > *:not(.sc-sheet) {
+      display: none !important;
+    }
+    html.sc-printing,
+    html.sc-printing body {
+      display: block;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    html.sc-printing .sc-sheet {
+      display: block;
+      page: sc-sheet;
+      /* Keeps the outer borders clear of the edge of the printable area. */
+      padding: 0 1mm;
+      color: #18191c;
+      background: #fff;
+    }
+    html.sc-printing .sc-sheet-title {
+      margin: 0 0 6mm;
+      font-size: 17pt;
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    html.sc-printing .sc-sheet-tables {
+      display: grid;
+      grid-template-columns: repeat(var(--sc-cols), minmax(0, 1fr));
+      gap: 4mm;
+      align-items: start;
+      line-height: 1.5;
+    }
+    html.sc-printing .sc-sheet-table {
+      padding: 2mm 3mm 3mm;
+      border: 0.35mm solid #18191c;
+      border-radius: 2.5mm;
+      break-inside: avoid;
+    }
+    html.sc-printing .sc-sheet-table h2 {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 2mm;
+      margin: 0 0 0.4em;
+      font-size: 1.15em;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      border-bottom: 0.25mm solid #9a9da6;
+    }
+    html.sc-printing .sc-sheet-table h2 span {
+      font-size: 0.75em;
+      font-weight: 400;
+      color: #4a4d55;
+    }
+    html.sc-printing .sc-sheet-table ul {
+      display: grid;
+      grid-template-columns: repeat(var(--sc-name-cols), minmax(0, 1fr));
+      gap: 0 2mm;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    html.sc-printing .sc-sheet-table li {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    html.sc-printing .sc-sheet-desk {
+      width: 42%;
+      height: 10mm;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      font-size: 12pt;
+      font-weight: 700;
+      border: 0.35mm solid #18191c;
+      border-radius: 2mm;
+    }
+    html.sc-printing .sc-sheet-grid {
+      container-type: inline-size;
+      display: grid;
+      grid-template-columns: repeat(var(--sc-cols), minmax(0, 1fr));
+      grid-auto-rows: var(--sc-row);
+      gap: 3mm;
+      margin: 6mm 0;
+    }
+    html.sc-printing .sc-sheet-seat {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: 1mm;
+      overflow: hidden;
+      font-size: clamp(7.5pt, 100cqw / var(--sc-cols) / 5.4, 17pt);
+      font-weight: 600;
+      line-height: 1.25;
+      text-align: center;
+      overflow-wrap: anywhere;
+      border: 0.35mm solid #18191c;
+      border-radius: 2mm;
+    }
+    html.sc-printing .sc-sheet-seat.is-empty {
+      border: 0.25mm dashed #9a9da6;
+    }
+    html.sc-printing .sc-sheet-seat.is-off {
+      border-color: transparent;
+    }
+  }
+</style>

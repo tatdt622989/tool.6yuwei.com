@@ -1,0 +1,1768 @@
+---
+// zh-TW only: the strings are written in Chinese here and in the script (see docs/i18n.md §3).
+import Icon from '../../components/Icon.astro';
+import type { ToolProps } from '../../i18n/tool';
+import { findTool, toolPath } from '../registry';
+import { LIMITS, MODES, UNITS, type Mode } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+
+const modes: Record<Mode, { icon: string; title: string; desc: string }> = {
+  pick: { icon: 'Smartphone', title: '現場選紅包', desc: '大家看同一支手機或大螢幕，輪流點一個紅包打開。' },
+  named: { icon: 'Tag', title: '紅包寫上名字', desc: '每個紅包屬於名單上的一個人，點自己的名字打開。需要名單。' },
+  link: { icon: 'Link', title: '傳連結各自開', desc: '每人一條專屬連結，傳到 LINE 各自打開。' },
+};
+// Shown to a guest after they open their envelope, so the visit can continue into other party tools.
+const partyTools = ['prize-draw', 'gift-exchange', 'scratch-card']
+  .map((slug) => findTool(slug, locale))
+  .filter((tool) => tool !== undefined);
+---
+
+<div class="tool" data-tool="lucky-red-envelope" data-locale={locale}>
+  <script is:inline>
+    // Runs before first paint and before ads ask for the page URL: the envelope moves out of the address
+    // bar so it cannot travel any further, and the form does not flash up while the tool loads.
+    (function (root) {
+      var key = 'lucky-red-envelope:invite';
+      var hash = location.hash;
+      var nav = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null;
+      var returned = nav && (nav.type === 'reload' || nav.type === 'back_forward');
+      if (hash.indexOf('#hb=') === 0) {
+        history.replaceState(null, '', location.pathname + location.search);
+      } else {
+        hash = '';
+      }
+      try {
+        if (hash) sessionStorage.setItem(key, hash);
+        else if (returned) hash = sessionStorage.getItem(key) || '';
+        else sessionStorage.removeItem(key);
+      } catch (e) {}
+      if (hash) {
+        root.dataset.invite = hash;
+        root.dataset.view = 'opening';
+      }
+    })(document.currentScript.parentElement);
+  </script>
+
+  <canvas class="lre-confetti" id="lre-confetti" aria-hidden="true"></canvas>
+
+  <section class="lre-setup" id="lre-setup">
+    <div class="notice error" id="lre-link-error" role="alert" hidden>這條紅包連結不完整或已經損壞，請主辦人重新傳一次。</div>
+
+    <div class="field">
+      <label for="lre-total">總金額（元）</label>
+      <input id="lre-total" type="text" inputmode="numeric" maxlength="12" placeholder="例如 3600" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <span class="label" id="lre-by-label">要分成幾包</span>
+      <div class="seg lre-seg" role="radiogroup" aria-labelledby="lre-by-label">
+        <label><input type="radio" name="lre-by" value="count" checked /><span>輸入個數</span></label>
+        <label><input type="radio" name="lre-by" value="names" /><span>貼上名單</span></label>
+      </div>
+      <div class="lre-by" id="lre-by-count">
+        <input id="lre-count" type="text" inputmode="numeric" maxlength="4" placeholder="例如 8" autocomplete="off" aria-label="紅包個數" />
+        <p class="hint">{LIMITS.minCount} 到 {LIMITS.maxCount} 包。</p>
+      </div>
+      <div class="lre-by" id="lre-by-names" hidden>
+        <div class="lre-label-row">
+          <span class="hint lre-count" id="lre-names-count"></span>
+          <button class="btn small ghost" type="button" id="lre-sample">填入範例</button>
+        </div>
+        <textarea id="lre-names" rows="6" placeholder={'一行一個名字，例如：\n小明\n小華\n阿美'} autocomplete="off" spellcheck="false" aria-label="名單"></textarea>
+        <p class="hint">一個名字一包，{LIMITS.minCount} 到 {LIMITS.maxCount} 個人。</p>
+      </div>
+    </div>
+
+    <div class="lre-pair">
+      <div class="field">
+        <span class="label" id="lre-unit-label">金額單位</span>
+        <div class="seg lre-seg" role="radiogroup" aria-labelledby="lre-unit-label">
+          {
+            UNITS.map((unit) => (
+              <label>
+                <input type="radio" name="lre-unit" value={unit} checked={unit === 1} />
+                <span>{unit} 元</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+      <div class="field">
+        <label for="lre-minimum">每包最少（元）</label>
+        <input id="lre-minimum" type="text" inputmode="numeric" maxlength="12" placeholder="不填就是 1 元" autocomplete="off" />
+      </div>
+    </div>
+    <p class="hint lre-hint">每包金額都是單位的倍數：選 100 元，就只會出現 100、200、300 這樣的金額。</p>
+
+    <div class="field">
+      <span class="label" id="lre-mode-label">怎麼開紅包</span>
+      <div class="lre-modes" role="radiogroup" aria-labelledby="lre-mode-label">
+        {
+          MODES.map((mode) => (
+            <label class="lre-mode">
+              <input type="radio" name="lre-mode" value={mode} checked={mode === 'pick'} />
+              <Icon name={modes[mode].icon} size={22} class="lre-mode-icon" />
+              <span class="lre-mode-title">{modes[mode].title}</span>
+              <span class="lre-mode-desc">{modes[mode].desc}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="lre-title">活動名稱（選填）</label>
+      <input id="lre-title" type="text" maxlength={LIMITS.title} placeholder="例如 2027 尾牙" autocomplete="off" />
+    </div>
+
+    <p class="lre-summary" id="lre-summary" hidden></p>
+    <div class="notice error" id="lre-error" role="alert" hidden></div>
+    <button class="btn primary lre-start" type="button" id="lre-start"><Icon name="MailOpen" size={20} />分紅包</button>
+    <p class="lre-note">
+      <Icon name="ShieldCheck" size={18} class="lre-note-icon" />
+      <span>這個工具只決定每包的金額，不會收款，也不會發款。金額和名單只在你的瀏覽器裡計算，實際的紅包請自己準備現金或轉帳。</span>
+    </p>
+  </section>
+
+  <section class="lre-stage" id="lre-stage" hidden>
+    <div class="lre-bar">
+      <p class="lre-bar-title" id="lre-bar-title" role="heading" aria-level="2" tabindex="-1"></p>
+      <span class="lre-progress" id="lre-progress"></span>
+      <button class="btn small" type="button" id="lre-open-all"><Icon name="Eye" size={16} /><span>全部打開</span></button>
+      <button class="btn small ghost lre-sound" type="button" data-sound aria-label="音效">
+        <span class="lre-sound-icon" data-sound-on><Icon name="Volume2" size={16} /></span>
+        <span class="lre-sound-icon" data-sound-off hidden><Icon name="VolumeX" size={16} /></span>
+      </button>
+    </div>
+    <p class="hint lre-facts" id="lre-facts"></p>
+
+    <div class="lre-status" id="lre-status">
+      <p class="lre-turn" id="lre-turn"></p>
+      <button class="btn small" type="button" id="lre-skip" hidden><Icon name="SkipForward" size={16} /><span>先跳過</span></button>
+      <button class="btn small primary" type="button" data-result-copy id="lre-status-copy" hidden><Icon name="Copy" size={16} /><span>複製結果</span></button>
+      <p class="lre-latest" id="lre-latest" aria-live="polite" hidden></p>
+    </div>
+
+    <div class="lre-grid" id="lre-grid" role="group" aria-label="紅包"></div>
+
+    <div class="lre-result" id="lre-result" hidden>
+      <div class="lre-result-head">
+        <p class="lre-heading" role="heading" aria-level="2">開出的金額</p>
+        <button class="btn small" type="button" data-result-copy><Icon name="Copy" size={16} /><span>複製結果</span></button>
+      </div>
+      <ol class="lre-rows" id="lre-rows"></ol>
+      <p class="hint">金額只是分配結果，請主辦人依照這份名單發紅包。</p>
+    </div>
+
+    <div class="lre-foot">
+      <button class="btn small ghost" type="button" data-redo><Icon name="RotateCcw" size={16} /><span>重新分紅包</span></button>
+    </div>
+  </section>
+
+  <section class="lre-links" id="lre-links" hidden>
+    <div class="lre-links-head">
+      <p class="lre-heading" id="lre-links-heading" role="heading" aria-level="2" tabindex="-1">每人一條專屬連結</p>
+      <p class="lre-links-note">把連結傳給本人，對方點開紅包就會看到自己的金額。這個畫面不顯示金額，主辦人也可以一起拼手氣。</p>
+    </div>
+    <p class="hint lre-facts" id="lre-links-facts"></p>
+    <div class="lre-links-bar">
+      <span class="lre-progress" id="lre-links-progress" aria-live="polite"></span>
+      <button class="btn small" type="button" id="lre-copy-all"><Icon name="Copy" size={16} /><span id="lre-copy-all-label">全部複製</span></button>
+    </div>
+    <ul class="lre-link-list" id="lre-link-list"></ul>
+    <p class="hint">連結裡的金額只是編碼，不是加密：路過的人一眼看不出來，但拿到連結的人都打得開，懂技術的人也解得開。請直接傳給本人。</p>
+
+    <details class="lre-more">
+      <summary>主辦人查看全部金額</summary>
+      <div class="lre-more-body">
+        <p class="hint">展開就會看到每個人的金額，想一起拼手氣的話先不要打開。</p>
+        <ol class="lre-rows" id="lre-all-rows"></ol>
+        <div><button class="btn small" type="button" id="lre-all-copy"><Icon name="Copy" size={16} /><span>複製結果</span></button></div>
+      </div>
+    </details>
+
+    <div class="lre-foot">
+      <button class="btn small ghost" type="button" data-redo><Icon name="RotateCcw" size={16} /><span>重新分紅包</span></button>
+    </div>
+  </section>
+
+  <section class="lre-guest" id="lre-guest" hidden>
+    <p class="lre-guest-title" id="lre-guest-title" hidden></p>
+    <p class="lre-guest-heading" id="lre-guest-heading" role="heading" aria-level="2" tabindex="-1"></p>
+    <div class="lre-guest-env">
+      <button class="lre-env" type="button" id="lre-guest-open">
+        <span class="lre-env-body">
+          <span class="lre-env-flap"></span>
+          <span class="lre-env-seal">福</span>
+          <span class="lre-env-tag"></span>
+        </span>
+        <span class="lre-env-card">
+          <span class="lre-env-amount"><span class="lre-env-num"></span><span class="lre-env-unit">元</span></span>
+          <span class="lre-env-who"></span>
+        </span>
+      </button>
+    </div>
+    <p class="lre-guest-hint" id="lre-guest-hint"><Icon name="Hand" size={16} />點一下紅包打開</p>
+    <div class="lre-guest-done" id="lre-guest-done" hidden>
+      <p class="lre-guest-amount" id="lre-guest-amount" aria-live="polite"></p>
+      <p class="lre-guest-note">這是主辦人用拼手氣紅包隨機分出的金額。這個網頁不會收款，也不會發款，紅包怎麼領請看主辦人的通知。</p>
+      <div class="lre-guest-actions">
+        <button class="btn primary lre-cta" type="button" id="lre-make"><Icon name="MailOpen" size={18} />我也要發拼手氣紅包</button>
+        <button class="btn small ghost lre-sound" type="button" data-sound aria-label="音效">
+          <span class="lre-sound-icon" data-sound-on><Icon name="Volume2" size={16} /></span>
+          <span class="lre-sound-icon" data-sound-off hidden><Icon name="VolumeX" size={16} /></span>
+        </button>
+      </div>
+      {
+        partyTools.length > 0 && (
+          <nav class="lre-party" aria-label="更多聚會小工具">
+            <span class="hint">更多聚會小工具</span>
+            {partyTools.map((tool) => (
+              <a class="btn small" href={toolPath(tool.slug, locale)}>
+                {tool.name}
+              </a>
+            ))}
+          </nav>
+        )
+      }
+    </div>
+  </section>
+
+  <template id="lre-env-tpl">
+    <button class="lre-env" type="button">
+      <span class="lre-env-body">
+        <span class="lre-env-flap"></span>
+        <span class="lre-env-seal">福</span>
+        <span class="lre-env-tag"></span>
+      </span>
+      <span class="lre-env-card">
+        <span class="lre-env-amount"><span class="lre-env-num"></span><span class="lre-env-unit">元</span></span>
+        <span class="lre-env-who"></span>
+        <span class="lre-env-best">手氣最佳</span>
+      </span>
+    </button>
+  </template>
+  <template id="lre-row-tpl">
+    <li class="lre-row">
+      <span class="lre-row-who"><span class="lre-row-name"></span><span class="lre-row-best" hidden>手氣最佳</span></span>
+      <span class="lre-row-amount"></span>
+    </li>
+  </template>
+  <template id="lre-link-tpl">
+    <li class="lre-link">
+      <Icon name="CircleCheck" size={18} class="lre-link-check" />
+      <span class="lre-link-name"></span>
+      <div class="lre-link-actions">
+        <button class="btn small" type="button" data-link-copy><Icon name="Copy" size={16} /><span data-link-copy-label>複製</span></button>
+        <a class="btn small" data-link-line target="_blank" rel="noopener nofollow">LINE</a>
+      </div>
+    </li>
+  </template>
+</div>
+
+<script>
+  import { $, $$, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
+  import { formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { formatList, t } from '../../i18n/format';
+  import { DEFAULT_LOCALE, isLocale } from '../../i18n/locales';
+  import { confetti } from '../birthday-candles/confetti';
+  import {
+    allRows,
+    checkRound,
+    decodeInvite,
+    inviteUrl,
+    isFinished,
+    isMode,
+    isOpen,
+    luckiest,
+    markSent,
+    nextPicker,
+    normalizeDraft,
+    normalizeRound,
+    openAll,
+    openEnvelope,
+    parseNames,
+    resultRows,
+    resultText,
+    roundInvite,
+    skipTurn,
+    startRound,
+    totalOf,
+    type Draft,
+    type Invite,
+    type ResultRow,
+    type Round,
+    type RoundError,
+    type RoundInput,
+  } from './logic';
+  import { EnvelopeSounds } from './sound';
+
+  const DRAFT_KEY = 'lucky-red-envelope:draft';
+  const ROUND_KEY = 'lucky-red-envelope:round';
+  const SOUND_KEY = 'lucky-red-envelope:sound';
+  const INVITE_KEY = 'lucky-red-envelope:invite';
+  const CONFETTI = ['#e2343a', '#f6c453', '#ffdf8e', '#f0522e', '#b3141c'];
+  const SAMPLE_NAMES = ['小明', '小華', '阿美', '大雄', '怡君', '志豪', '佩珊', '阿傑'];
+  const SAMPLE_TOTAL = '3600';
+  /** How long an envelope shakes before it shows its amount. Matches lre-shake in the styles. */
+  const OPEN_MS = 380;
+  /** Names longer than this are set smaller on the envelope so more of them fits. */
+  const LONG_NAME = 8;
+
+  const S = {
+    errors: {
+      total: '請輸入總金額，要是 1 元以上的整數。',
+      totalMax: '總金額最多 {max} 元。',
+      count: '紅包個數請輸入 {min} 到 {max} 之間的整數。',
+      namesFew: '名單至少要有 {min} 個人，一行一個名字。',
+      namesMany: '名單最多 {max} 個人，目前有 {n} 個。',
+      unit: '請選擇金額單位。',
+      minimum: '每包最少金額要是 1 元以上的整數，不填就是一個單位。',
+      totalUnit: '總金額 {total} 元不是 {unit} 元的倍數，請調整總金額，或把金額單位改小。',
+      minimumUnit: '每包最少 {minimum} 元不是 {unit} 元的倍數，請改成 {unit} 元的倍數。',
+      tooSmall: '{count} 包、每包最少 {minimum} 元，至少需要 {need} 元，目前總金額只有 {total} 元。請提高總金額、減少包數，或降低每包最少金額。',
+      needNames: '「紅包寫上名字」需要名單，請切換到「貼上名單」輸入名字。',
+      duplicate: '名單裡有重複的名字：{names}。請加上部門或暱稱來區分。',
+    },
+    namesCount: '{n} 個人',
+    minimumPlaceholder: '不填就是 {unit} 元',
+    summary: '共 {count} 包，平均每包 {average} 元，每包最少 {minimum} 元。',
+    summaryEven: '共 {count} 包，每包剛好都是 {minimum} 元，沒有可以拼手氣的餘額。',
+    defaultTitle: '拼手氣紅包',
+    facts: '總金額 {total} 元，共 {count} 包，每包最少 {minimum} 元',
+    progress: '已開 {done} / {total}',
+    envelope: '第 {n} 包',
+    turnNamed: '點自己名字的紅包打開',
+    turnFree: '點一個紅包打開',
+    turnOf: '輪到 {name} 選一個紅包',
+    latest: '{who} 開出 {amount} 元',
+    doneBest: '全部開完了！手氣最佳：{who}，{amount} 元',
+    doneEven: '全部開完了！每包都是 {amount} 元',
+    closedAria: '{who}，還沒打開',
+    closedOwnAria: '{who}的紅包，還沒打開',
+    openAria: '{who}：{amount} 元',
+    redo: '重新分紅包',
+    redoArm: '再按一次，這一輪的金額會清除',
+    linksProgress: '已傳 {done} / {total}',
+    message: '{name}，這是你的拼手氣紅包，點開看看拿到多少：{url}',
+    messageAnon: '這是你的拼手氣紅包，點開看看拿到多少：{url}',
+    copyAllLine: '{who}：{url}',
+    guestHeading: '{name}，你收到一個紅包',
+    guestHeadingAnon: '你收到一個紅包',
+    guestAmount: '恭喜拿到 {amount} 元',
+  };
+
+  const root = $('[data-tool="lucky-red-envelope"]');
+  const locale = isLocale(root.dataset.locale) ? root.dataset.locale : DEFAULT_LOCALE;
+  const fmt = (n: number) => formatInteger(n, locale);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const sounds = new EnvelopeSounds(loadPref<boolean>(SOUND_KEY, true) !== false);
+
+  function clone(templateId: string): HTMLElement {
+    return $<HTMLTemplateElement>(templateId, root).content.firstElementChild!.cloneNode(true) as HTMLElement;
+  }
+
+  /* ---------- Views ---------- */
+  const setupEl = $('#lre-setup', root);
+  const stageEl = $('#lre-stage', root);
+  const linksEl = $('#lre-links', root);
+  const guestEl = $('#lre-guest', root);
+  const linkError = $('#lre-link-error', root);
+
+  let round: Round | null = null;
+  let stopConfetti = () => {};
+
+  function show(view: HTMLElement) {
+    for (const el of [setupEl, stageEl, linksEl, guestEl]) el.hidden = el !== view;
+    delete root.dataset.view;
+  }
+
+  const confettiCanvas = $<HTMLCanvasElement>('#lre-confetti', root);
+
+  /** Confetti over the part of the tool that is on screen, so it never covers anything outside it. */
+  function celebrate() {
+    if (reducedMotion.matches) return;
+    stopConfetti();
+    const rect = root.getBoundingClientRect();
+    const height = Math.min(rect.height, window.innerHeight);
+    const top = Math.max(0, Math.min(-rect.top, rect.height - height));
+    confettiCanvas.style.top = `${top}px`;
+    confettiCanvas.style.height = `${height}px`;
+    stopConfetti = confetti(confettiCanvas, CONFETTI, 3200);
+  }
+
+  /** The status line sticks just under the site header, whose height differs between phone and desktop. */
+  function syncStickyTop() {
+    const header = document.querySelector<HTMLElement>('.site-header');
+    if (header) root.style.setProperty('--lre-sticky-top', `${header.offsetHeight + 8}px`);
+  }
+  syncStickyTop();
+  window.addEventListener('resize', syncStickyTop);
+
+  /* ---------- Sound ---------- */
+  function syncSound() {
+    for (const button of $$('[data-sound]', root)) {
+      $('[data-sound-on]', button).hidden = !sounds.enabled;
+      $('[data-sound-off]', button).hidden = sounds.enabled;
+      button.setAttribute('aria-pressed', String(sounds.enabled));
+    }
+  }
+  for (const button of $$('[data-sound]', root)) {
+    button.addEventListener('click', () => {
+      sounds.setEnabled(!sounds.enabled);
+      savePref(SOUND_KEY, sounds.enabled);
+      syncSound();
+    });
+  }
+  syncSound();
+
+  /* ---------- Setup ---------- */
+  const totalInput = $<HTMLInputElement>('#lre-total', root);
+  const countInput = $<HTMLInputElement>('#lre-count', root);
+  const namesInput = $<HTMLTextAreaElement>('#lre-names', root);
+  const minimumInput = $<HTMLInputElement>('#lre-minimum', root);
+  const titleInput = $<HTMLInputElement>('#lre-title', root);
+  const byRadios = $$<HTMLInputElement>('input[name="lre-by"]', root);
+  const unitRadios = $$<HTMLInputElement>('input[name="lre-unit"]', root);
+  const modeRadios = $$<HTMLInputElement>('input[name="lre-mode"]', root);
+  const byCount = $('#lre-by-count', root);
+  const byNames = $('#lre-by-names', root);
+  const namesCount = $('#lre-names-count', root);
+  const summaryEl = $('#lre-summary', root);
+  const errorEl = $('#lre-error', root);
+  let errorShown = false;
+
+  const checked = (radios: HTMLInputElement[]) => radios.find((radio) => radio.checked)?.value ?? '';
+
+  function readDraft(): Draft {
+    return normalizeDraft({
+      by: checked(byRadios),
+      total: totalInput.value,
+      count: countInput.value,
+      namesText: namesInput.value,
+      minimum: minimumInput.value,
+      unit: Number(checked(unitRadios)),
+      mode: checked(modeRadios),
+      title: titleInput.value,
+    });
+  }
+
+  function writeDraft(draft: Draft) {
+    totalInput.value = draft.total;
+    countInput.value = draft.count;
+    namesInput.value = draft.namesText;
+    minimumInput.value = draft.minimum;
+    titleInput.value = draft.title;
+    for (const radio of byRadios) radio.checked = radio.value === draft.by;
+    for (const radio of unitRadios) radio.checked = Number(radio.value) === draft.unit;
+    for (const radio of modeRadios) radio.checked = radio.value === draft.mode;
+  }
+
+  /** The numbers the form asks for; a field that is not a number stays NaN and fails the check. */
+  function inputOf(draft: Draft): RoundInput {
+    const minimumText = draft.minimum.trim();
+    return {
+      total: parseNumber(draft.total),
+      count: parseNumber(draft.count),
+      minimum: minimumText === '' ? draft.unit : parseNumber(minimumText),
+      unit: draft.unit,
+      mode: draft.mode,
+      names: draft.by === 'names' ? parseNames(draft.namesText) : [],
+      title: draft.title,
+    };
+  }
+
+  function errorText(error: RoundError, draft: Draft, input: RoundInput): string {
+    const e = S.errors;
+    const count = input.names.length || input.count;
+    switch (error.code) {
+      case 'total':
+        return e.total;
+      case 'totalMax':
+        return t(e.totalMax, { max: fmt(error.max) });
+      case 'count':
+        if (draft.by !== 'names') return t(e.count, { min: error.min, max: error.max });
+        return input.names.length < error.min
+          ? t(e.namesFew, { min: error.min })
+          : t(e.namesMany, { max: error.max, n: input.names.length });
+      case 'unit':
+        return e.unit;
+      case 'minimum':
+        return e.minimum;
+      case 'totalUnit':
+        return t(e.totalUnit, { total: fmt(input.total), unit: error.unit });
+      case 'minimumUnit':
+        return t(e.minimumUnit, { minimum: fmt(input.minimum), unit: error.unit });
+      case 'tooSmall':
+        return t(e.tooSmall, { count, minimum: fmt(input.minimum), need: fmt(error.need), total: fmt(input.total) });
+      case 'needNames':
+        return e.needNames;
+      case 'duplicate':
+        return t(e.duplicate, { names: formatList(error.names, locale) });
+    }
+  }
+
+  function showError(message: string) {
+    errorShown = message !== '';
+    errorEl.textContent = message;
+    errorEl.hidden = !errorShown;
+  }
+
+  function renderSetup() {
+    const draft = readDraft();
+    const input = inputOf(draft);
+    const named = draft.by === 'names';
+    byCount.hidden = named;
+    byNames.hidden = !named;
+    namesCount.textContent = input.names.length ? t(S.namesCount, { n: input.names.length }) : '';
+    minimumInput.placeholder = t(S.minimumPlaceholder, { unit: draft.unit });
+
+    // An envelope with a name on it needs a list of names.
+    const namedMode = modeRadios.find((radio) => radio.value === 'named')!;
+    namedMode.disabled = !named;
+    if (!named && namedMode.checked) modeRadios.find((radio) => radio.value === 'pick')!.checked = true;
+
+    const error = checkRound({ ...input, mode: isMode(checked(modeRadios)) ? (checked(modeRadios) as RoundInput['mode']) : 'pick' });
+    if (error) {
+      summaryEl.hidden = true;
+      // Once the button has shown a problem, keep it current while the visitor fixes the form.
+      if (errorShown) showError(errorText(error, draft, input));
+      return;
+    }
+    showError('');
+    const count = input.names.length || input.count;
+    summaryEl.hidden = false;
+    summaryEl.textContent =
+      count * input.minimum === input.total
+        ? t(S.summaryEven, { count, minimum: fmt(input.minimum) })
+        : t(S.summary, { count, average: formatNumber(input.total / count, 1, locale), minimum: fmt(input.minimum) });
+  }
+
+  function onFormChange() {
+    linkError.hidden = true;
+    renderSetup();
+    savePref(DRAFT_KEY, readDraft());
+  }
+  for (const el of [totalInput, countInput, namesInput, minimumInput, titleInput]) el.addEventListener('input', onFormChange);
+  for (const radio of [...byRadios, ...unitRadios, ...modeRadios]) radio.addEventListener('change', onFormChange);
+
+  $('#lre-sample', root).addEventListener('click', () => {
+    namesInput.value = SAMPLE_NAMES.join('\n');
+    if (totalInput.value.trim() === '') totalInput.value = SAMPLE_TOTAL;
+    onFormChange();
+  });
+
+  $('#lre-start', root).addEventListener('click', () => {
+    renderSetup();
+    const draft = readDraft();
+    const input = inputOf(draft);
+    const started = startRound(input);
+    if ('error' in started) {
+      showError(errorText(started.error, draft, input));
+      errorEl.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+      return;
+    }
+    round = started.round;
+    saveRound();
+    savePref(DRAFT_KEY, draft);
+    // Counts and the mode only: names and amounts never leave the browser.
+    trackEvent('envelope_split', { method: round.mode, envelopes: round.amounts.length, named: round.names.length > 0 });
+    resume(true);
+  });
+
+  function showSetup(invalidLink = false) {
+    show(setupEl);
+    linkError.hidden = !invalidLink;
+    renderSetup();
+  }
+
+  /* ---------- Round ---------- */
+  function saveRound() {
+    savePref(ROUND_KEY, round);
+  }
+
+  function clearRound() {
+    round = null;
+    stopConfetti();
+    try {
+      localStorage.removeItem(`tool:${ROUND_KEY}`);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  const envelopeLabel = (envelope: number) => t(S.envelope, { n: envelope + 1 });
+  const whoOf = (row: ResultRow) => row.name || envelopeLabel(row.envelope);
+
+  function factsText(current: Round): string {
+    return t(S.facts, { total: fmt(totalOf(current)), count: current.amounts.length, minimum: fmt(current.minimum) });
+  }
+
+  function fillRows(list: HTMLElement, rows: ResultRow[]) {
+    list.replaceChildren(
+      ...rows.map((row) => {
+        const li = clone('#lre-row-tpl');
+        $('.lre-row-name', li).textContent = whoOf(row);
+        $('.lre-row-amount', li).textContent = `${fmt(row.amount)} 元`;
+        $('.lre-row-best', li).hidden = !row.best;
+        li.classList.toggle('is-best', row.best);
+        return li;
+      }),
+    );
+  }
+
+  function resume(fresh = false) {
+    if (!round) return showSetup();
+    if (round.mode === 'link') {
+      show(linksEl);
+      renderLinks();
+      if (fresh) $('#lre-links-heading', root).focus({ preventScroll: true });
+    } else {
+      show(stageEl);
+      renderStage();
+      if (fresh) barTitle.focus({ preventScroll: true });
+    }
+    if (fresh) root.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+  }
+
+  /* ---------- Envelopes on one screen ---------- */
+  const barTitle = $('#lre-bar-title', root);
+  const progressEl = $('#lre-progress', root);
+  const factsEl = $('#lre-facts', root);
+  const openAllBtn = $<HTMLButtonElement>('#lre-open-all', root);
+  const turnEl = $('#lre-turn', root);
+  const skipBtn = $<HTMLButtonElement>('#lre-skip', root);
+  const statusCopy = $<HTMLButtonElement>('#lre-status-copy', root);
+  const latestEl = $('#lre-latest', root);
+  const gridEl = $('#lre-grid', root);
+  const resultEl = $('#lre-result', root);
+  const rowsEl = $('#lre-rows', root);
+  let envelopes: HTMLButtonElement[] = [];
+  let bestTimer = 0;
+
+  /** Font size, in hundredths of the envelope's width, that keeps the amount on one line. */
+  function amountFit(text: string): number {
+    const digits = text.replace(/\D/g, '').length;
+    const width = digits * 0.62 + (text.length - digits) * 0.3 + 0.55;
+    return Math.min(27, 76 / width);
+  }
+
+  function fillCard(el: HTMLElement, amount: number, who: string) {
+    const text = fmt(amount);
+    $('.lre-env-num', el).textContent = text;
+    $('.lre-env-who', el).textContent = who;
+    el.style.setProperty('--lre-fit', amountFit(text).toFixed(2));
+  }
+
+  function setOpen(envelope: number, delay = -1) {
+    const current = round!;
+    const el = envelopes[envelope];
+    const row: ResultRow = { envelope, name: current.owners[envelope] >= 0 ? current.names[current.owners[envelope]] : '', amount: current.amounts[envelope], best: false };
+    fillCard(el, row.amount, whoOf(row));
+    el.disabled = true;
+    el.setAttribute('aria-label', t(S.openAria, { who: whoOf(row), amount: fmt(row.amount) }));
+    if (delay < 0 || reducedMotion.matches) {
+      el.classList.add('is-open');
+      return;
+    }
+    window.setTimeout(() => {
+      el.classList.add('is-opening');
+      window.setTimeout(() => {
+        el.classList.remove('is-opening');
+        el.classList.add('is-open');
+      }, OPEN_MS);
+    }, delay);
+  }
+
+  function markBest() {
+    const best = luckiest(round!);
+    envelopes.forEach((el, envelope) => el.classList.toggle('is-best', best.includes(envelope)));
+  }
+
+  function gridSize(count: number): string {
+    if (count <= 4) return 'xs';
+    if (count <= 9) return 's';
+    return count <= 24 ? 'm' : 'l';
+  }
+
+  function renderStage() {
+    const current = round!;
+    window.clearTimeout(bestTimer);
+    barTitle.textContent = current.title || S.defaultTitle;
+    factsEl.textContent = factsText(current);
+    gridEl.dataset.size = gridSize(current.amounts.length);
+    envelopes = current.amounts.map((_, envelope) => {
+      const el = clone('#lre-env-tpl') as HTMLButtonElement;
+      const tag = $('.lre-env-tag', el);
+      const owner = current.mode === 'named' ? current.names[envelope] : '';
+      tag.textContent = owner || String(envelope + 1);
+      tag.classList.toggle('is-number', !owner);
+      tag.classList.toggle('is-long', owner.length > LONG_NAME);
+      if (owner) el.title = owner;
+      el.setAttribute('aria-label', owner ? t(S.closedOwnAria, { who: owner }) : t(S.closedAria, { who: envelopeLabel(envelope) }));
+      el.addEventListener('click', () => pick(envelope));
+      return el;
+    });
+    gridEl.replaceChildren(...envelopes);
+    for (const envelope of current.opened) setOpen(envelope);
+    markBest();
+    syncStage();
+  }
+
+  function syncStage(latest = -1) {
+    const current = round!;
+    const done = isFinished(current);
+    const rows = resultRows(current);
+    progressEl.textContent = t(S.progress, { done: current.opened.length, total: current.amounts.length });
+    openAllBtn.hidden = done;
+    statusCopy.hidden = !done;
+
+    const picker = nextPicker(current);
+    skipBtn.hidden = done || current.queue.length < 2;
+    if (done) {
+      const best = rows.filter((row) => row.best);
+      turnEl.textContent = best.length
+        ? t(S.doneBest, { who: formatList(best.map(whoOf), locale), amount: fmt(best[0].amount) })
+        : t(S.doneEven, { amount: fmt(current.amounts[0]) });
+    } else if (picker >= 0) {
+      turnEl.textContent = t(S.turnOf, { name: current.names[picker] });
+    } else {
+      turnEl.textContent = current.mode === 'named' ? S.turnNamed : S.turnFree;
+    }
+    turnEl.classList.toggle('is-done', done);
+
+    const last = latest >= 0 ? rows.find((row) => row.envelope === latest) : undefined;
+    latestEl.hidden = done || !last;
+    if (last) latestEl.textContent = t(S.latest, { who: whoOf(last), amount: fmt(last.amount) });
+
+    resultEl.hidden = rows.length === 0;
+    fillRows(rowsEl, rows);
+  }
+
+  /** The last envelope is open: wait for it to show, then mark the luckiest and celebrate. */
+  function finish(delay: number) {
+    const wait = reducedMotion.matches ? 0 : delay;
+    sounds.play('finish', wait / 1000);
+    bestTimer = window.setTimeout(() => {
+      markBest();
+      celebrate();
+    }, wait);
+  }
+
+  function pick(envelope: number) {
+    if (!round || isOpen(round, envelope)) return;
+    round = openEnvelope(round, envelope);
+    saveRound();
+    sounds.play('open');
+    setOpen(envelope, 0);
+    trackEvent('envelope_open', { method: round.mode, interaction: 'tap' });
+    syncStage(envelope);
+    if (isFinished(round)) finish(OPEN_MS + 250);
+  }
+
+  skipBtn.addEventListener('click', () => {
+    if (!round) return;
+    round = skipTurn(round);
+    saveRound();
+    syncStage();
+  });
+
+  openAllBtn.addEventListener('click', () => {
+    if (!round || isFinished(round)) return;
+    const before = round.opened.length;
+    round = openAll(round);
+    saveRound();
+    const fresh = round.opened.slice(before);
+    // The whole wave takes at most 0.8 s, however many envelopes are left.
+    const step = Math.min(60, 800 / fresh.length);
+    fresh.forEach((envelope, i) => setOpen(envelope, i * step));
+    sounds.play('openAll');
+    trackEvent('envelope_open', { method: round.mode, interaction: 'all' });
+    syncStage();
+    finish(fresh.length * step + OPEN_MS + 250);
+  });
+
+  for (const button of $$<HTMLButtonElement>('[data-result-copy]', root)) {
+    button.addEventListener('click', async () => {
+      if (!round) return;
+      if (await copyText(resultText(round, resultRows(round), fmt))) flashButton($('span', button));
+    });
+  }
+
+  for (const button of $$<HTMLButtonElement>('[data-redo]', root)) {
+    const label = $('span', button);
+    let timer = 0;
+    const disarm = () => {
+      window.clearTimeout(timer);
+      button.classList.remove('is-armed');
+      label.textContent = S.redo;
+    };
+    button.addEventListener('click', () => {
+      if (!button.classList.contains('is-armed')) {
+        button.classList.add('is-armed');
+        label.textContent = S.redoArm;
+        timer = window.setTimeout(disarm, 4000);
+        return;
+      }
+      disarm();
+      window.clearTimeout(bestTimer);
+      clearRound();
+      showSetup();
+      root.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+    });
+  }
+
+  /* ---------- One link each ---------- */
+  const linkList = $('#lre-link-list', root);
+  const linksProgress = $('#lre-links-progress', root);
+  const linksFacts = $('#lre-links-facts', root);
+  const allRowsEl = $('#lre-all-rows', root);
+  const pageUrl = () => location.origin + location.pathname + location.search;
+
+  function inviteOf(envelope: number): { who: string; url: string; message: string } {
+    const invite = roundInvite(round!, envelope);
+    const url = inviteUrl(pageUrl(), invite);
+    const text = invite.name ? t(S.message, { name: invite.name, url }) : t(S.messageAnon, { url });
+    return { who: invite.name || envelopeLabel(envelope), url, message: invite.title ? `【${invite.title}】${text}` : text };
+  }
+
+  function markLinkSent(envelope: number, row: HTMLElement) {
+    round = markSent(round!, envelope);
+    saveRound();
+    row.classList.add('is-sent');
+    syncLinksProgress();
+  }
+
+  function syncLinksProgress() {
+    linksProgress.textContent = t(S.linksProgress, { done: round!.sent.length, total: round!.amounts.length });
+  }
+
+  function renderLinks() {
+    const current = round!;
+    linksFacts.textContent = factsText(current);
+    const rows = current.amounts.map((_, envelope) => {
+      const row = clone('#lre-link-tpl');
+      const invite = inviteOf(envelope);
+      $('.lre-link-name', row).textContent = invite.who;
+      row.classList.toggle('is-sent', current.sent.includes(envelope));
+      $('[data-link-copy]', row).addEventListener('click', async () => {
+        if (await copyText(invite.message)) {
+          flashButton($('[data-link-copy-label]', row));
+          markLinkSent(envelope, row);
+        }
+      });
+      const lineLink = $<HTMLAnchorElement>('[data-link-line]', row);
+      lineLink.href = `https://line.me/R/share?text=${encodeURIComponent(invite.message)}`;
+      lineLink.addEventListener('click', () => markLinkSent(envelope, row));
+      return row;
+    });
+    linkList.replaceChildren(...rows);
+    fillRows(allRowsEl, allRows(current));
+    syncLinksProgress();
+  }
+
+  $('#lre-copy-all', root).addEventListener('click', async () => {
+    if (!round) return;
+    const text = round.amounts
+      .map((_, envelope) => {
+        const invite = inviteOf(envelope);
+        return t(S.copyAllLine, { who: invite.who, url: invite.url });
+      })
+      .join('\n');
+    if (await copyText(text)) {
+      flashButton($('#lre-copy-all-label', root));
+      round.amounts.forEach((_, envelope) => (round = markSent(round!, envelope)));
+      saveRound();
+      for (const row of linkList.children) row.classList.add('is-sent');
+      syncLinksProgress();
+    }
+  });
+
+  const allCopy = $<HTMLButtonElement>('#lre-all-copy', root);
+  allCopy.addEventListener('click', async () => {
+    if (!round) return;
+    if (await copyText(resultText(round, allRows(round), fmt))) flashButton($('span', allCopy));
+  });
+
+  /* ---------- A guest's own link ---------- */
+  const guestTitle = $('#lre-guest-title', root);
+  const guestHeading = $('#lre-guest-heading', root);
+  const guestOpen = $<HTMLButtonElement>('#lre-guest-open', root);
+  const guestHint = $('#lre-guest-hint', root);
+  const guestDone = $('#lre-guest-done', root);
+  const guestAmount = $('#lre-guest-amount', root);
+  const makeBtn = $<HTMLButtonElement>('#lre-make', root);
+  let guest: Invite | null = null;
+
+  function showGuest(invite: Invite) {
+    guest = invite;
+    show(guestEl);
+    guestTitle.textContent = invite.title;
+    guestTitle.hidden = !invite.title;
+    guestHeading.textContent = invite.name ? t(S.guestHeading, { name: invite.name }) : S.guestHeadingAnon;
+    guestOpen.classList.remove('is-open', 'is-opening');
+    guestOpen.disabled = false;
+    guestOpen.setAttribute('aria-label', '點一下紅包打開');
+    $('.lre-env-tag', guestOpen).textContent = invite.name;
+    fillCard(guestOpen, invite.amount, invite.name);
+    guestHint.hidden = false;
+    guestDone.hidden = true;
+    // On a phone the page heading can push the envelope below the fold.
+    if (guestHint.getBoundingClientRect().bottom > window.innerHeight) guestEl.scrollIntoView({ block: 'start' });
+  }
+
+  guestOpen.addEventListener('click', () => {
+    if (!guest || guestOpen.disabled) return;
+    const amount = fmt(guest.amount);
+    guestOpen.disabled = true;
+    guestOpen.setAttribute('aria-label', t(S.openAria, { who: guest.name || S.guestHeadingAnon, amount }));
+    guestHint.hidden = true;
+    sounds.play('open');
+    trackEvent('envelope_open', { method: 'invite', interaction: 'tap' });
+    const reveal = () => {
+      guestOpen.classList.remove('is-opening');
+      guestOpen.classList.add('is-open');
+      guestAmount.textContent = t(S.guestAmount, { amount });
+      guestDone.hidden = false;
+      guestDone.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+      celebrate();
+      makeBtn.focus({ preventScroll: true });
+    };
+    if (reducedMotion.matches) return reveal();
+    guestOpen.classList.add('is-opening');
+    window.setTimeout(reveal, OPEN_MS);
+  });
+
+  makeBtn.addEventListener('click', () => {
+    trackEvent('envelope_make_own');
+    try {
+      sessionStorage.removeItem(INVITE_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    delete root.dataset.invite;
+    guest = null;
+    stopConfetti();
+    resume();
+    root.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+  });
+
+  /** Keeps a link out of the address bar when it arrives after the page has loaded. */
+  function takeInviteFromUrl(): string {
+    const hash = location.hash;
+    if (!hash.startsWith('#hb=')) return '';
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      sessionStorage.setItem(INVITE_KEY, hash);
+    } catch {
+      /* storage unavailable */
+    }
+    return hash;
+  }
+
+  function route(hash: string) {
+    const result = decodeInvite(hash);
+    if (result.status === 'ok') return showGuest(result.invite);
+    if (result.status === 'invalid') return showSetup(true);
+    resume();
+  }
+
+  window.addEventListener('hashchange', () => {
+    const hash = takeInviteFromUrl();
+    if (hash) route(hash);
+  });
+
+  round = normalizeRound(loadPref<unknown>(ROUND_KEY, null));
+  const savedDraft = normalizeDraft(loadPref<unknown>(DRAFT_KEY, null));
+  writeDraft(savedDraft);
+  renderSetup();
+  route(root.dataset.invite ?? '');
+</script>
+
+<style>
+  [data-tool='lucky-red-envelope'] {
+    position: relative;
+  }
+  /* While a personal link is opening (set by the inline script above). */
+  [data-tool='lucky-red-envelope'][data-view='opening'] .lre-setup {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-confetti {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    width: 100%;
+    height: min(100%, 100vh);
+    pointer-events: none;
+  }
+
+  /* ---------- Setup ---------- */
+  [data-tool='lucky-red-envelope'] .lre-setup,
+  [data-tool='lucky-red-envelope'] .lre-links {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-setup .notice,
+  [data-tool='lucky-red-envelope'] .lre-setup .hint,
+  [data-tool='lucky-red-envelope'] .lre-links .hint {
+    margin: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-seg {
+    justify-self: start;
+  }
+  [data-tool='lucky-red-envelope'] .lre-seg span {
+    padding: 8px 14px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-by {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 10px;
+    min-height: 32px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-count {
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] #lre-names {
+    min-height: 150px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-pair {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  @media (min-width: 560px) {
+    [data-tool='lucky-red-envelope'] .lre-pair {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+  }
+  [data-tool='lucky-red-envelope'] .lre-hint {
+    margin-top: -8px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-modes {
+    display: grid;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    [data-tool='lucky-red-envelope'] .lre-modes {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 10px;
+    align-content: start;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode:hover {
+    background: var(--surface-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode:has(input:checked) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode:has(input:focus-visible) {
+    box-shadow:
+      inset 0 0 0 1px var(--accent),
+      var(--focus);
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode:has(input:disabled) {
+    background: var(--surface-2);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode :global(.lre-mode-icon) {
+    color: var(--accent);
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode-title {
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  [data-tool='lucky-red-envelope'] .lre-mode-desc {
+    grid-column: 1 / -1;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-summary {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--text-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-start {
+    min-height: 52px;
+    font-size: 17px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-note {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='lucky-red-envelope'] .lre-note :global(.lre-note-icon) {
+    flex: none;
+    margin-top: 2px;
+    color: var(--accent);
+  }
+
+  /* ---------- Envelopes on one screen ---------- */
+  [data-tool='lucky-red-envelope'] .lre-stage {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-bar-title {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-bar-title:focus-visible {
+    outline: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-progress {
+    margin-right: auto;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] .lre-sound-icon {
+    display: inline-flex;
+  }
+  [data-tool='lucky-red-envelope'] .lre-sound-icon[hidden] {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-facts {
+    margin: -6px 0 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-status {
+    position: sticky;
+    top: var(--lre-sticky-top, 68px);
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 10px 12px;
+    background: #fff8ec;
+    border: 1px solid #f3d9a8;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+  [data-tool='lucky-red-envelope'] .lre-turn {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #8f1118;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-turn.is-done {
+    flex-basis: 16em;
+  }
+  [data-tool='lucky-red-envelope'] .lre-latest {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-grid {
+    --lre-cols: 5;
+    display: grid;
+    grid-template-columns: repeat(var(--lre-cols), minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: var(--lre-max, none);
+    margin-inline: auto;
+    padding-block: 4px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-grid[data-size='xs'] {
+    --lre-cols: 2;
+    --lre-max: 280px;
+    gap: 14px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-grid[data-size='s'] {
+    --lre-cols: 3;
+    --lre-max: 380px;
+    gap: 12px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-grid[data-size='m'] {
+    --lre-cols: 4;
+    --lre-max: 460px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-grid[data-size='l'] {
+    gap: 6px;
+  }
+  @media (min-width: 720px) {
+    [data-tool='lucky-red-envelope'] .lre-grid[data-size='xs'] {
+      --lre-cols: 4;
+      --lre-max: 560px;
+    }
+    [data-tool='lucky-red-envelope'] .lre-grid[data-size='s'] {
+      --lre-cols: 5;
+      --lre-max: 620px;
+    }
+    [data-tool='lucky-red-envelope'] .lre-grid[data-size='m'] {
+      --lre-cols: 6;
+      --lre-max: 660px;
+    }
+    [data-tool='lucky-red-envelope'] .lre-grid[data-size='l'] {
+      --lre-cols: 8;
+      gap: 8px;
+    }
+  }
+
+  /* The envelope: every inner size follows its width (cqw), so one drawing serves the grid and the big one. */
+  [data-tool='lucky-red-envelope'] .lre-env {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    border-radius: 9% / 7%;
+    cursor: pointer;
+    container-type: inline-size;
+    -webkit-tap-highlight-color: transparent;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env:disabled {
+    cursor: default;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-body,
+  [data-tool='lucky-red-envelope'] .lre-env-card {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-body {
+    overflow: hidden;
+    background: linear-gradient(180deg, #e2343a, #c81d25);
+    box-shadow:
+      0 1px 2px rgb(120 10 15 / 0.25),
+      0 8px 14px -10px rgb(120 10 15 / 0.6);
+    transition: transform 0.15s;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-flap {
+    position: absolute;
+    top: -24%;
+    left: -12%;
+    right: -12%;
+    height: 64%;
+    background: linear-gradient(180deg, #c81d25, #b3141c);
+    border-radius: 50%;
+    box-shadow: 0 1.5px 0 rgb(246 196 83 / 0.7);
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-seal {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    display: grid;
+    place-items: center;
+    width: 36%;
+    aspect-ratio: 1;
+    font-size: 16px;
+    font-size: 21cqw;
+    font-weight: 800;
+    line-height: 1;
+    color: #a3121a;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f6c453 55%, #dea127);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgb(90 5 10 / 0.35);
+    transform: translate(-50%, -50%);
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-tag {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    bottom: 7%;
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 12px;
+    font-size: clamp(10px, 15cqw, 22px);
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffe6a3;
+    text-align: center;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-tag.is-long {
+    bottom: 4%;
+    font-size: 10px;
+    font-size: clamp(9px, 12cqw, 18px);
+    line-height: 1.15;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-tag.is-number {
+    font-size: 14px;
+    font-size: clamp(12px, 19cqw, 28px);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-card {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3cqw;
+    padding: 4%;
+    background: #fff8ec;
+    border: 1.5px solid #e9a49a;
+    box-shadow: inset 0 0 0 3px #fff8ec, inset 0 0 0 4px #f6dca6;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env.is-open .lre-env-body {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env.is-open .lre-env-card {
+    display: flex;
+    animation: lre-pop 0.32s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-amount {
+    max-width: 100%;
+    font-size: 16px;
+    font-size: calc(var(--lre-fit, 24) * 1cqw);
+    font-weight: 800;
+    line-height: 1.1;
+    color: #b3141c;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-unit {
+    margin-left: 0.1em;
+    font-size: 0.5em;
+    font-weight: 700;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-who {
+    display: -webkit-box;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 11px;
+    font-size: clamp(10px, 13cqw, 18px);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-who:empty {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env-best {
+    display: none;
+    padding: 0.15em 0.5em;
+    font-size: 10px;
+    font-size: clamp(9px, 11.5cqw, 15px);
+    font-weight: 700;
+    line-height: 1.3;
+    color: #7a0d13;
+    white-space: nowrap;
+    background: #f6c453;
+    border-radius: 99px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env.is-best .lre-env-best {
+    display: block;
+  }
+  [data-tool='lucky-red-envelope'] .lre-env.is-best .lre-env-card {
+    background: #fff3d1;
+    border-color: #dea127;
+    box-shadow:
+      inset 0 0 0 3px #fff3d1,
+      inset 0 0 0 4px #f6c453,
+      0 0 0 3px rgb(246 196 83 / 0.55);
+  }
+  [data-tool='lucky-red-envelope'] .lre-env.is-opening .lre-env-body {
+    animation: lre-shake 0.38s ease-in-out;
+  }
+  @media (hover: hover) {
+    [data-tool='lucky-red-envelope'] .lre-env:not(:disabled):hover .lre-env-body {
+      transform: translateY(-3px) rotate(-2deg);
+    }
+  }
+  [data-tool='lucky-red-envelope'] .lre-env:not(:disabled):active .lre-env-body {
+    transform: scale(0.95);
+  }
+  @keyframes lre-shake {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    20%,
+    60% {
+      transform: rotate(-6deg);
+    }
+    40%,
+    80% {
+      transform: rotate(6deg);
+    }
+  }
+  @keyframes lre-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes lre-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  /* Results */
+  [data-tool='lucky-red-envelope'] .lre-result {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  [data-tool='lucky-red-envelope'] .lre-result .hint {
+    margin: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-result-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-heading {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  [data-tool='lucky-red-envelope'] .lre-heading:focus-visible {
+    outline: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-rows {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    /* A long list scrolls inside itself, so a hundred rows do not push the rest of the page away. */
+    max-height: 440px;
+    overflow-y: auto;
+    counter-reset: lre-row;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  [data-tool='lucky-red-envelope'] .lre-rows:empty {
+    display: none;
+  }
+  @media (min-width: 720px) {
+    [data-tool='lucky-red-envelope'] .lre-rows {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 1px;
+      background: var(--border);
+    }
+  }
+  [data-tool='lucky-red-envelope'] .lre-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 12px;
+    line-height: 1.5;
+    counter-increment: lre-row;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  [data-tool='lucky-red-envelope'] .lre-row::before {
+    flex: none;
+    min-width: 1.6em;
+    font-size: 13px;
+    color: var(--muted);
+    content: counter(lre-row) '.';
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] .lre-row.is-best {
+    background: #fff8ec;
+  }
+  [data-tool='lucky-red-envelope'] .lre-row-who {
+    flex: 1 1 0;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-row-best {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #7a0d13;
+    white-space: nowrap;
+    vertical-align: 1px;
+    background: #f6c453;
+    border-radius: 99px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-row-best[hidden] {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-row-amount {
+    flex: none;
+    font-weight: 700;
+    color: #b3141c;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='lucky-red-envelope'] .lre-foot {
+    display: flex;
+    justify-content: center;
+  }
+  [data-tool='lucky-red-envelope'] .btn.is-armed {
+    color: var(--danger);
+    border-color: var(--danger);
+    white-space: normal;
+  }
+
+  /* ---------- One link each ---------- */
+  [data-tool='lucky-red-envelope'] .lre-links-head {
+    display: grid;
+    gap: 6px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-links-note {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-links-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-link-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  [data-tool='lucky-red-envelope'] .lre-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 10px 12px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-link + .lre-link {
+    border-top: 1px solid var(--border);
+  }
+  [data-tool='lucky-red-envelope'] .lre-link :global(.lre-link-check) {
+    flex: none;
+    color: var(--border-strong);
+    transition: color 0.15s;
+  }
+  [data-tool='lucky-red-envelope'] .lre-link.is-sent :global(.lre-link-check) {
+    color: var(--success);
+  }
+  [data-tool='lucky-red-envelope'] .lre-link-name {
+    flex: 1 1 56px;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-link-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-more {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  [data-tool='lucky-red-envelope'] .lre-more summary {
+    padding: 11px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  [data-tool='lucky-red-envelope'] .lre-more-body {
+    display: grid;
+    gap: 12px;
+    padding: 0 14px 14px;
+  }
+
+  /* ---------- A guest's own link ---------- */
+  [data-tool='lucky-red-envelope'] .lre-guest {
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    min-width: 0;
+    padding-block: 8px;
+    text-align: center;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest[hidden] {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-heading {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(24px, 7vw, 34px);
+    font-weight: 800;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-heading:focus-visible {
+    outline: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-env {
+    width: min(58vw, 220px);
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-env .lre-env:not(:disabled) .lre-env-body {
+    animation: lre-bob 1.8s ease-in-out infinite;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-env .lre-env.is-opening .lre-env-body {
+    animation: lre-shake 0.38s ease-in-out;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-hint[hidden] {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-done {
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+    min-width: 0;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-done[hidden] {
+    display: none;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-amount {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(26px, 8vw, 38px);
+    font-weight: 800;
+    line-height: 1.3;
+    color: #b3141c;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-note {
+    max-width: 34em;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  [data-tool='lucky-red-envelope'] .lre-guest-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-cta {
+    min-height: 50px;
+    padding-inline: 24px;
+    font-size: 16px;
+    white-space: normal;
+  }
+  [data-tool='lucky-red-envelope'] .lre-party {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  [data-tool='lucky-red-envelope'] .lre-party .hint {
+    flex-basis: 100%;
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-tool='lucky-red-envelope'] .lre-env-body,
+    [data-tool='lucky-red-envelope'] .lre-env-card {
+      animation: none !important;
+      transition: none;
+    }
+  }
+</style>

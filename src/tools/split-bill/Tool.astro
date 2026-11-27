@@ -1,0 +1,728 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const d = s.client.defaults;
+const w = s.client.weighted;
+---
+
+<div class="tool" data-tool="split-bill" {...i18nAttrs(locale, s.client)}>
+  <div class="seg" role="radiogroup" aria-label={s.modeAria}>
+    <label><input type="radio" name="sb-mode" value="equal" checked /><span>{s.modeEqual}</span></label>
+    <label><input type="radio" name="sb-mode" value="items" /><span>{s.modeItems}</span></label>
+    <label><input type="radio" name="sb-mode" value="weighted" /><span>{s.modeWeighted}</span></label>
+  </div>
+
+  <div class="grid-2" id="sb-equal">
+    <div class="field">
+      <label for="sb-total">{s.totalLabel}</label>
+      <input id="sb-total" type="text" inputmode="decimal" autocomplete="off" value={d.total} />
+    </div>
+    <div class="field">
+      <label for="sb-people">{s.peopleLabel}</label>
+      <input id="sb-people" type="text" inputmode="numeric" autocomplete="off" value={d.people} />
+    </div>
+  </div>
+
+  <div class="field" id="sb-items" hidden>
+    <span class="label">{s.itemsLabel}</span>
+    <div class="sb-list" id="sb-list"></div>
+    <div class="row">
+      <button class="btn small" type="button" id="sb-add">{s.addPerson}</button>
+    </div>
+    <label class="label" for="sb-shared">{s.sharedLabel}</label>
+    <input id="sb-shared" type="text" inputmode="decimal" autocomplete="off" value={d.shared} />
+  </div>
+
+  <div class="field" id="sb-weighted" hidden>
+    {
+      s.weighted.basis && (
+        <div class="seg" role="radiogroup" aria-label={s.weighted.basis.aria}>
+          <label><input type="radio" name="sb-wbasis" value="shares" checked /><span>{s.weighted.basis.shares}</span></label>
+          <label><input type="radio" name="sb-wbasis" value="income" /><span>{s.weighted.basis.income}</span></label>
+        </div>
+      )
+    }
+    <span class="label" id="sb-wlabel">{w.label}</span>
+    <div class="sb-wlist" id="sb-wlist"></div>
+    <div class="row">
+      <button class="btn small" type="button" id="sb-wadd">{s.addPerson}</button>
+    </div>
+    <span class="hint" id="sb-whint">{w.hint}</span>
+  </div>
+
+  {
+    s.tip ? (
+      <div class="grid-2">
+        <div class="field">
+          <label for="sb-service">{s.serviceLabel}</label>
+          <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value={d.service} />
+          <span class="hint">{s.serviceHint}</span>
+        </div>
+        <div class="field">
+          <label for="sb-tip">{s.tip.label}</label>
+          <input id="sb-tip" type="text" inputmode="decimal" autocomplete="off" value={d.tip} />
+          {s.tip.presets && (
+            <div class="row sb-tips" role="group" aria-label={s.tip.presetsAria}>
+              {s.tip.presets.map((pct) => (
+                <button class="btn small" type="button" data-tip={pct} aria-pressed="false">
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          )}
+          <span class="hint">{s.tip.hint}</span>
+        </div>
+      </div>
+    ) : (
+      <div class="field">
+        <label for="sb-service">{s.serviceLabel}</label>
+        <input id="sb-service" type="text" inputmode="decimal" autocomplete="off" value={d.service} />
+        <span class="hint">{s.serviceHint}</span>
+      </div>
+    )
+  }
+
+  <div class="field" id="sb-round-wrap">
+    <span class="label">{s.roundLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.roundLabel}>
+      {
+        s.roundOptions.map((o, i) => (
+          <label><input type="radio" name="sb-round" value={String(o.value)} checked={i === 0} /><span>{o.label}</span></label>
+        ))
+      }
+    </div>
+    {
+      s.roundMode && (
+        <div class="sb-round-mode" id="sb-round-mode">
+          <span class="label">{s.roundMode.label}</span>
+          <div class="seg" role="radiogroup" aria-label={s.roundMode.label}>
+            <label><input type="radio" name="sb-round-mode" value="up" checked /><span>{s.roundMode.up}</span></label>
+            <label><input type="radio" name="sb-round-mode" value="down" /><span>{s.roundMode.down}</span></label>
+          </div>
+        </div>
+      )
+    }
+  </div>
+
+  <div class="field" id="sb-wround-wrap" hidden>
+    <span class="label">{s.roundLabel}</span>
+    <div class="seg" role="radiogroup" aria-label={s.roundLabel}>
+      {
+        s.weighted.roundOptions.map((o, i) => (
+          <label><input type="radio" name="sb-wround" value={String(o.value)} checked={i === 0} /><span>{o.label}</span></label>
+        ))
+      }
+    </div>
+    {
+      s.roundMode && (
+        <div class="sb-round-mode" id="sb-wround-mode">
+          <span class="label">{s.roundMode.label}</span>
+          <div class="seg" role="radiogroup" aria-label={s.roundMode.label}>
+            <label><input type="radio" name="sb-wround-mode" value="up" checked /><span>{s.roundMode.up}</span></label>
+            <label><input type="radio" name="sb-wround-mode" value="down" /><span>{s.roundMode.down}</span></label>
+          </div>
+        </div>
+      )
+    }
+  </div>
+
+  <p class="notice error" id="sb-error" hidden></p>
+
+  <div id="sb-results">
+    <div class="result">
+      <div class="result-value" id="sb-main">—</div>
+      <div class="result-label" id="sb-main-label">{s.client.mainLabel}</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="sb-subtotal">—</span><span class="stat-label">{s.statSubtotal}</span></div>
+      <div class="stat"><span class="stat-value" id="sb-service-out">—</span><span class="stat-label">{s.statService}</span></div>
+      {s.statTip && <div class="stat"><span class="stat-value" id="sb-tip-out">—</span><span class="stat-label">{s.statTip}</span></div>}
+      <div class="stat"><span class="stat-value" id="sb-grand">—</span><span class="stat-label">{s.statGrand}</span></div>
+    </div>
+
+    <p class="notice" id="sb-note"></p>
+
+    <div class="table-wrap" id="sb-table-wrap" hidden>
+      <table class="table">
+        <thead>
+          <tr><th>{s.tableHead[0]}</th><th class="num">{s.tableHead[1]}</th><th class="num">{s.tableHead[2]}</th><th class="num">{s.tableHead[3]}</th><th class="num">{s.tableHead[4]}</th></tr>
+        </thead>
+        <tbody id="sb-table"></tbody>
+      </table>
+    </div>
+
+    <div class="table-wrap" id="sb-wtable-wrap" hidden>
+      <table class="table">
+        <thead>
+          <tr><th>{s.weighted.tableHead[0]}</th><th class="num" id="sb-whead">{s.weighted.tableHead[1]}</th><th class="num">{s.weighted.tableHead[2]}</th><th class="num">{s.weighted.tableHead[3]}</th></tr>
+        </thead>
+        <tbody id="sb-wtable"></tbody>
+      </table>
+    </div>
+
+    <div class="row">
+      <button class="btn small" type="button" data-copy="#sb-summary">{s.copyResult}</button>
+    </div>
+    <textarea id="sb-summary" hidden readonly aria-hidden="true"></textarea>
+  </div>
+</div>
+
+<script>
+  import { track } from '../../lib/analytics';
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatFixed, formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { WEIGHTED_PEOPLE, splitEqually, splitItemized, splitWeighted, type RoundMode } from './logic';
+  import type { Strings } from './i18n';
+
+  type Mode = 'equal' | 'items' | 'weighted';
+  type Basis = 'shares' | 'income';
+  interface Prefs {
+    mode: Mode;
+    total: string;
+    people: string;
+    service: string;
+    tip: string;
+    roundTo: string;
+    roundMode?: RoundMode;
+    shared: string;
+    persons: { name: string; amount: string }[];
+    wPersons: { name: string; weight: string; income?: string }[];
+    wRoundTo: string;
+    wRoundMode?: RoundMode;
+    wBasis?: Basis;
+  }
+
+  const root = $('[data-tool="split-bill"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const defaults: Prefs = s.defaults;
+  const scale = s.digits === 2 ? 100 : 1;
+  const W = s.weighted;
+
+  const modeRadios = $$<HTMLInputElement>('input[name="sb-mode"]', root);
+  const roundRadios = $$<HTMLInputElement>('input[name="sb-round"]', root);
+  const roundModeRadios = $$<HTMLInputElement>('input[name="sb-round-mode"]', root);
+  const tipButtons = $$<HTMLButtonElement>('[data-tip]', root);
+  const wRoundRadios = $$<HTMLInputElement>('input[name="sb-wround"]', root);
+  const wRoundModeRadios = $$<HTMLInputElement>('input[name="sb-wround-mode"]', root);
+  const wBasisRadios = $$<HTMLInputElement>('input[name="sb-wbasis"]', root);
+  const total = $<HTMLInputElement>('#sb-total', root);
+  const people = $<HTMLInputElement>('#sb-people', root);
+  const service = $<HTMLInputElement>('#sb-service', root);
+  const tip = root.querySelector<HTMLInputElement>('#sb-tip');
+  const shared = $<HTMLInputElement>('#sb-shared', root);
+  const list = $('#sb-list', root);
+  const equalPanel = $('#sb-equal', root);
+  const itemsPanel = $('#sb-items', root);
+  const roundWrap = $('#sb-round-wrap', root);
+  const roundModeWrap = root.querySelector<HTMLElement>('#sb-round-mode');
+  const peopleField = people.closest<HTMLElement>('.field');
+  const weightedPanel = $('#sb-weighted', root);
+  const wlist = $('#sb-wlist', root);
+  const wLabel = $('#sb-wlabel', root);
+  const wHint = $('#sb-whint', root);
+  const wAdd = $<HTMLButtonElement>('#sb-wadd', root);
+  const wRoundWrap = $('#sb-wround-wrap', root);
+  const wRoundModeWrap = root.querySelector<HTMLElement>('#sb-wround-mode');
+  const wTableWrap = $('#sb-wtable-wrap', root);
+  const wTable = $('#sb-wtable', root);
+  const wHead = $('#sb-whead', root);
+  const wHeadText = wHead.textContent ?? '';
+  const error = $('#sb-error', root);
+  const results = $('#sb-results', root);
+  const main = $('#sb-main', root);
+  const mainLabel = $('#sb-main-label', root);
+  const note = $('#sb-note', root);
+  const tableWrap = $('#sb-table-wrap', root);
+  const table = $('#sb-table', root);
+  const summary = $<HTMLTextAreaElement>('#sb-summary', root);
+
+  /** Amount without currency, in the currency's minor-unit precision. */
+  const amountText = (n: number) => (s.digits === 2 ? formatFixed(n, 2, locale) : formatInteger(n, locale));
+  const money = (n: number) => t(s.money, { n: amountText(n) });
+  /** Plain number for table cells (and zh stats). */
+  const num = (n: number) => (s.digits === 2 ? formatFixed(n, 2, locale) : formatNumber(n, s.numDigits, locale));
+  const stat = (n: number) => (s.statMoney ? money(n) : num(n));
+  const mode = (): Mode => (modeRadios.find((r) => r.checked)?.value as Mode) ?? 'equal';
+  const roundTo = (): number => Number(roundRadios.find((r) => r.checked)?.value ?? '1') || 1;
+  const roundMode = (): RoundMode => (roundModeRadios.find((r) => r.checked)?.value === 'down' ? 'down' : 'up');
+  const wRoundTo = (): number => Number(wRoundRadios.find((r) => r.checked)?.value ?? '1') || 1;
+  const wRoundMode = (): RoundMode => (wRoundModeRadios.find((r) => r.checked)?.value === 'down' ? 'down' : 'up');
+  const wBasis = (): Basis => (wBasisRadios.find((r) => r.checked)?.value === 'income' ? 'income' : 'shares');
+
+  function addPersonRow(name = '', amount = '') {
+    const row = document.createElement('div');
+    row.className = 'sb-person';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = t(s.nthPerson, { n: list.children.length + 1 });
+    nameInput.value = name;
+    nameInput.setAttribute('aria-label', s.nameAria);
+    nameInput.dataset.role = 'name';
+    const amountInput = document.createElement('input');
+    amountInput.type = 'text';
+    amountInput.inputMode = 'decimal';
+    amountInput.placeholder = s.amountPlaceholder;
+    amountInput.value = amount;
+    amountInput.setAttribute('aria-label', s.amountAria);
+    amountInput.dataset.role = 'amount';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn small ghost';
+    remove.textContent = s.remove;
+    remove.addEventListener('click', () => {
+      if (list.children.length <= 1) return;
+      row.remove();
+      render();
+    });
+    row.append(nameInput, amountInput, remove);
+    list.append(row);
+  }
+
+  function readPersons() {
+    return $$<HTMLElement>('.sb-person', list).map((row, i) => {
+      const name = $<HTMLInputElement>('[data-role="name"]', row).value.trim();
+      const amount = $<HTMLInputElement>('[data-role="amount"]', row).value;
+      return { name: name || t(s.nthPerson, { n: i + 1 }), rawName: name, amount };
+    });
+  }
+
+  /** One row of the weighted list. `alt` keeps the value for the basis that is not on screen. */
+  function addWeightedRow(name = '', value = '', alt = '') {
+    const row = document.createElement('div');
+    row.className = 'sb-wperson';
+    row.dataset.alt = alt;
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = name;
+    nameInput.setAttribute('aria-label', s.nameAria);
+    nameInput.dataset.role = 'name';
+    const weightInput = document.createElement('input');
+    weightInput.type = 'text';
+    weightInput.inputMode = 'decimal';
+    weightInput.autocomplete = 'off';
+    weightInput.value = value;
+    weightInput.dataset.role = 'weight';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn small ghost';
+    remove.textContent = s.remove;
+    remove.dataset.role = 'remove';
+    remove.addEventListener('click', () => {
+      if (wlist.children.length <= WEIGHTED_PEOPLE.min) return;
+      row.remove();
+      update();
+    });
+    const chips = document.createElement('div');
+    chips.className = 'sb-chips';
+    chips.setAttribute('role', 'group');
+    chips.setAttribute('aria-label', W.chipsAria);
+    for (const chip of W.chips) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn small';
+      button.textContent = chip.label;
+      button.dataset.w = chip.value;
+      button.setAttribute('aria-pressed', 'false');
+      button.addEventListener('click', () => {
+        weightInput.value = chip.value;
+        update();
+      });
+      chips.append(button);
+    }
+    row.append(nameInput, weightInput, remove, chips);
+    wlist.append(row);
+  }
+
+  function readWeighted() {
+    return $$<HTMLElement>('.sb-wperson', wlist).map((row, i) => {
+      const name = $<HTMLInputElement>('[data-role="name"]', row).value.trim();
+      const value = $<HTMLInputElement>('[data-role="weight"]', row).value;
+      return { row, name: name || t(s.nthPerson, { n: i + 1 }), rawName: name, value, alt: row.dataset.alt ?? '' };
+    });
+  }
+
+  /** Shares and incomes are kept side by side, so switching the basis swaps what each row shows. */
+  function swapBasis() {
+    for (const row of $$<HTMLElement>('.sb-wperson', wlist)) {
+      const input = $<HTMLInputElement>('[data-role="weight"]', row);
+      [input.value, row.dataset.alt] = [row.dataset.alt ?? '', input.value];
+    }
+  }
+
+  function showError(message: string) {
+    error.textContent = message;
+    error.hidden = false;
+    results.hidden = true;
+  }
+
+  function render() {
+    const m = mode();
+    const persons = readPersons();
+    const basis = wBasis();
+    const weighted = readWeighted();
+    savePref(s.prefKey, {
+      mode: m,
+      total: total.value,
+      people: people.value,
+      service: service.value,
+      tip: tip?.value ?? '0',
+      roundTo: String(roundTo()),
+      ...(roundModeWrap ? { roundMode: roundMode() } : {}),
+      shared: shared.value,
+      persons: persons.map((p) => ({ name: p.rawName, amount: p.amount })),
+      wPersons: weighted.map((p) =>
+        basis === 'income'
+          ? { name: p.rawName, weight: p.alt, income: p.value }
+          : { name: p.rawName, weight: p.value, ...(W.income ? { income: p.alt } : {}) },
+      ),
+      wRoundTo: String(wRoundTo()),
+      ...(wRoundModeWrap ? { wRoundMode: wRoundMode() } : {}),
+      ...(W.income ? { wBasis: basis } : {}),
+    } satisfies Prefs);
+
+    equalPanel.hidden = m === 'items';
+    equalPanel.classList.toggle('sb-solo', m === 'weighted');
+    if (peopleField) peopleField.hidden = m === 'weighted';
+    itemsPanel.hidden = m !== 'items';
+    weightedPanel.hidden = m !== 'weighted';
+    roundWrap.hidden = m !== 'equal';
+    wRoundWrap.hidden = m !== 'weighted';
+    tableWrap.hidden = m !== 'items';
+    wTableWrap.hidden = m !== 'weighted';
+    if (roundModeWrap) roundModeWrap.hidden = roundTo() === 1;
+    if (wRoundModeWrap) wRoundModeWrap.hidden = wRoundTo() === 1;
+
+    const servicePct = service.value.trim() === '' ? 0 : parseNumber(service.value);
+    const tipPct = !tip || tip.value.trim() === '' ? 0 : parseNumber(tip.value);
+    for (const b of tipButtons) b.setAttribute('aria-pressed', String(Number(b.dataset.tip) === tipPct));
+
+    if (m === 'equal') {
+      const step = roundTo();
+      const r = splitEqually({
+        subtotal: parseNumber(total.value),
+        people: parseNumber(people.value),
+        servicePct,
+        tipPct,
+        roundTo: step,
+        roundMode: roundMode(),
+        scale,
+      });
+      if (!r) return showError(s.errorEqual);
+      error.hidden = true;
+      results.hidden = false;
+      fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
+      const n = parseNumber(people.value);
+      if (step > 1) {
+        const unit = t(s.money, { n: formatNumber(step / scale, 2, locale) });
+        const down = r.surplus < 0;
+        main.textContent = money(r.roundedPerPerson);
+        mainLabel.textContent = t(roundMode() === 'down' && s.labelRoundedDown ? s.labelRoundedDown : s.labelRounded, { unit });
+        const vars = { per: money(r.roundedPerPerson), n, collected: money(r.collected) };
+        note.textContent =
+          r.surplus > 0
+            ? t(s.noteSurplus, { ...vars, surplus: money(r.surplus) })
+            : down && s.noteShortfall
+              ? t(s.noteShortfall, { ...vars, shortfall: money(-r.surplus) })
+              : t(s.noteRoundedExact, vars);
+      } else if (r.extraCount > 0) {
+        const high = r.basePerPerson + 1 / scale;
+        main.textContent = t(s.mainRange, { low: amountText(r.basePerPerson), high: amountText(high) });
+        mainLabel.textContent = t(s.labelExact, { exact: formatNumber(r.exactPerPerson, s.exactDigits, locale) });
+        note.textContent = t(s.noteUneven, {
+          total: money(r.grandTotal),
+          n,
+          extra: r.extraCount,
+          rest: n - r.extraCount,
+          high: money(high),
+          low: money(r.basePerPerson),
+        });
+      } else {
+        main.textContent = money(r.basePerPerson);
+        mainLabel.textContent = s.mainLabel;
+        note.textContent = t(s.noteEven, { total: money(r.grandTotal), n, per: money(r.basePerPerson) });
+      }
+      summary.value = t(s.summaryEqual, { main: main.textContent, label: mainLabel.textContent, note: note.textContent });
+      return;
+    }
+
+    if (m === 'weighted') {
+      const income = basis === 'income' ? W.income : undefined;
+      wlist.dataset.basis = basis;
+      wLabel.textContent = income?.label ?? W.label;
+      wHint.textContent = income?.hint ?? W.hint;
+      wHead.textContent = income?.head ?? wHeadText;
+      wAdd.disabled = weighted.length >= WEIGHTED_PEOPLE.max;
+      const weights = weighted.map((p) => (p.value.trim() === '' ? 0 : parseNumber(p.value)));
+      weighted.forEach((p, i) => {
+        $<HTMLInputElement>('[data-role="name"]', p.row).placeholder = t(s.nthPerson, { n: i + 1 });
+        const input = $<HTMLInputElement>('[data-role="weight"]', p.row);
+        input.placeholder = income?.placeholder ?? W.weightPlaceholder;
+        input.setAttribute('aria-label', income?.aria ?? W.weightAria);
+        $<HTMLButtonElement>('[data-role="remove"]', p.row).disabled = weighted.length <= WEIGHTED_PEOPLE.min;
+        for (const b of $$<HTMLButtonElement>('[data-w]', p.row)) b.setAttribute('aria-pressed', String(Number(b.dataset.w) === weights[i]));
+      });
+
+      const step = wRoundTo();
+      const r = splitWeighted({
+        subtotal: parseNumber(total.value),
+        people: weighted.map((p, i) => ({ name: p.name, weight: weights[i] })),
+        servicePct,
+        tipPct,
+        roundTo: step,
+        roundMode: wRoundMode(),
+        scale,
+      });
+      if (!r) return showError(W.error);
+      error.hidden = true;
+      results.hidden = false;
+      fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
+      main.textContent = money(r.grandTotal);
+      mainLabel.textContent = plural(locale, r.shares.length, s.itemsMainLabel);
+      const vars = {
+        unit: t(s.money, { n: formatNumber(step / scale, 2, locale) }),
+        total: money(r.grandTotal),
+        collected: money(r.collected),
+      };
+      note.textContent =
+        step === 1
+          ? t(W.noteExact, vars)
+          : r.surplus > 0
+            ? t(W.noteSurplus, { ...vars, surplus: money(r.surplus) })
+            : r.surplus < 0 && W.noteShortfall
+              ? t(W.noteShortfall, { ...vars, shortfall: money(-r.surplus) })
+              : t(W.noteRoundedExact, vars);
+      const percent = (n: number) => t(W.percent, { n: formatNumber(n, 1, locale) });
+      const weightText = (n: number) => (income ? formatNumber(n, 2, locale) : t(W.weightText, { w: formatNumber(n, 2, locale) }));
+      const tableRow = (cells: string[], className = '') => {
+        const tr = document.createElement('tr');
+        tr.className = className;
+        cells.forEach((text, i) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (i > 0) td.className = 'num';
+          tr.append(td);
+        });
+        return tr;
+      };
+      wTable.replaceChildren(
+        ...r.shares.map((share) => tableRow([share.name, weightText(share.weight), percent(share.percent), money(share.pay)])),
+        tableRow([W.sumLabel, '', percent(100), money(r.collected)], 'sb-sum'),
+      );
+      summary.value = [
+        t(s.summaryTotal, { total: money(r.grandTotal) }),
+        ...r.shares.map((share) =>
+          t(W.summaryLine, { name: share.name, share: income ? percent(share.percent) : weightText(share.weight), pay: money(share.pay) }),
+        ),
+        note.textContent,
+      ].join('\n');
+      return;
+    }
+
+    const r = splitItemized({
+      people: persons.map((p) => ({ name: p.name, amount: p.amount.trim() === '' ? 0 : parseNumber(p.amount) })),
+      shared: shared.value.trim() === '' ? 0 : parseNumber(shared.value),
+      servicePct,
+      tipPct,
+      scale,
+    });
+    if (!r) return showError(s.errorItems);
+    error.hidden = true;
+    results.hidden = false;
+    fillStats(r.subtotal, r.service, r.tip, r.grandTotal);
+    main.textContent = money(r.grandTotal);
+    mainLabel.textContent = plural(locale, r.shares.length, s.itemsMainLabel);
+    note.textContent = s.itemsNote;
+    table.replaceChildren(
+      ...r.shares.map((share) => {
+        const tr = document.createElement('tr');
+        const cells = [share.name, num(share.own), num(share.sharedPart), num(share.charges), money(share.pay)];
+        cells.forEach((text, i) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (i > 0) td.className = 'num';
+          tr.append(td);
+        });
+        return tr;
+      }),
+    );
+    summary.value = [
+      t(s.summaryTotal, { total: money(r.grandTotal) }),
+      ...r.shares.map((share) => t(s.summaryLine, { name: share.name, pay: money(share.pay) })),
+    ].join('\n');
+  }
+
+  function fillStats(subtotal: number, serviceAmount: number, tipAmount: number, grand: number) {
+    $('#sb-subtotal', root).textContent = stat(subtotal);
+    $('#sb-service-out', root).textContent = stat(serviceAmount);
+    const tipOut = root.querySelector('#sb-tip-out');
+    if (tipOut) tipOut.textContent = stat(tipAmount);
+    $('#sb-grand', root).textContent = money(grand);
+  }
+
+  const prefs = { ...defaults, ...loadPref<Partial<Prefs>>(s.prefKey, {}) };
+  total.value = prefs.total;
+  people.value = prefs.people;
+  service.value = prefs.service;
+  if (tip) tip.value = prefs.tip;
+  shared.value = prefs.shared;
+  for (const r of modeRadios) r.checked = r.value === prefs.mode;
+  if (roundRadios.some((r) => r.value === prefs.roundTo)) for (const r of roundRadios) r.checked = r.value === prefs.roundTo;
+  for (const r of roundModeRadios) r.checked = r.value === (prefs.roundMode ?? 'up');
+  const persons = Array.isArray(prefs.persons) && prefs.persons.length > 0 ? prefs.persons : defaults.persons;
+  persons.forEach((p) => addPersonRow(p.name, p.amount));
+  if (wRoundRadios.some((r) => r.value === prefs.wRoundTo)) for (const r of wRoundRadios) r.checked = r.value === prefs.wRoundTo;
+  for (const r of wRoundModeRadios) r.checked = r.value === (prefs.wRoundMode ?? 'up');
+  const startBasis: Basis = W.income && prefs.wBasis === 'income' ? 'income' : 'shares';
+  for (const r of wBasisRadios) r.checked = r.value === startBasis;
+  const wPersons =
+    Array.isArray(prefs.wPersons) && prefs.wPersons.length >= WEIGHTED_PEOPLE.min ? prefs.wPersons : defaults.wPersons;
+  wPersons
+    .slice(0, WEIGHTED_PEOPLE.max)
+    .forEach((p) =>
+      startBasis === 'income' ? addWeightedRow(p.name, p.income ?? '', p.weight) : addWeightedRow(p.name, p.weight, p.income ?? ''),
+    );
+
+  // split_weighted: someone worked out a weighted split (once per page view; switching to the mode alone does not count).
+  let weightedReported = false;
+  function update(event?: Event) {
+    render();
+    const target = event?.target;
+    if (weightedReported || mode() !== 'weighted' || results.hidden) return;
+    if (target instanceof HTMLInputElement && target.name === 'sb-mode') return;
+    weightedReported = true;
+    track('split_weighted', { method: wBasis(), people: wlist.children.length });
+  }
+
+  for (const r of wBasisRadios) r.addEventListener('change', swapBasis);
+  root.addEventListener('input', update);
+  root.addEventListener('change', update);
+  for (const b of tipButtons) {
+    b.addEventListener('click', () => {
+      if (tip) tip.value = b.dataset.tip ?? '';
+      update();
+    });
+  }
+  $('#sb-add', root).addEventListener('click', () => {
+    addPersonRow();
+    render();
+    $$<HTMLInputElement>('[data-role="name"]', list).at(-1)?.focus();
+  });
+  wAdd.addEventListener('click', () => {
+    if (wlist.children.length >= WEIGHTED_PEOPLE.max) return;
+    if (wBasis() === 'income') addWeightedRow('', '', '1');
+    else addWeightedRow('', '1');
+    update();
+    $$<HTMLInputElement>('[data-role="name"]', wlist).at(-1)?.focus();
+  });
+  render();
+</script>
+
+<style>
+  #sb-results {
+    display: grid;
+    gap: 16px;
+  }
+  #sb-results[hidden] {
+    display: none;
+  }
+  .sb-list {
+    display: grid;
+    gap: 8px;
+  }
+  .sb-list :global(.sb-person) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  #sb-items .label + input,
+  #sb-items .row + .label {
+    margin-top: 4px;
+  }
+  .field[hidden],
+  .grid-2[hidden],
+  .sb-round-mode[hidden] {
+    display: none;
+  }
+  .sb-round-mode {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .sb-tips {
+    gap: 6px;
+  }
+  .sb-tips .btn[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  [data-tool='split-bill'] #sb-equal.sb-solo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  [data-tool='split-bill'] #sb-weighted > .seg {
+    justify-self: start;
+    margin-bottom: 4px;
+  }
+  [data-tool='split-bill'] .sb-wlist {
+    display: grid;
+    gap: 10px;
+  }
+  [data-tool='split-bill'] .sb-wlist :global(.sb-wperson) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px auto;
+    gap: 6px 8px;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  [data-tool='split-bill'] .sb-wlist[data-basis='income'] :global(.sb-wperson) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  [data-tool='split-bill'] .sb-wlist :global(.sb-chips) {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  [data-tool='split-bill'] .sb-wlist[data-basis='income'] :global(.sb-chips) {
+    display: none;
+  }
+  [data-tool='split-bill'] .sb-wlist :global(.sb-chips .btn) {
+    padding-inline: 9px;
+  }
+  [data-tool='split-bill'] .sb-wlist :global(.sb-chips .btn[aria-pressed='true']) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  [data-tool='split-bill'] #sb-wtable :global(.sb-sum td) {
+    font-weight: 600;
+    background: var(--surface-2);
+  }
+  /* Long names wrap so the amounts stay on screen on a phone. */
+  [data-tool='split-bill'] #sb-wtable :global(td:first-child) {
+    min-width: 4em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  @media (max-width: 480px) {
+    [data-tool='split-bill'] #sb-wtable-wrap th,
+    [data-tool='split-bill'] #sb-wtable :global(td) {
+      padding-inline: 6px;
+    }
+    [data-tool='split-bill'] #sb-wtable-wrap th:first-child,
+    [data-tool='split-bill'] #sb-wtable :global(td:first-child) {
+      padding-left: 10px;
+    }
+    [data-tool='split-bill'] #sb-wtable-wrap th:last-child,
+    [data-tool='split-bill'] #sb-wtable :global(td:last-child) {
+      padding-right: 10px;
+    }
+  }
+</style>

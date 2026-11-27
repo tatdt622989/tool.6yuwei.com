@@ -1,0 +1,34 @@
+name: Bug report / 回報問題
+description: A tool gives a wrong result, breaks or looks wrong. / 工具結果錯誤、無法使用或畫面異常。
+labels: [bug]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Page URL / 網址
+      placeholder: https://tool.6yuwei.com/word-counter/
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 重現步驟
+      placeholder: |
+        1. Enter ...
+        2. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result / 預期結果與實際結果
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device / 瀏覽器與裝置
+      placeholder: Safari 18, iPhone 15
+  - type: markdown
+    attributes:
+      value: Do not paste passwords, personal data or private files. / 請勿貼上密碼、個人資料或私人檔案。

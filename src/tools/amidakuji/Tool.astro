@@ -1,0 +1,1398 @@
+---
+import Icon from '../../components/Icon.astro';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { LIMITS } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="amidakuji" {...i18nAttrs(locale, s.client)}>
+  <script is:inline>
+    // Runs before first paint and before ads ask for the page URL: a shared ladder moves out of the
+    // address bar so the names in it cannot travel any further, and the form does not flash up.
+    (function (root) {
+      var key = 'amidakuji:shared';
+      var hash = location.hash;
+      var nav = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null;
+      var returned = nav && (nav.type === 'reload' || nav.type === 'back_forward');
+      if (hash.indexOf('#amida=') === 0) {
+        history.replaceState(null, '', location.pathname + location.search);
+      } else {
+        hash = '';
+      }
+      try {
+        if (hash) sessionStorage.setItem(key, hash);
+        else if (returned) hash = sessionStorage.getItem(key) || '';
+        else sessionStorage.removeItem(key);
+      } catch (e) {}
+      if (hash) {
+        root.dataset.shared = hash;
+        root.dataset.view = 'opening';
+      }
+    })(document.currentScript.parentElement);
+  </script>
+
+  <section class="am-setup" id="am-setup">
+    <div class="notice error" id="am-link-error" role="alert" hidden></div>
+
+    <div class="field">
+      <div class="am-label-row">
+        <label for="am-names">{s.namesLabel}</label>
+        <span class="hint am-count" id="am-count"></span>
+        <button class="btn small ghost" type="button" id="am-sample">{s.sample}</button>
+      </div>
+      <textarea id="am-names" rows="6" placeholder={s.namesPlaceholder} autocomplete="off" spellcheck="false"></textarea>
+    </div>
+
+    <div class="field">
+      <span class="label" id="am-mode-label">{s.outcomesLabel}</span>
+      <div class="seg am-modes" id="am-modes" role="radiogroup" aria-labelledby="am-mode-label">
+        <label><input type="radio" name="am-mode" value="one" checked /><span>{s.modeOne}</span></label>
+        <label><input type="radio" name="am-mode" value="some" /><span>{s.modeSome}</span></label>
+        <label><input type="radio" name="am-mode" value="order" /><span>{s.modeOrder}</span></label>
+        <label><input type="radio" name="am-mode" value="custom" /><span>{s.modeCustom}</span></label>
+      </div>
+
+      <div class="am-options" id="am-opt-winners" hidden>
+        <div class="field am-winners">
+          <label for="am-winners">{s.winnersLabel}</label>
+          <input id="am-winners" type="number" min="1" max={LIMITS.maxPeople} step="1" value="2" inputmode="numeric" />
+        </div>
+      </div>
+      <div class="am-options" id="am-opt-custom" hidden>
+        <div class="field">
+          <label for="am-custom">{s.customLabel}</label>
+          <textarea id="am-custom" rows="5" placeholder={s.customPlaceholder} autocomplete="off" spellcheck="false"></textarea>
+          <p class="hint">{s.customHint}</p>
+        </div>
+      </div>
+      <div class="am-options am-pair" id="am-opt-labels">
+        <div class="field">
+          <label for="am-hit">{s.hitLabel}</label>
+          <input id="am-hit" type="text" maxlength={LIMITS.outcome} placeholder={s.client.labels.hit} autocomplete="off" />
+        </div>
+        <div class="field" id="am-blank-field">
+          <label for="am-blank">{s.blankLabel}</label>
+          <input id="am-blank" type="text" maxlength={LIMITS.outcome} placeholder={s.client.labels.blank} autocomplete="off" />
+        </div>
+      </div>
+      <p class="am-preview" id="am-preview" hidden></p>
+    </div>
+
+    <div class="field">
+      <label for="am-title">{s.titleLabel}</label>
+      <input id="am-title" type="text" maxlength={LIMITS.title} placeholder={s.titlePlaceholder} autocomplete="off" />
+    </div>
+
+    <div class="notice error" id="am-error" role="alert" hidden></div>
+    <button class="btn primary am-start" type="button" id="am-start"><Icon name="Waypoints" size={20} />{s.start}</button>
+    <p class="am-note"><Icon name="ShieldCheck" size={18} class="am-note-icon" /><span>{s.privacyNote}</span></p>
+  </section>
+
+  <section class="am-stage" id="am-stage" hidden>
+    <div class="am-screen" id="am-screen">
+      <div class="am-guest" id="am-guest" hidden>
+        <p>{s.guestNote}</p>
+        <button class="btn small" type="button" id="am-make-own"><Icon name="Plus" size={16} /><span>{s.makeOwn}</span></button>
+      </div>
+
+      <div class="am-bar">
+        <div class="am-head">
+          <p class="am-title" id="am-title-out" role="heading" aria-level="2" hidden></p>
+          <p class="am-progress" id="am-progress"></p>
+        </div>
+        <button class="btn small ghost am-icon-btn" type="button" id="am-sound">
+          <span class="am-sound-icon" id="am-sound-on"><Icon name="Volume2" size={16} /></span>
+          <span class="am-sound-icon" id="am-sound-off" hidden><Icon name="VolumeX" size={16} /></span>
+        </button>
+        <button class="btn small ghost" type="button" id="am-fs" hidden><Icon name="Maximize" size={16} /><span class="am-fs-label" id="am-fs-label">{s.client.fullscreen}</span></button>
+      </div>
+
+      <div class="am-scroll" id="am-scroll">
+        <div class="am-ladder" id="am-ladder">
+          <div class="am-row am-tops" id="am-tops" role="group" aria-label={s.topsAria}></div>
+          <div class="am-mid" id="am-mid">
+            <svg class="am-svg" id="am-svg" aria-hidden="true" focusable="false"></svg>
+            <div class="am-cover" id="am-cover">
+              <div class="am-cover-text">
+                <Icon name="EyeOff" size={22} class="am-cover-icon" />
+                <p class="am-cover-title">{s.coverTitle}</p>
+                <p class="am-cover-hint">{s.coverHint}</p>
+              </div>
+            </div>
+          </div>
+          <div class="am-row am-bottoms" id="am-bottoms" role="group" aria-label={s.bottomsAria}></div>
+        </div>
+      </div>
+      <p class="hint am-scroll-hint" id="am-scroll-hint" hidden>{s.scrollHint}</p>
+
+      <div class="am-controls">
+        <button class="btn primary am-all" type="button" id="am-all"><Icon name="Eye" size={20} />{s.revealAll}</button>
+      </div>
+      <p class="visually-hidden" id="am-live" aria-live="polite"></p>
+    </div>
+
+    <div class="am-below">
+      <div class="am-below-head">
+        <p class="am-heading" role="heading" aria-level="2">{s.resultsHeading}</p>
+        <button class="btn small" type="button" id="am-copy"><Icon name="Copy" size={16} /><span id="am-copy-label">{s.copy}</span></button>
+      </div>
+      <ol class="am-results" id="am-results"></ol>
+
+      <div class="am-share">
+        <p class="am-heading" role="heading" aria-level="2">{s.shareHeading}</p>
+        <p class="hint">{s.shareHint}</p>
+        <div class="am-share-actions">
+          <button class="btn" type="button" id="am-link"><Icon name="Link" size={18} /><span id="am-link-label">{s.copyLink}</span></button>
+          <button class="btn" type="button" id="am-share" hidden><Icon name="Share2" size={18} /><span>{s.share}</span></button>
+        </div>
+      </div>
+
+      <div class="am-foot" id="am-foot">
+        <button class="btn small ghost" type="button" id="am-redraw"><Icon name="RotateCcw" size={16} /><span id="am-redraw-label">{s.client.redraw}</span></button>
+        <button class="btn small ghost" type="button" id="am-edit"><Icon name="Pencil" size={16} /><span id="am-edit-label">{s.client.edit}</span></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { $, $$, copyText, debounce, flashButton, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
+  import { readI18n } from '../../i18n/client';
+  import { formatInteger, plural, t } from '../../i18n/format';
+  import { DrawSounds } from '../prize-draw/sound';
+  import type { Strings } from './i18n';
+  import {
+    buildOutcomes,
+    checkNames,
+    cleanWinners,
+    countOutcomes,
+    decodeGame,
+    isFinished,
+    isMode,
+    LIMITS,
+    newGame,
+    normalizeDraft,
+    normalizeSession,
+    parseNames,
+    parseOutcomes,
+    PATH_COLORS,
+    pathPoints,
+    play,
+    reveal,
+    revealAll,
+    serializeSession,
+    shareUrl,
+    startSession,
+    type Draft,
+    type Play,
+    type Session,
+  } from './logic';
+
+  const root = $('[data-tool="amidakuji"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const DRAFT_KEY = `amidakuji:${locale}`;
+  const SESSION_KEY = `amidakuji:${locale}:session`;
+  const SOUND_KEY = 'amidakuji:sound';
+  const SHARED_KEY = 'amidakuji:shared';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  /** Narrowest and widest a line's column gets, on the page and on a full screen. */
+  const COLUMN = { min: 50, max: 132, font: 17 };
+  const FULLSCREEN_COLUMN = { min: 50, max: 360, font: 30 };
+  /** Type in the name and outcome cells: a share of the column width, within these sizes. */
+  const FONT = { share: 0.2, base: 12, min: 10 };
+  /** What a cell's margin, padding and border take from its column. */
+  const CELL_CHROME = 11;
+  /** Runs of Latin letters, digits and punctuation: the parts of a label that should not be split across lines. */
+  const WORD_RE = /[\u0021-\u024f]+/g;
+  /** How far the two paths that share a rung sit above and below it. */
+  const RUNG_OFFSET = 2.5;
+  /** One path: a base time plus this much per rung crossed. All paths at once take a fixed time. */
+  const TRACE_BASE_MS = 900;
+  const TRACE_PER_RUNG_MS = 190;
+  const TRACE_MAX_MS = 3800;
+  const REVEAL_ALL_MS = 1500;
+  /** A pressed "are you sure" button goes back to normal after this long. */
+  const ARM_MS = 3500;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const n = (value: number) => formatInteger(value, locale);
+
+  /* ---------- Setup form ---------- */
+  const setupEl = $('#am-setup', root);
+  const stage = $('#am-stage', root);
+  const namesInput = $<HTMLTextAreaElement>('#am-names', root);
+  const modeRadios = $$<HTMLInputElement>('input[name="am-mode"]', root);
+  const winnersInput = $<HTMLInputElement>('#am-winners', root);
+  const hitInput = $<HTMLInputElement>('#am-hit', root);
+  const blankInput = $<HTMLInputElement>('#am-blank', root);
+  const customInput = $<HTMLTextAreaElement>('#am-custom', root);
+  const titleInput = $<HTMLInputElement>('#am-title', root);
+  const countEl = $('#am-count', root);
+  const previewEl = $('#am-preview', root);
+  const errorEl = $('#am-error', root);
+  const linkError = $('#am-link-error', root);
+  const optWinners = $('#am-opt-winners', root);
+  const optLabels = $('#am-opt-labels', root);
+  const optCustom = $('#am-opt-custom', root);
+
+  let draft: Draft = normalizeDraft(loadPref<unknown>(DRAFT_KEY, null));
+  const saveDraft = debounce(() => savePref(DRAFT_KEY, draft), 300);
+
+  function readForm(): Draft {
+    const mode = modeRadios.find((radio) => radio.checked)?.value;
+    return {
+      names: namesInput.value,
+      mode: isMode(mode) ? mode : 'one',
+      winners: cleanWinners(winnersInput.value),
+      hit: hitInput.value,
+      blank: blankInput.value,
+      custom: customInput.value,
+      title: titleInput.value,
+    };
+  }
+
+  function writeForm() {
+    namesInput.value = draft.names;
+    for (const radio of modeRadios) radio.checked = radio.value === draft.mode;
+    winnersInput.value = String(draft.winners);
+    hitInput.value = draft.hit;
+    blankInput.value = draft.blank;
+    customInput.value = draft.custom;
+    titleInput.value = draft.title;
+  }
+
+  function showError(message: string) {
+    errorEl.textContent = message;
+    errorEl.hidden = message === '';
+  }
+
+  /** The message that stops this draft from starting, or '' when it can. */
+  function setupProblem(names: string[], outcomes: ReturnType<typeof buildOutcomes>): string {
+    const namesError = checkNames(names);
+    if (namesError) return t(s.nameErrors[namesError], { n: n(names.length), max: n(LIMITS.maxPeople) });
+    if (outcomes.error) return t(s.outcomeErrors[outcomes.error], { outcomes: n(outcomes.outcomes.length), people: n(names.length) });
+    return '';
+  }
+
+  function renderSetup() {
+    const names = parseNames(draft.names);
+    countEl.textContent = names.length ? plural(locale, names.length, s.peopleCount) : '';
+    optWinners.hidden = draft.mode !== 'some';
+    optLabels.hidden = draft.mode === 'order';
+    optCustom.hidden = draft.mode !== 'custom';
+    // A custom list only uses the "everyone else" text, to fill the outcomes it is short of.
+    $('#am-hit', root).closest<HTMLElement>('.field')!.hidden = draft.mode === 'custom';
+    optLabels.classList.toggle('am-pair', draft.mode !== 'custom');
+
+    const built = buildOutcomes(names.length, draft, s.labels);
+    const ready = checkNames(names) === null;
+    const tooMany = ready && built.error === 'many';
+    previewEl.hidden = !ready || built.error === 'empty';
+    previewEl.classList.toggle('is-error', tooMany);
+    if (tooMany) {
+      previewEl.textContent = setupProblem(names, built);
+    } else if (!previewEl.hidden) {
+      const list = countOutcomes(built.outcomes)
+        .map(([label, count]) => (count > 1 ? t(s.previewRepeat, { label, n: n(count) }) : label))
+        .join(s.previewJoin);
+      const padded = draft.mode === 'custom' ? Math.max(0, names.length - parseOutcomes(draft.custom).length) : 0;
+      previewEl.textContent =
+        t(s.preview, { n: n(built.outcomes.length), list }) +
+        (padded > 0 ? plural(locale, padded, s.previewPadded, { blank: built.outcomes.at(-1) ?? '' }) : '');
+    }
+  }
+
+  function onFormChange() {
+    draft = readForm();
+    saveDraft();
+    showError('');
+    linkError.hidden = true;
+    renderSetup();
+  }
+  setupEl.addEventListener('input', onFormChange);
+  setupEl.addEventListener('change', onFormChange);
+
+  $('#am-sample', root).addEventListener('click', () => {
+    namesInput.value = s.sampleNames.join('\n');
+    for (const radio of modeRadios) radio.checked = radio.value === 'one';
+    hitInput.value = s.sampleHit;
+    blankInput.value = s.sampleBlank;
+    titleInput.value = s.sampleTitle;
+    onFormChange();
+  });
+
+  $('#am-start', root).addEventListener('click', () => {
+    draft = readForm();
+    savePref(DRAFT_KEY, draft);
+    const names = parseNames(draft.names);
+    const built = buildOutcomes(names.length, draft, s.labels);
+    const problem = setupProblem(names, built);
+    if (problem) {
+      showError(problem);
+      return;
+    }
+    session = startSession(newGame(draft.title, names, built.outcomes));
+    saveSession();
+    trackEvent('amida_start', { method: draft.mode, people: names.length });
+    showStage();
+    stage.scrollIntoView({ block: 'start', behavior: 'instant' });
+  });
+
+  /* ---------- Stage ---------- */
+  const guestEl = $('#am-guest', root);
+  const titleOut = $('#am-title-out', root);
+  const progressEl = $('#am-progress', root);
+  const scrollEl = $('#am-scroll', root);
+  const ladderEl = $('#am-ladder', root);
+  const topsEl = $('#am-tops', root);
+  const midEl = $('#am-mid', root);
+  const svg = root.querySelector<SVGSVGElement>('#am-svg')!;
+  const coverEl = $('#am-cover', root);
+  const bottomsEl = $('#am-bottoms', root);
+  const scrollHint = $('#am-scroll-hint', root);
+  const allBtn = $<HTMLButtonElement>('#am-all', root);
+  const liveEl = $('#am-live', root);
+  const resultsEl = $('#am-results', root);
+  const copyBtn = $<HTMLButtonElement>('#am-copy', root);
+  const footEl = $('#am-foot', root);
+
+  /** The host's own draw, kept in localStorage. */
+  let session: Session | null = null;
+  /** A draw opened from someone's link. It lives in memory only and wins over the host's while it is set. */
+  let guest: Session | null = null;
+  /** What the seed of the draw on screen decides. */
+  let game: Play | null = null;
+  /** Names whose path has reached the bottom on screen; the results list shows only these. */
+  const landed = new Set<number>();
+  const sounds = new DrawSounds(loadPref(SOUND_KEY, true));
+
+  const current = () => guest ?? session;
+
+  function saveSession() {
+    savePref(SESSION_KEY, session ? serializeSession(session) : null);
+  }
+
+  function update(next: Session) {
+    if (guest) guest = next;
+    else {
+      session = next;
+      saveSession();
+    }
+  }
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  /** Builds the name buttons, the outcome cells and the results list for the draw on screen. */
+  function renderBoard() {
+    const { names } = current()!.game;
+    topsEl.replaceChildren(
+      ...names.map((name, person) => {
+        const button = el('button', 'am-top');
+        button.type = 'button';
+        button.dataset.person = String(person);
+        button.style.setProperty('--am-color', PATH_COLORS[person % PATH_COLORS.length]);
+        button.title = name;
+        button.setAttribute('aria-label', t(s.traceAria, { name }));
+        button.append(el('span', 'am-top-name', name));
+        return button;
+      }),
+    );
+    bottomsEl.replaceChildren(
+      ...game!.bottom.map((outcome) => {
+        const cell = el('div', 'am-bottom');
+        cell.title = outcome;
+        cell.append(el('span', 'am-bottom-text', outcome), el('span', 'am-bottom-who'));
+        return cell;
+      }),
+    );
+    resultsEl.replaceChildren(
+      ...names.map((name, person) => {
+        const row = el('li', 'am-result');
+        row.style.setProperty('--am-color', PATH_COLORS[person % PATH_COLORS.length]);
+        const arrow = el('span', 'am-result-arrow', '→');
+        arrow.setAttribute('aria-hidden', 'true');
+        row.append(el('span', 'am-result-dot'), el('span', 'am-result-name', name), arrow, el('span', 'am-result-outcome'));
+        return row;
+      }),
+    );
+  }
+
+  /** Brings the buttons, cells, list and counters in line with what has been shown so far. */
+  function renderState() {
+    const now = current()!;
+    const { names } = now.game;
+    const total = names.length;
+    stage.classList.toggle('is-open', now.opened);
+    coverEl.hidden = now.opened;
+    $$<HTMLButtonElement>('.am-top', topsEl).forEach((button, person) => {
+      button.classList.toggle('is-on', now.revealed.includes(person));
+    });
+    const cells = $$('.am-bottom', bottomsEl);
+    for (const cell of cells) {
+      cell.classList.remove('is-hit');
+      $('.am-bottom-who', cell).textContent = '';
+    }
+    $$('.am-result', resultsEl).forEach((row, person) => {
+      const done = landed.has(person);
+      row.classList.toggle('is-done', done);
+      $('.am-result-outcome', row).textContent = done ? game!.results[person] : s.pending;
+      if (!done) return;
+      const cell = cells[game!.ends[person]];
+      cell.classList.add('is-hit');
+      cell.style.setProperty('--am-color', PATH_COLORS[person % PATH_COLORS.length]);
+      $('.am-bottom-who', cell).textContent = names[person];
+    });
+    progressEl.textContent = !now.opened
+      ? plural(locale, total, s.progressIdle)
+      : landed.size === total
+        ? s.progressDone
+        : t(s.progress, { done: n(landed.size), total: n(total) });
+    allBtn.disabled = isFinished(now);
+    copyBtn.disabled = landed.size === 0;
+  }
+
+  /* ---------- Drawing the ladder ---------- */
+  interface Track {
+    el: SVGPathElement;
+    points: [number, number][];
+    /** Distance from the start to each point. */
+    reach: number[];
+    length: number;
+  }
+
+  const tracks = new Map<number, Track>();
+  let marker: SVGCircleElement | null = null;
+  let size = { column: 0, width: 0, height: 0 };
+
+  function svgEl<K extends keyof SVGElementTagNameMap>(tag: K, className: string): SVGElementTagNameMap[K] {
+    const node = document.createElementNS(SVG_NS, tag);
+    node.setAttribute('class', className);
+    return node;
+  }
+
+  let ruler: CanvasRenderingContext2D | null = null;
+
+  /** The largest size up to `base` at which the longest word of these labels still fits a cell. */
+  function fitFont(labels: string[], base: number, room: number, weight: number): number {
+    ruler ??= document.createElement('canvas').getContext('2d');
+    if (!ruler) return base;
+    ruler.font = `${weight} ${base}px ${getComputedStyle(ladderEl).fontFamily}`;
+    let widest = 0;
+    for (const label of labels) for (const word of label.match(WORD_RE) ?? []) widest = Math.max(widest, ruler.measureText(word).width);
+    return widest <= room ? base : Math.max(FONT.min, Math.floor(((base * room) / widest) * 2) / 2);
+  }
+
+  const lineX = (line: number) => (line + 0.5) * size.column;
+  const rowY = (y: number) => (y / (game!.ladder.rungs.length + 1)) * size.height;
+
+  /** Sizes the columns to the space there is. Returns false when nothing changed. */
+  function measure(): boolean {
+    const count = current()!.game.names.length;
+    const limits = stage.classList.contains('is-fullscreen') ? FULLSCREEN_COLUMN : COLUMN;
+    const view = scrollEl.clientWidth;
+    const column = Math.max(limits.min, Math.min(limits.max, Math.floor(view / count)));
+    ladderEl.style.setProperty('--am-col', `${column}px`);
+    ladderEl.style.setProperty('--am-count', String(count));
+    ladderEl.style.setProperty('--am-view', `${view}px`);
+    const base = Math.max(FONT.base, Math.min(limits.font, column * FONT.share));
+    ladderEl.style.setProperty('--am-top-font', `${fitFont(current()!.game.names, base, column - CELL_CHROME, 700)}px`);
+    ladderEl.style.setProperty('--am-bottom-font', `${fitFont(game!.bottom, base, column - CELL_CHROME, 400)}px`);
+    const next = { column, width: column * count, height: midEl.clientHeight };
+    scrollHint.hidden = next.width <= view + 1;
+    if (next.column === size.column && next.width === size.width && next.height === size.height) return false;
+    size = next;
+    return true;
+  }
+
+  function trackFor(person: number): Track {
+    const points = pathPoints(game!.ladder, person).map(([x, y]): [number, number] => [lineX(x), rowY(y)]);
+    // The two paths that cross a rung run just above and just below it, so both stay visible.
+    for (let i = 1; i < points.length; i++) {
+      if (points[i][0] === points[i - 1][0]) continue;
+      const y = points[i][1] + (points[i][0] > points[i - 1][0] ? -RUNG_OFFSET : RUNG_OFFSET);
+      points[i][1] = y;
+      points[i - 1][1] = y;
+    }
+    const reach = [0];
+    for (let i = 1; i < points.length; i++) {
+      reach.push(reach[i - 1] + Math.abs(points[i][0] - points[i - 1][0]) + Math.abs(points[i][1] - points[i - 1][1]));
+    }
+    const path = svgEl('path', 'am-path');
+    path.setAttribute('d', points.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(''));
+    path.style.stroke = PATH_COLORS[person % PATH_COLORS.length];
+    return { el: path, points, reach, length: reach.at(-1)! };
+  }
+
+  /** Redraws the lines, the rungs once they are uncovered, and every path shown so far. */
+  function drawLadder() {
+    const now = current()!;
+    const { ladder } = game!;
+    svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`);
+    const rails = svgEl('g', 'am-rails');
+    for (let line = 0; line < ladder.columns; line++) {
+      const rail = svgEl('line', 'am-rail');
+      rail.setAttribute('x1', String(lineX(line)));
+      rail.setAttribute('x2', String(lineX(line)));
+      rail.setAttribute('y1', '0');
+      rail.setAttribute('y2', String(size.height));
+      rails.append(rail);
+    }
+    // The rungs are not in the page at all until the draw starts.
+    if (now.opened) {
+      ladder.rungs.forEach((row, index) => {
+        for (const gap of row) {
+          const rung = svgEl('line', 'am-rail');
+          rung.setAttribute('x1', String(lineX(gap)));
+          rung.setAttribute('x2', String(lineX(gap + 1)));
+          rung.setAttribute('y1', String(rowY(index + 1)));
+          rung.setAttribute('y2', String(rowY(index + 1)));
+          rails.append(rung);
+        }
+      });
+    }
+    const paths = svgEl('g', 'am-paths');
+    tracks.clear();
+    for (const person of now.revealed) {
+      const track = trackFor(person);
+      tracks.set(person, track);
+      paths.append(track.el);
+    }
+    marker = svgEl('circle', 'am-marker');
+    marker.setAttribute('r', '7');
+    marker.style.display = 'none';
+    svg.replaceChildren(rails, paths, marker);
+    if (run) paint(run.progress);
+  }
+
+  /* ---------- Tracing ---------- */
+  interface Run {
+    people: number[];
+    /** One path is followed with the marker, the scroll position and sound; several are only drawn. */
+    solo: boolean;
+    started: number;
+    duration: number;
+    progress: number;
+    corner: number;
+    frame: number;
+  }
+
+  let run: Run | null = null;
+
+  function pointAt(track: Track, distance: number): { x: number; y: number; corner: number } {
+    let i = 1;
+    while (i < track.reach.length - 1 && track.reach[i] < distance) i++;
+    const span = track.reach[i] - track.reach[i - 1] || 1;
+    const part = Math.min(1, Math.max(0, (distance - track.reach[i - 1]) / span));
+    const [x0, y0] = track.points[i - 1];
+    const [x1, y1] = track.points[i];
+    return { x: x0 + (x1 - x0) * part, y: y0 + (y1 - y0) * part, corner: i - 1 };
+  }
+
+  /** Draws the running paths up to `progress` (0 to 1). */
+  function paint(progress: number) {
+    if (!run) return;
+    for (const person of run.people) {
+      const track = tracks.get(person);
+      if (!track) continue;
+      track.el.style.strokeDasharray = `${track.length}`;
+      track.el.style.strokeDashoffset = `${track.length * (1 - progress)}`;
+      if (!run.solo || !marker) continue;
+      const at = pointAt(track, track.length * progress);
+      marker.setAttribute('cx', at.x.toFixed(1));
+      marker.setAttribute('cy', at.y.toFixed(1));
+      marker.style.fill = PATH_COLORS[person % PATH_COLORS.length];
+      marker.style.display = '';
+      if (at.corner > run.corner) {
+        run.corner = at.corner;
+        sounds.play('tick');
+      }
+      // Keep the marker in view when the ladder is wider than its frame.
+      const pad = Math.min(90, scrollEl.clientWidth / 3);
+      if (at.x < scrollEl.scrollLeft + pad) scrollEl.scrollLeft = at.x - pad;
+      else if (at.x > scrollEl.scrollLeft + scrollEl.clientWidth - pad) scrollEl.scrollLeft = at.x - scrollEl.clientWidth + pad;
+    }
+  }
+
+  /** The paths have arrived: show where each one ended. */
+  function land(people: number[], solo: boolean) {
+    const now = current()!;
+    const before = landed.size;
+    for (const person of people) landed.add(person);
+    for (const person of people) {
+      const track = tracks.get(person);
+      if (track) track.el.style.strokeDasharray = track.el.style.strokeDashoffset = '';
+    }
+    if (marker) marker.style.display = 'none';
+    renderState();
+    const total = now.game.names.length;
+    if (landed.size === total && before < total) sounds.play('fanfare');
+    else if (solo) sounds.play('reveal');
+    liveEl.textContent = people.map((person) => t(s.resultLine, { name: now.game.names[person], outcome: game!.results[person] })).join(' / ');
+  }
+
+  function finishRun() {
+    if (!run) return;
+    const { people, solo, frame } = run;
+    cancelAnimationFrame(frame);
+    run = null;
+    land(people, solo);
+  }
+
+  function trace(people: number[], solo: boolean) {
+    finishRun();
+    if (people.length === 0) return;
+    if (reducedMotion.matches) {
+      land(people, solo);
+      return;
+    }
+    const rungs = solo ? (tracks.get(people[0])!.points.length - 2) / 2 : 0;
+    const duration = solo ? Math.min(TRACE_MAX_MS, TRACE_BASE_MS + TRACE_PER_RUNG_MS * rungs) : REVEAL_ALL_MS;
+    run = { people, solo, started: performance.now(), duration, progress: 0, corner: 0, frame: 0 };
+    const step = (time: number) => {
+      if (!run) return;
+      run.progress = Math.min(1, (time - run.started) / run.duration);
+      paint(run.progress);
+      if (run.progress >= 1) finishRun();
+      else run.frame = requestAnimationFrame(step);
+    };
+    paint(0);
+    run.frame = requestAnimationFrame(step);
+  }
+
+  /** Uncovers the ladder if it still is covered; reports the first opening. */
+  function open(next: Session) {
+    const first = !current()!.opened;
+    update(next);
+    if (first) trackEvent('amida_open', { method: guest ? 'guest' : 'host', people: next.game.names.length });
+  }
+
+  topsEl.addEventListener('click', (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('.am-top');
+    if (!button || !current()) return;
+    const person = Number(button.dataset.person);
+    finishRun();
+    open(reveal(current()!, person));
+    renderState();
+    drawLadder();
+    // The path being traced goes on top of the others.
+    const track = tracks.get(person)!;
+    track.el.parentNode!.append(track.el);
+    trace([person], true);
+  });
+
+  allBtn.addEventListener('click', () => {
+    if (!current()) return;
+    finishRun();
+    const rest = current()!.game.names.map((_, person) => person).filter((person) => !landed.has(person));
+    open(revealAll(current()!));
+    renderState();
+    drawLadder();
+    trace(rest, false);
+  });
+
+  const relayout = () => {
+    if (stage.hidden || !current()) return;
+    if (measure()) drawLadder();
+  };
+  new ResizeObserver(relayout).observe(scrollEl);
+  new ResizeObserver(relayout).observe(midEl);
+
+  /* ---------- Results and sharing ---------- */
+  const copyLabel = $('#am-copy-label', root);
+  copyBtn.addEventListener('click', async () => {
+    const now = current();
+    if (!now) return;
+    const lines = now.game.names
+      .map((name, person) => (landed.has(person) ? t(s.resultLine, { name, outcome: game!.results[person] }) : ''))
+      .filter(Boolean);
+    if (await copyText([now.game.title || s.resultsTitle, ...lines].join('\n'))) flashButton(copyLabel);
+  });
+
+  /** The link is built from the page address without its query string, so no tracking tag rides along. */
+  const linkOf = (now: Session) => shareUrl(location.origin + location.pathname, now.game);
+  const messageOf = (now: Session) => (now.game.title ? t(s.shareTextTitled, { title: now.game.title }) : s.shareText);
+
+  const linkLabel = $('#am-link-label', root);
+  $('#am-link', root).addEventListener('click', async () => {
+    const now = current();
+    if (!now) return;
+    if (await copyText(linkOf(now), { track: false })) {
+      flashButton(linkLabel);
+      trackEvent('amida_share', { method: 'copy_link', people: now.game.names.length });
+    }
+  });
+
+  const shareBtn = $<HTMLButtonElement>('#am-share', root);
+  if (typeof navigator.share === 'function') {
+    shareBtn.hidden = false;
+    shareBtn.addEventListener('click', () => {
+      const now = current();
+      if (!now) return;
+      navigator.share({ title: now.game.title || s.shareTitle, text: messageOf(now), url: linkOf(now) }).then(
+        () => trackEvent('amida_share', { method: 'native', people: now.game.names.length }),
+        () => {},
+      );
+    });
+  }
+
+  /** A button that asks once more before it does something that throws the draw away. */
+  function confirmButton(buttonId: string, labelId: string, text: string, armedText: string, action: () => void) {
+    const button = $<HTMLButtonElement>(buttonId, root);
+    const label = $(labelId, root);
+    let timer = 0;
+    const disarm = () => {
+      window.clearTimeout(timer);
+      button.classList.remove('is-armed');
+      label.textContent = text;
+    };
+    button.addEventListener('click', () => {
+      const armed = button.classList.contains('is-armed');
+      disarm();
+      // Nothing is lost while the ladder is still covered, so that needs no second press.
+      if (armed || !current()?.opened) return action();
+      button.classList.add('is-armed');
+      label.textContent = armedText;
+      timer = window.setTimeout(disarm, ARM_MS);
+    });
+  }
+
+  confirmButton('#am-redraw', '#am-redraw-label', s.redraw, s.redrawArm, () => {
+    if (!session) return;
+    const { title, names, outcomes } = session.game;
+    session = startSession(newGame(title, names, outcomes));
+    saveSession();
+    trackEvent('amida_start', { method: 'redraw', people: names.length });
+    showStage();
+  });
+
+  confirmButton('#am-edit', '#am-edit-label', s.edit, s.editArm, () => {
+    session = null;
+    saveSession();
+    showSetup();
+    root.scrollIntoView({ block: 'start', behavior: 'instant' });
+  });
+
+  $('#am-make-own', root).addEventListener('click', () => {
+    trackEvent('amida_make_own');
+    leaveShared();
+    // The guest's own draw, if there is one, was never touched: go back to it.
+    if (session) showStage();
+    else showSetup();
+    root.scrollIntoView({ block: 'start', behavior: 'instant' });
+  });
+
+  /* ---------- Full screen ---------- */
+  const fsBtn = $<HTMLButtonElement>('#am-fs', root);
+  const fsLabel = $('#am-fs-label', root);
+  fsBtn.hidden = !(document.fullscreenEnabled && typeof stage.requestFullscreen === 'function');
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement === stage) void document.exitFullscreen();
+    else void stage.requestFullscreen().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === stage;
+    fsLabel.textContent = on ? s.exitFullscreen : s.fullscreen;
+    stage.classList.toggle('is-fullscreen', on);
+    if (on) stage.scrollTo({ top: 0 });
+    relayout();
+  });
+
+  /* ---------- Sound on and off ---------- */
+  const soundBtn = $<HTMLButtonElement>('#am-sound', root);
+  const soundOnIcon = $('#am-sound-on', root);
+  const soundOffIcon = $('#am-sound-off', root);
+
+  function renderSound() {
+    const label = sounds.enabled ? s.soundOff : s.soundOn;
+    soundBtn.setAttribute('aria-label', label);
+    soundBtn.title = label;
+    soundOnIcon.hidden = !sounds.enabled;
+    soundOffIcon.hidden = sounds.enabled;
+  }
+  soundBtn.addEventListener('click', () => {
+    sounds.setEnabled(!sounds.enabled);
+    savePref(SOUND_KEY, sounds.enabled);
+    renderSound();
+  });
+  renderSound();
+
+  /* ---------- Views ---------- */
+  function showSetup(brokenLink = false) {
+    finishRun();
+    if (document.fullscreenElement === stage) void document.exitFullscreen();
+    stage.hidden = true;
+    setupEl.hidden = false;
+    delete root.dataset.view;
+    linkError.textContent = brokenLink ? s.linkError : '';
+    linkError.hidden = !brokenLink;
+    writeForm();
+    renderSetup();
+  }
+
+  function showStage() {
+    if (run) cancelAnimationFrame(run.frame);
+    run = null;
+    const now = current()!;
+    game = play(now.game);
+    landed.clear();
+    for (const person of now.revealed) landed.add(person);
+    setupEl.hidden = true;
+    stage.hidden = false;
+    delete root.dataset.view;
+    guestEl.hidden = !guest;
+    footEl.hidden = !!guest;
+    titleOut.textContent = now.game.title;
+    titleOut.hidden = now.game.title === '';
+    liveEl.textContent = '';
+    renderBoard();
+    renderState();
+    size = { column: 0, width: 0, height: 0 };
+    measure();
+    drawLadder();
+    scrollEl.scrollLeft = 0;
+  }
+
+  function leaveShared() {
+    guest = null;
+    delete root.dataset.shared;
+    try {
+      sessionStorage.removeItem(SHARED_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /** Keeps a link out of the address bar when it arrives after the page has loaded. */
+  function takeSharedFromUrl(): string {
+    const hash = location.hash;
+    if (!hash.startsWith('#amida=')) return '';
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      sessionStorage.setItem(SHARED_KEY, hash);
+    } catch {
+      /* storage unavailable */
+    }
+    return hash;
+  }
+
+  function route(hash: string) {
+    const result = decodeGame(hash);
+    if (result.status === 'ok') {
+      guest = startSession(result.game);
+      return showStage();
+    }
+    if (result.status === 'invalid') {
+      leaveShared();
+      if (!session) return showSetup(true);
+    }
+    if (session) showStage();
+    else showSetup();
+  }
+
+  window.addEventListener('hashchange', () => {
+    const hash = takeSharedFromUrl();
+    if (hash) route(hash);
+  });
+
+  session = normalizeSession(loadPref<unknown>(SESSION_KEY, null));
+  route(root.dataset.shared ?? '');
+</script>
+
+<style is:global>
+  /* The board is built by the script, so these rules are global; every selector stays under the tool's root. */
+  [data-tool='amidakuji'][data-view='opening'] .am-setup {
+    display: none;
+  }
+  [data-tool='amidakuji'] .am-setup {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  [data-tool='amidakuji'] .am-setup .notice {
+    margin: 0;
+  }
+  [data-tool='amidakuji'] .am-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    min-height: 32px;
+  }
+  [data-tool='amidakuji'] .am-label-row label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  [data-tool='amidakuji'] .am-count {
+    margin-right: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='amidakuji'] #am-names,
+  [data-tool='amidakuji'] #am-custom {
+    min-height: 0;
+  }
+  [data-tool='amidakuji'] .am-modes {
+    justify-self: start;
+    max-width: 100%;
+  }
+  [data-tool='amidakuji'] .am-options {
+    display: grid;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  [data-tool='amidakuji'] .am-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-tool='amidakuji'] .am-winners {
+    max-width: 160px;
+  }
+  [data-tool='amidakuji'] .am-preview {
+    margin: 6px 0 0;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='amidakuji'] .am-preview.is-error {
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 10%, transparent);
+  }
+  [data-tool='amidakuji'] .am-start {
+    min-height: 52px;
+    font-size: 17px;
+  }
+  [data-tool='amidakuji'] .am-note {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='amidakuji'] .am-note-icon {
+    flex: none;
+    margin-top: 2px;
+    color: var(--accent);
+  }
+
+  /* ---------- Stage ---------- */
+  [data-tool='amidakuji'] .am-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    min-width: 0;
+  }
+  [data-tool='amidakuji'] .am-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-width: 0;
+  }
+  [data-tool='amidakuji'] .am-guest {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+    background: var(--accent-soft);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='amidakuji'] .am-guest p {
+    flex: 1 1 220px;
+    margin: 0;
+  }
+  [data-tool='amidakuji'] .am-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  [data-tool='amidakuji'] .am-head {
+    flex: 1;
+    min-width: 0;
+    margin-right: 4px;
+  }
+  [data-tool='amidakuji'] .am-title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='amidakuji'] .am-progress {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tool='amidakuji'] .am-icon-btn {
+    flex: none;
+    min-width: 36px;
+    padding-inline: 8px;
+  }
+  [data-tool='amidakuji'] .am-sound-icon {
+    display: inline-flex;
+  }
+  [data-tool='amidakuji'] .am-bar .btn {
+    flex: none;
+  }
+
+  /* The ladder scrolls sideways inside this frame when it is wider than the page; the page never does. */
+  [data-tool='amidakuji'] .am-scroll {
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    scrollbar-width: thin;
+  }
+  [data-tool='amidakuji'] .am-ladder {
+    --am-col: 64px;
+    --am-count: 2;
+    width: calc(var(--am-col) * var(--am-count));
+    margin: 0 auto;
+    padding: 12px 0;
+  }
+  [data-tool='amidakuji'] .am-row {
+    display: grid;
+    grid-template-columns: repeat(var(--am-count), var(--am-col));
+  }
+  [data-tool='amidakuji'] .am-top,
+  [data-tool='amidakuji'] .am-bottom {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    min-width: 0;
+    min-height: 46px;
+    margin: 0 2px;
+    padding: 4px 2px;
+    font: inherit;
+    font-size: var(--am-bottom-font, 13px);
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px;
+  }
+  [data-tool='amidakuji'] .am-top {
+    font-size: var(--am-top-font, 13px);
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  }
+  [data-tool='amidakuji'] .am-top:hover {
+    border-color: var(--am-color);
+  }
+  [data-tool='amidakuji'] .am-top:active {
+    transform: scale(0.96);
+  }
+  [data-tool='amidakuji'] .am-top:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+  [data-tool='amidakuji'] .am-top.is-on {
+    color: #fff;
+    background: var(--am-color);
+    border-color: var(--am-color);
+  }
+  [data-tool='amidakuji'] .am-top-name,
+  [data-tool='amidakuji'] .am-bottom-text {
+    display: -webkit-box;
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  [data-tool='amidakuji'] .am-bottom {
+    border-color: var(--border);
+  }
+  [data-tool='amidakuji'] .am-bottom.is-hit {
+    border-color: var(--am-color);
+    box-shadow: inset 0 0 0 1px var(--am-color);
+  }
+  [data-tool='amidakuji'] .am-bottom-who {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 0.86em;
+    font-weight: 700;
+    color: var(--am-color);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  [data-tool='amidakuji'] .am-bottom-who:empty {
+    display: none;
+  }
+  [data-tool='amidakuji'] .am-mid {
+    position: relative;
+    height: 320px;
+    height: clamp(260px, 46svh, 420px);
+  }
+  [data-tool='amidakuji'] .am-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  [data-tool='amidakuji'] .am-rail {
+    stroke: #b9bcc5;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  [data-tool='amidakuji'] .am-path {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  [data-tool='amidakuji'] .am-marker {
+    stroke: #fff;
+    stroke-width: 2.5;
+  }
+  [data-tool='amidakuji'] .am-cover {
+    position: absolute;
+    inset: 6px 2px;
+    display: flex;
+    align-items: center;
+    background: repeating-linear-gradient(135deg, #e7e8ec 0 12px, #eff0f3 12px 24px);
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 12px;
+  }
+  /* Stays in view while a wide ladder is scrolled sideways. */
+  [data-tool='amidakuji'] .am-cover-text {
+    position: sticky;
+    left: 0;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    width: min(100%, calc(var(--am-view, 100%) - 8px));
+    padding: 0 16px;
+    text-align: center;
+    color: var(--text-2);
+  }
+  [data-tool='amidakuji'] .am-cover-icon {
+    color: var(--muted);
+  }
+  [data-tool='amidakuji'] .am-cover-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  [data-tool='amidakuji'] .am-cover-hint {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    text-wrap: balance;
+  }
+  [data-tool='amidakuji'] .am-scroll-hint {
+    margin: -4px 0 0;
+    text-align: center;
+  }
+  [data-tool='amidakuji'] .am-controls {
+    display: grid;
+    justify-items: center;
+  }
+  [data-tool='amidakuji'] .am-all {
+    width: min(100%, 360px);
+    min-height: 52px;
+    font-size: 17px;
+  }
+
+  /* ---------- Results, sharing ---------- */
+  [data-tool='amidakuji'] .am-below {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-width: 0;
+  }
+  [data-tool='amidakuji'] .am-below-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  [data-tool='amidakuji'] .am-heading {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  [data-tool='amidakuji'] .am-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+    gap: 6px 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  [data-tool='amidakuji'] .am-result {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 12px;
+    font-size: 15px;
+    line-height: 1.4;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  [data-tool='amidakuji'] .am-result-dot {
+    flex: none;
+    align-self: center;
+    width: 10px;
+    height: 10px;
+    background: var(--am-color);
+    border-radius: 50%;
+  }
+  [data-tool='amidakuji'] .am-result-name {
+    min-width: 0;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  [data-tool='amidakuji'] .am-result-arrow {
+    flex: none;
+    color: var(--muted);
+  }
+  [data-tool='amidakuji'] .am-result-outcome {
+    min-width: 0;
+    margin-left: auto;
+    text-align: right;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  [data-tool='amidakuji'] .am-result.is-done .am-result-outcome {
+    font-weight: 700;
+    color: var(--text);
+  }
+  [data-tool='amidakuji'] .am-share {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  [data-tool='amidakuji'] .am-share .hint {
+    margin: 0;
+    line-height: 1.6;
+  }
+  [data-tool='amidakuji'] .am-share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  [data-tool='amidakuji'] .am-share-actions .btn {
+    flex: 1 1 140px;
+    min-height: 46px;
+  }
+  [data-tool='amidakuji'] .am-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 12px;
+  }
+  [data-tool='amidakuji'] .am-foot .btn.is-armed {
+    color: var(--danger);
+  }
+
+  /* ---------- Full screen (projector) ---------- */
+  [data-tool='amidakuji'] .am-stage.is-fullscreen {
+    align-content: start;
+    gap: 0;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-screen {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100vh;
+    height: 100dvh;
+    padding: max(12px, 2vh) max(12px, 2vw);
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-guest,
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-scroll-hint {
+    display: none;
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-title {
+    font-size: clamp(20px, 3.4vh, 40px);
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-progress {
+    font-size: clamp(14px, 2vh, 22px);
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-ladder {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-mid {
+    height: auto;
+    min-height: 0;
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-top,
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-bottom {
+    min-height: clamp(46px, 7vh, 84px);
+  }
+  [data-tool='amidakuji'] .am-stage.is-fullscreen .am-below {
+    width: min(100%, 1100px);
+    margin: 0 auto;
+    padding: 8px max(12px, 2vw) 32px;
+  }
+
+  @media (max-width: 480px) {
+    /* Two rows of two, so the four choices line up in every language. */
+    [data-tool='amidakuji'] .am-modes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      justify-self: stretch;
+    }
+    [data-tool='amidakuji'] .am-modes span {
+      padding-block: 9px;
+      text-align: center;
+    }
+    /* On a phone the ladder takes part of the card's padding, so six people fit without scrolling. */
+    [data-tool='amidakuji'] .am-stage:not(.is-fullscreen) .am-scroll {
+      margin-inline: -12px;
+    }
+    /* The button keeps its icon and its name for screen readers. */
+    [data-tool='amidakuji'] .am-fs-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-tool='amidakuji'] .am-top {
+      transition: none;
+    }
+  }
+</style>

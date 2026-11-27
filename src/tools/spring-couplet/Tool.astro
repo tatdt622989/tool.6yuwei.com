@@ -1,0 +1,719 @@
+---
+import type { ToolProps } from '../../i18n/tool';
+import Icon from '../../components/Icon.astro';
+import { DEFAULTS, LIMITS } from './logic';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+
+const formats = [
+  { value: 'door', label: '門聯' },
+  { value: 'doufang', label: '斗方' },
+  { value: 'banner', label: '橫批' },
+  { value: 'strip', label: '春條' },
+] as const;
+const papers = [
+  { value: 'fleck', label: '灑金' },
+  { value: 'plain', label: '素紅' },
+  { value: 'border', label: '金框' },
+  { value: 'none', label: '不印底色' },
+] as const;
+const inks = [
+  { value: 'black', label: '黑字' },
+  { value: 'gold', label: '金字' },
+] as const;
+const readings = [
+  { value: 'rtl', label: '傳統（右起）' },
+  { value: 'ltr', label: '橫書（左起）' },
+] as const;
+---
+
+<div class="tool" data-tool="spring-couplet" data-locale={locale}>
+  <div class="sc-stage" id="sc-stage">
+    <canvas class="sc-canvas" id="sc-canvas" width="900" height="1030" role="img" aria-label="春聯預覽"></canvas>
+    <p class="sc-loading" id="sc-loading">毛筆字型載入中…</p>
+  </div>
+  <p class="hint sc-side" id="sc-side" aria-live="polite"></p>
+
+  <div class="field">
+    <span class="label" id="sc-format-label">樣式</span>
+    <div class="seg" role="radiogroup" aria-labelledby="sc-format-label">
+      {
+        formats.map((f) => (
+          <label>
+            <input type="radio" name="sc-format" value={f.value} checked={f.value === DEFAULTS.format} />
+            <span>{f.label}</span>
+          </label>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="sc-preset">現成的吉祥話</label>
+    <div class="sc-preset-row">
+      <select id="sc-preset" aria-describedby="sc-preset-hint"></select>
+      <button type="button" class="btn" id="sc-random"><Icon name="Shuffle" size={18} />隨機一副</button>
+    </div>
+    <span class="hint" id="sc-preset-hint">選一句現成的，或在下面改成自己的字。</span>
+  </div>
+
+  <div class="sc-texts" data-for="door">
+    <div class="grid-2">
+      <div class="field">
+        <label for="sc-upper">上聯</label>
+        <input id="sc-upper" type="text" value={DEFAULTS.upper} placeholder="例如：天增歲月人增壽" autocomplete="off" enterkeyhint="done" />
+      </div>
+      <div class="field">
+        <label for="sc-lower">下聯</label>
+        <input id="sc-lower" type="text" value={DEFAULTS.lower} placeholder="例如：春滿乾坤福滿門" autocomplete="off" enterkeyhint="done" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="sc-top">橫批（可留空）</label>
+      <input id="sc-top" type="text" value={DEFAULTS.top} placeholder="例如：四季長安" autocomplete="off" enterkeyhint="done" />
+      <span class="hint">
+        每一聯 {LIMITS.door[0]} 到 {LIMITS.door[1]} 個字，上下聯字數要相同。上聯最後一個字是三聲或四聲，下聯最後一個字是一聲或二聲。
+      </span>
+    </div>
+    <div>
+      <button type="button" class="btn small" id="sc-swap"><Icon name="ArrowLeftRight" size={16} />上下聯對調</button>
+    </div>
+  </div>
+
+  <div class="sc-texts" data-for="doufang" hidden>
+    <div class="field">
+      <label for="sc-char">斗方的字（一個字）</label>
+      <input id="sc-char" type="text" value={DEFAULTS.char} placeholder="福" autocomplete="off" enterkeyhint="done" />
+    </div>
+    <label class="check"><input type="checkbox" id="sc-flip" checked={DEFAULTS.flip} /> 倒著貼（倒福）</label>
+  </div>
+
+  <div class="sc-texts" data-for="banner" hidden>
+    <div class="field">
+      <label for="sc-banner">橫批的字</label>
+      <input id="sc-banner" type="text" value={DEFAULTS.banner} placeholder="例如：恭賀新禧" autocomplete="off" enterkeyhint="done" />
+      <span class="hint">{LIMITS.banner[0]} 到 {LIMITS.banner[1]} 個字，照平常由左到右的順序輸入就好，方向在下面選。</span>
+    </div>
+  </div>
+
+  <div class="sc-texts" data-for="strip" hidden>
+    <div class="field">
+      <label for="sc-strip">春條的字</label>
+      <input id="sc-strip" type="text" value={DEFAULTS.strip} placeholder="例如：大地回春" autocomplete="off" enterkeyhint="done" />
+      <span class="hint">{LIMITS.strip[0]} 到 {LIMITS.strip[1]} 個字，由上往下直排。</span>
+    </div>
+  </div>
+
+  <p class="notice" id="sc-issue" hidden></p>
+
+  <div class="sc-options">
+    <div class="field">
+      <span class="label" id="sc-paper-label">紙張</span>
+      <div class="seg" role="radiogroup" aria-labelledby="sc-paper-label">
+        {
+          papers.map((p) => (
+            <label>
+              <input type="radio" name="sc-paper" value={p.value} checked={p.value === DEFAULTS.paper} />
+              <span>{p.label}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+    <div class="field" id="sc-ink-field">
+      <span class="label" id="sc-ink-label">字的顏色</span>
+      <div class="seg" role="radiogroup" aria-labelledby="sc-ink-label">
+        {
+          inks.map((i) => (
+            <label>
+              <input type="radio" name="sc-ink" value={i.value} checked={i.value === DEFAULTS.ink} />
+              <span>{i.label}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+    <div class="field" id="sc-reading-field">
+      <span class="label" id="sc-reading-label">讀的方向</span>
+      <div class="seg" role="radiogroup" aria-labelledby="sc-reading-label">
+        {
+          readings.map((r) => (
+            <label>
+              <input type="radio" name="sc-reading" value={r.value} checked={r.value === DEFAULTS.reading} />
+              <span>{r.label}</span>
+            </label>
+          ))
+        }
+      </div>
+    </div>
+    <div class="field" id="sc-sign-field">
+      <label for="sc-sign">落款（可留空）</label>
+      <div class="sc-preset-row">
+        <input id="sc-sign" type="text" value={DEFAULTS.signature} placeholder="例如：丁未年" autocomplete="off" enterkeyhint="done" />
+        <button type="button" class="btn" id="sc-sign-year">丁未年</button>
+      </div>
+      <span class="hint">小字寫在左下方，最多 {LIMITS.signature[1]} 個字；門聯的落款在下聯。</span>
+    </div>
+  </div>
+  <p class="hint" id="sc-paper-hint" hidden>不印底色只會印出黑色的字和裁切虛線，適合放紅紙進印表機，比較省墨水。</p>
+
+  <div class="sc-actions">
+    <button type="button" class="btn primary" id="sc-download"><Icon name="Download" size={18} />下載圖片</button>
+    <button type="button" class="btn" id="sc-download-a4"><Icon name="FileDown" size={18} />下載 A4 列印檔</button>
+    <button type="button" class="btn" id="sc-print"><Icon name="Printer" size={18} />列印</button>
+    <button type="button" class="btn" id="sc-share" hidden><Icon name="Share2" size={18} />分享圖片</button>
+  </div>
+  <p class="hint" id="sc-status" aria-live="polite" hidden></p>
+  <p class="hint">
+    「下載圖片」是貼好的樣子，適合傳 LINE；「A4 列印檔」和「列印」會把每一張紙排在一張 A4 上，印出來沿著紙邊剪下就能貼。
+  </p>
+</div>
+
+<script>
+  import fontCssUrl from '@fontsource/lxgw-wenkai-tc/700.css?url';
+  import { $, $$, debounce, downloadBlob, loadPref, savePref } from '../../lib/client';
+  import { track as trackEvent } from '../../lib/analytics';
+  import {
+    DOOR_PRESETS,
+    DOUFANG_PRESETS,
+    LIMITS,
+    PHRASE_PRESETS,
+    buildPieces,
+    fileName,
+    isFormat,
+    layoutScene,
+    layoutSheet,
+    normalizeSettings,
+    pickRandom,
+    piecesText,
+    sceneCell,
+    splitChars,
+    textIssues,
+    type Format,
+    type Ink,
+    type Paper,
+    type Reading,
+    type Settings,
+  } from './logic';
+  import { FONT_WEIGHT, canvasBlob, renderScene, renderSheet } from './render';
+
+  const root = $('[data-tool="spring-couplet"]');
+  const canvas = $<HTMLCanvasElement>('#sc-canvas', root);
+  const loading = $('#sc-loading', root);
+  const sideHint = $('#sc-side', root);
+  const issueBox = $('#sc-issue', root);
+  const statusBox = $('#sc-status', root);
+  const presetSelect = $<HTMLSelectElement>('#sc-preset', root);
+  const flipBox = $<HTMLInputElement>('#sc-flip', root);
+  const actionButtons = $$<HTMLButtonElement>('.sc-actions button', root);
+  const shareBtn = $<HTMLButtonElement>('#sc-share', root);
+
+  const textInputs = {
+    upper: $<HTMLInputElement>('#sc-upper', root),
+    lower: $<HTMLInputElement>('#sc-lower', root),
+    top: $<HTMLInputElement>('#sc-top', root),
+    char: $<HTMLInputElement>('#sc-char', root),
+    banner: $<HTMLInputElement>('#sc-banner', root),
+    strip: $<HTMLInputElement>('#sc-strip', root),
+    signature: $<HTMLInputElement>('#sc-sign', root),
+  } satisfies Partial<Record<keyof Settings, HTMLInputElement>>;
+  type TextKey = keyof typeof textInputs;
+
+  const PREF_KEY = 'spring-couplet';
+  const state: Settings = normalizeSettings(loadPref<unknown>(PREF_KEY, null));
+
+  // ---------- Font ----------
+  // The stylesheet with the @font-face rules is added here, on this page only. Each rule covers
+  // a slice of the character set, so the browser fetches just the slices for the characters shown.
+
+  const FONT_SPEC = `${FONT_WEIGHT} 64px "LXGW WenKai TC"`;
+  const FONT_TIMEOUT = 7000;
+  /** true: the web font has the character and it is loaded. false: the font does not cover it. */
+  const glyphs = new Map<string, boolean>();
+  let fontFailed = false;
+  let stylesheet: Promise<boolean> | null = null;
+
+  function loadStylesheet(): Promise<boolean> {
+    stylesheet ??= new Promise<boolean>((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = fontCssUrl;
+      link.addEventListener('load', () => resolve(true));
+      link.addEventListener('error', () => resolve(false));
+      document.head.append(link);
+    });
+    return stylesheet;
+  }
+
+  async function loadGlyphs(chars: string[]): Promise<void> {
+    const wanted = chars.filter((ch) => !glyphs.has(ch));
+    if (wanted.length === 0) return;
+    if (!(await loadStylesheet()) || !document.fonts) {
+      fontFailed = true;
+      return;
+    }
+    let failed = false;
+    await Promise.all(
+      wanted.map(async (ch) => {
+        try {
+          const faces = await document.fonts.load(FONT_SPEC, ch);
+          glyphs.set(ch, faces.length > 0);
+        } catch {
+          failed = true;
+        }
+      }),
+    );
+    fontFailed = failed;
+  }
+
+  /** Resolves when the characters are ready to draw, or after a timeout so a slow font never blocks the image. */
+  function glyphsReady(chars: string[]): Promise<void> {
+    if (chars.every((ch) => glyphs.has(ch))) return Promise.resolve();
+    let timedOut = false;
+    const work = loadGlyphs(chars).then(() => {
+      if (timedOut) refresh();
+    });
+    return new Promise<void>((resolve) => {
+      const timer = window.setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, FONT_TIMEOUT);
+      void work.then(() => {
+        window.clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  function showStatus(chars: string[]): void {
+    const missing = chars.filter((ch) => glyphs.get(ch) === false);
+    let message = '';
+    if (fontFailed) message = '毛筆字型沒有載入成功，先用這台裝置上的字型畫；確認網路後重新整理可以再試一次。';
+    else if (missing.length > 0) {
+      message = `${missing
+        .slice(0, 6)
+        .map((ch) => `「${ch}」`)
+        .join('')}不在毛筆字型裡，改用這台裝置上的字型畫。`;
+    }
+    statusBox.textContent = message;
+    statusBox.hidden = message === '';
+  }
+
+  // ---------- Drawing ----------
+
+  const style = () => ({ paper: state.paper, ink: state.ink });
+
+  let drawId = 0;
+  async function draw(): Promise<boolean> {
+    const id = ++drawId;
+    const pieces = buildPieces(state);
+    const chars = piecesText(pieces);
+    const ready = glyphsReady(chars);
+    if (!chars.every((ch) => glyphs.has(ch))) loading.hidden = false;
+    await ready;
+    if (id !== drawId) return false;
+    const scene = layoutScene(pieces, state.reading);
+    renderScene(canvas, scene, sceneCell(scene), style());
+    canvas.setAttribute('aria-label', `春聯預覽：${pieces.map((piece) => piece.chars.join('')).join('，')}`);
+    canvas.classList.add('is-ready');
+    loading.hidden = true;
+    showStatus(chars);
+    return true;
+  }
+  function refresh(): void {
+    void draw();
+  }
+  const refreshSoon = debounce(refresh, 120);
+
+  async function sheetBlob(): Promise<Blob> {
+    const pieces = buildPieces(state);
+    await glyphsReady(piecesText(pieces));
+    const sheetCanvas = document.createElement('canvas');
+    renderSheet(sheetCanvas, layoutSheet(pieces, state.reading), style());
+    try {
+      return await canvasBlob(sheetCanvas);
+    } finally {
+      sheetCanvas.width = 0;
+      sheetCanvas.height = 0;
+    }
+  }
+
+  async function sceneBlob(): Promise<Blob> {
+    await draw();
+    return canvasBlob(canvas);
+  }
+
+  // ---------- Form ----------
+
+  const SIDE_HINTS: Record<Format, (s: Settings) => string> = {
+    door: (s) =>
+      s.reading === 'rtl'
+        ? '面對大門：上聯貼右邊、下聯貼左邊，橫批由右往左讀。這是傳統的貼法。'
+        : '面對大門：上聯貼左邊、下聯貼右邊，橫批由左往右讀，和現在橫書的方向一致。',
+    doufang: (s) => (s.flip ? '倒著貼的「福」，取「福到了」的諧音。' : '斗方是正方形的紙，轉成菱形來貼。'),
+    banner: (s) => (s.reading === 'rtl' ? '橫批由右往左讀，是傳統的寫法。' : '橫批由左往右讀，是現在橫書的寫法。'),
+    strip: () => '春條是直式的吉祥話，貼在門邊、牆上或櫃子上都可以。',
+  };
+
+  const RANGE_HINTS: Record<Format, string> = {
+    door: `門聯每一聯 ${LIMITS.door[0]} 到 ${LIMITS.door[1]} 個字，橫批 ${LIMITS.banner[0]} 到 ${LIMITS.banner[1]} 個字；超過的字不會畫出來。`,
+    doufang: '',
+    banner: `橫批 ${LIMITS.banner[0]} 到 ${LIMITS.banner[1]} 個字；超過的字不會畫出來。`,
+    strip: `春條 ${LIMITS.strip[0]} 到 ${LIMITS.strip[1]} 個字；超過的字不會畫出來。`,
+  };
+
+  function showIssues(): void {
+    const issues = textIssues(state);
+    const lines: string[] = [];
+    if (issues.includes('empty')) lines.push('先輸入文字，或從上面選一句現成的。');
+    if (issues.includes('mismatch')) {
+      lines.push(`上聯和下聯的字數要一樣，現在是 ${splitChars(state.upper).length} 個字和 ${splitChars(state.lower).length} 個字。`);
+    }
+    if (issues.includes('too-short') || issues.includes('too-long')) lines.push(RANGE_HINTS[state.format]);
+    if (state.format === 'doufang' && splitChars(state.char).length > 1) lines.push('斗方只放一個字，會用第一個字。');
+    issueBox.textContent = lines.join(' ');
+    issueBox.hidden = lines.length === 0;
+  }
+
+  function presetOptions(format: Format): { label: string; value: string }[] {
+    if (format === 'door') return DOOR_PRESETS.map((p, i) => ({ label: `${p.upper}／${p.lower}`, value: String(i) }));
+    const list = format === 'doufang' ? DOUFANG_PRESETS : PHRASE_PRESETS;
+    return list.map((text) => ({ label: text, value: text }));
+  }
+
+  function currentPreset(): string {
+    switch (state.format) {
+      case 'door': {
+        const index = DOOR_PRESETS.findIndex((p) => p.upper === state.upper && p.lower === state.lower);
+        return index < 0 ? '' : String(index);
+      }
+      case 'doufang':
+        return (DOUFANG_PRESETS as readonly string[]).includes(state.char) ? state.char : '';
+      case 'banner':
+        return (PHRASE_PRESETS as readonly string[]).includes(state.banner) ? state.banner : '';
+      case 'strip':
+        return (PHRASE_PRESETS as readonly string[]).includes(state.strip) ? state.strip : '';
+    }
+  }
+
+  function fillPresets(): void {
+    const placeholder = new Option('自己輸入', '');
+    presetSelect.replaceChildren(placeholder, ...presetOptions(state.format).map((o) => new Option(o.label, o.value)));
+    presetSelect.value = currentPreset();
+  }
+
+  function applyPreset(value: string): void {
+    if (value === '') return;
+    if (state.format === 'door') {
+      const preset = DOOR_PRESETS[Number(value)];
+      if (!preset) return;
+      state.upper = preset.upper;
+      state.lower = preset.lower;
+      state.top = preset.top;
+    } else if (state.format === 'doufang') state.char = value;
+    else state[state.format] = value;
+  }
+
+  function radio(name: string, value: string): void {
+    for (const input of $$<HTMLInputElement>(`input[name="${name}"]`, root)) input.checked = input.value === value;
+  }
+
+  /** Write the state into the form and show the parts that belong to the current format. */
+  function syncForm(): void {
+    radio('sc-format', state.format);
+    radio('sc-paper', state.paper);
+    radio('sc-ink', state.paper === 'none' ? 'black' : state.ink);
+    radio('sc-reading', state.reading);
+    for (const key of Object.keys(textInputs) as TextKey[]) {
+      if (textInputs[key].value !== state[key]) textInputs[key].value = state[key];
+    }
+    flipBox.checked = state.flip;
+    for (const block of $$('.sc-texts', root)) block.hidden = block.dataset.for !== state.format;
+    $('#sc-reading-field', root).hidden = state.format === 'doufang' || state.format === 'strip';
+    $('#sc-sign-field', root).hidden = state.format === 'banner';
+    for (const input of $$<HTMLInputElement>('input[name="sc-ink"]', root)) input.disabled = state.paper === 'none';
+    $('#sc-ink-field', root).classList.toggle('is-disabled', state.paper === 'none');
+    $('#sc-paper-hint', root).hidden = state.paper !== 'none';
+    fillPresets();
+  }
+
+  function update(options: { form?: boolean; now?: boolean } = {}): void {
+    if (options.form) syncForm();
+    else presetSelect.value = currentPreset();
+    sideHint.textContent = SIDE_HINTS[state.format](state);
+    showIssues();
+    savePref(PREF_KEY, state);
+    if (options.now) refresh();
+    else refreshSoon();
+  }
+
+  for (const key of Object.keys(textInputs) as TextKey[]) {
+    const input = textInputs[key];
+    const read = () => {
+      state[key] = input.value;
+      update();
+    };
+    // While an input method is composing, the field holds unfinished text (注音 symbols); wait for the result.
+    input.addEventListener('input', (event) => {
+      if (!(event as InputEvent).isComposing) read();
+    });
+    input.addEventListener('compositionend', read);
+  }
+
+  root.addEventListener('change', (event) => {
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+    if (target === presetSelect) {
+      applyPreset(presetSelect.value);
+      update({ form: true, now: true });
+    } else if (target.name === 'sc-format' && isFormat(target.value)) {
+      state.format = target.value;
+      update({ form: true, now: true });
+    } else if (target.name === 'sc-paper') {
+      state.paper = target.value as Paper;
+      update({ form: true, now: true });
+    } else if (target.name === 'sc-ink') {
+      state.ink = target.value as Ink;
+      update({ now: true });
+    } else if (target.name === 'sc-reading') {
+      state.reading = target.value as Reading;
+      update({ now: true });
+    } else if (target === flipBox) {
+      state.flip = flipBox.checked;
+      update({ now: true });
+    }
+  });
+
+  $('#sc-random', root).addEventListener('click', () => {
+    const options = presetOptions(state.format).map((o) => o.value);
+    applyPreset(pickRandom(options, currentPreset()));
+    update({ form: true, now: true });
+  });
+
+  $('#sc-swap', root).addEventListener('click', () => {
+    [state.upper, state.lower] = [state.lower, state.upper];
+    update({ form: true, now: true });
+  });
+
+  $('#sc-sign-year', root).addEventListener('click', () => {
+    state.signature = '丁未年';
+    update({ form: true, now: true });
+  });
+
+  // ---------- Output ----------
+
+  async function busy(button: HTMLButtonElement, work: () => Promise<void>): Promise<void> {
+    for (const b of actionButtons) b.disabled = true;
+    button.classList.add('is-busy');
+    try {
+      await work();
+    } catch {
+      statusBox.textContent = '圖片沒有產生成功，請再按一次；如果還是不行，換一個瀏覽器試試。';
+      statusBox.hidden = false;
+    } finally {
+      button.classList.remove('is-busy');
+      for (const b of actionButtons) b.disabled = false;
+    }
+  }
+
+  $<HTMLButtonElement>('#sc-download', root).addEventListener('click', (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      downloadBlob(await sceneBlob(), fileName(state.format, 'image'));
+      trackEvent('couplet_download', { method: state.format, kind: 'image' });
+    });
+  });
+
+  $<HTMLButtonElement>('#sc-download-a4', root).addEventListener('click', (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      downloadBlob(await sheetBlob(), fileName(state.format, 'a4'));
+      trackEvent('couplet_download', { method: state.format, kind: 'a4' });
+    });
+  });
+
+  // Printing: the A4 sheet goes into an element directly under <body>; the print rules below
+  // hide everything else while that element exists.
+  let printSheet: HTMLElement | null = null;
+  let printUrl = '';
+  function clearPrintSheet(): void {
+    printSheet?.remove();
+    printSheet = null;
+    if (printUrl) URL.revokeObjectURL(printUrl);
+    printUrl = '';
+  }
+  window.addEventListener('afterprint', clearPrintSheet);
+
+  $<HTMLButtonElement>('#sc-print', root).addEventListener('click', (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      clearPrintSheet();
+      printUrl = URL.createObjectURL(await sheetBlob());
+      const image = new Image();
+      image.alt = '春聯 A4 列印檔';
+      image.src = printUrl;
+      await image.decode();
+      printSheet = document.createElement('div');
+      printSheet.className = 'sc-sheet';
+      printSheet.dataset.tool = 'spring-couplet';
+      printSheet.append(image);
+      document.body.append(printSheet);
+      trackEvent('couplet_print', { method: state.format });
+      window.print();
+    });
+  });
+
+  const shareFile = (blob: Blob) => new File([blob], fileName(state.format, 'image'), { type: 'image/png' });
+  try {
+    shareBtn.hidden = !navigator.canShare?.({ files: [shareFile(new Blob([], { type: 'image/png' }))] });
+  } catch {
+    shareBtn.hidden = true;
+  }
+  shareBtn.addEventListener('click', () => {
+    void busy(shareBtn, async () => {
+      const file = shareFile(await sceneBlob());
+      try {
+        await navigator.share({ files: [file], title: '春聯' });
+        trackEvent('share', { method: 'native', content_type: 'tool_result' });
+      } catch {
+        /* the share sheet was closed */
+      }
+    });
+  });
+
+  update({ form: true, now: true });
+</script>
+
+<style>
+  [data-tool='spring-couplet'] .sc-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 300px;
+    padding: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  [data-tool='spring-couplet'] .sc-canvas {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: min(68vh, 560px);
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  [data-tool='spring-couplet'] .sc-canvas.is-ready {
+    opacity: 1;
+  }
+  [data-tool='spring-couplet'] .sc-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: 0;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    white-space: nowrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+    transform: translate(-50%, -50%);
+  }
+  [data-tool='spring-couplet'] .sc-loading[hidden] {
+    display: none;
+  }
+  [data-tool='spring-couplet'] .sc-side {
+    margin: -6px 0 0;
+    font-size: 14px;
+    color: var(--text-2);
+    text-align: center;
+  }
+  [data-tool='spring-couplet'] .sc-preset-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  [data-tool='spring-couplet'] .sc-preset-row .btn {
+    white-space: nowrap;
+  }
+  [data-tool='spring-couplet'] .sc-texts {
+    display: grid;
+    gap: 12px;
+  }
+  [data-tool='spring-couplet'] .sc-texts[hidden] {
+    display: none;
+  }
+  [data-tool='spring-couplet'] .sc-texts input {
+    font-size: 18px;
+  }
+  [data-tool='spring-couplet'] .sc-options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  @media (min-width: 720px) {
+    [data-tool='spring-couplet'] .sc-options {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  [data-tool='spring-couplet'] .sc-options .is-disabled .seg {
+    opacity: 0.5;
+  }
+  [data-tool='spring-couplet'] .sc-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  [data-tool='spring-couplet'] .sc-actions .btn {
+    justify-content: center;
+    padding-inline: 8px;
+  }
+  [data-tool='spring-couplet'] .sc-actions .btn.primary {
+    grid-column: 1 / -1;
+  }
+  [data-tool='spring-couplet'] .sc-actions .btn.is-busy {
+    cursor: progress;
+  }
+  @media (min-width: 720px) {
+    [data-tool='spring-couplet'] .sc-actions {
+      display: flex;
+      flex-wrap: wrap;
+    }
+  }
+</style>
+
+<style is:global>
+  /* The print sheet is added under <body> by the script, outside the tool, so these rules are global.
+     Each one only matches while that sheet exists. */
+  [data-tool='spring-couplet'].sc-sheet {
+    display: none;
+  }
+  @media print {
+    html:has(> body > [data-tool='spring-couplet'].sc-sheet),
+    body:has(> [data-tool='spring-couplet'].sc-sheet) {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    body:has(> [data-tool='spring-couplet'].sc-sheet) > :not(.sc-sheet) {
+      display: none !important;
+    }
+    body > [data-tool='spring-couplet'].sc-sheet {
+      display: block;
+      break-inside: avoid;
+    }
+    /* Sized to fit A4 and US Letter with the browser's default margins. */
+    body > [data-tool='spring-couplet'].sc-sheet img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 255mm;
+      margin: 0 auto;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+</style>

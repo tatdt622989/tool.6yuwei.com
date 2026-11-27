@@ -1,0 +1,1214 @@
+---
+import Icon from '../../components/Icon.astro';
+import { t } from '../../i18n/format';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { CARD_SIZES, DEFAULT_MAX, MAX_CARDS, MAX_MAX, MIN_MAX, PRESETS } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+const PER_PAGE = [1, 2, 4, 6];
+---
+
+<div class="tool" data-tool="bingo" {...i18nAttrs(locale, s.client)}>
+  <section class="bg-stage" id="bg-stage" data-state="idle">
+    <canvas class="bg-confetti" id="bg-confetti" aria-hidden="true"></canvas>
+    <div class="bg-bar">
+      <span class="bg-progress" id="bg-progress">{t(s.client.progress, { n: 0, max: DEFAULT_MAX })}</span>
+      <div class="bg-bar-actions">
+        <button class="btn small ghost" type="button" id="bg-voice" aria-pressed="false" hidden>
+          <Icon name="Megaphone" size={16} /><span class="bg-bar-label">{s.voice}</span>
+        </button>
+        <button class="btn small ghost" type="button" id="bg-sound" aria-label={s.client.soundOff} title={s.client.soundOff}>
+          <span id="bg-sound-on"><Icon name="Volume2" size={16} /></span>
+          <span id="bg-sound-off" hidden><Icon name="VolumeX" size={16} /></span>
+        </button>
+        <button class="btn small ghost" type="button" id="bg-fs" hidden>
+          <Icon name="Maximize" size={16} /><span class="bg-bar-label" id="bg-fs-label">{s.client.fullscreen}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-main">
+      <div class="bg-call">
+        <div class="bg-ball" id="bg-ball" aria-hidden="true">
+          <span class="bg-letter" id="bg-letter"></span>
+          <span class="bg-num" id="bg-num">?</span>
+        </div>
+        <p class="bg-status" id="bg-status" aria-live="polite">{s.client.statusIdle}</p>
+        <div class="bg-recent" id="bg-recent" aria-label={s.recentLabel}></div>
+        <div class="bg-actions">
+          <button class="btn primary bg-draw" type="button" id="bg-draw">{s.draw}</button>
+          <button class="btn ghost" type="button" id="bg-undo" disabled><Icon name="Undo2" size={16} />{s.undo}</button>
+        </div>
+      </div>
+      <div class="bg-board-wrap">
+        <div class="bg-board" id="bg-board" role="list" aria-label={s.boardLabel}></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="field">
+    <span class="label" id="bg-range-label">{s.rangeLabel}</span>
+    <div class="row">
+      <div class="seg" role="radiogroup" aria-labelledby="bg-range-label">
+        {
+          PRESETS.map((max) => (
+            <label>
+              <input type="radio" name="bg-range" value={max} checked={max === DEFAULT_MAX} />
+              <span>1–{max}</span>
+            </label>
+          ))
+        }
+        <label><input type="radio" name="bg-range" value="custom" /><span>{s.rangeCustom}</span></label>
+      </div>
+      <label class="bg-custom" id="bg-custom" hidden>
+        <span>{s.rangeCustomLabel}</span>
+        <input id="bg-max" type="number" min={MIN_MAX} max={MAX_MAX} step="1" value={DEFAULT_MAX} inputmode="numeric" />
+      </label>
+    </div>
+    <span class="hint" id="bg-range-hint">{s.client.rangeHint}</span>
+  </div>
+
+  <div class="row">
+    <button class="btn" type="button" id="bg-copy" disabled>{s.copyHistory}</button>
+    <button class="btn" type="button" id="bg-reset" disabled>{s.client.reset}</button>
+    <button class="btn ghost" type="button" id="bg-reset-cancel" hidden>{s.cancel}</button>
+  </div>
+
+  <details class="bg-panel" id="bg-cards">
+    <summary>{s.cardsTitle}</summary>
+    <div class="bg-panel-body">
+      <p class="hint">{s.cardsLead}</p>
+      <div class="bg-card-opts">
+        <div class="field bg-narrow">
+          <label for="bg-card-count">{s.cardCount}</label>
+          <input id="bg-card-count" type="number" min="1" max={MAX_CARDS} step="1" value="20" inputmode="numeric" />
+        </div>
+        <div class="field">
+          <span class="label" id="bg-size-label">{s.cardSize}</span>
+          <div class="seg" role="radiogroup" aria-labelledby="bg-size-label">
+            {
+              CARD_SIZES.map((size) => (
+                <label>
+                  <input type="radio" name="bg-size" value={size} checked={size === 5} />
+                  <span>{size}×{size}</span>
+                </label>
+              ))
+            }
+          </div>
+        </div>
+        <div class="field">
+          <span class="label" id="bg-per-label">{s.perPage}</span>
+          <div class="seg" role="radiogroup" aria-labelledby="bg-per-label">
+            {
+              PER_PAGE.map((n) => (
+                <label>
+                  <input type="radio" name="bg-per" value={n} checked={n === 4} />
+                  <span>{n}</span>
+                </label>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="bg-card-title">{s.cardTitleLabel}</label>
+        <input id="bg-card-title" type="text" maxlength="40" placeholder={s.cardTitlePlaceholder} />
+      </div>
+      <label class="check"><input id="bg-free" type="checkbox" checked /> {s.freeCenter}</label>
+      <div class="row">
+        <button class="btn primary" type="button" id="bg-generate">{s.generate}</button>
+        <button class="btn" type="button" id="bg-print" disabled><Icon name="Printer" size={16} />{s.print}</button>
+      </div>
+      <div class="notice error" id="bg-card-error" hidden></div>
+      <div class="notice ok" id="bg-card-ready" hidden></div>
+      <div class="bg-preview" id="bg-preview" hidden></div>
+    </div>
+  </details>
+
+  <details class="bg-panel" id="bg-check">
+    <summary>{s.checkTitle}</summary>
+    <div class="bg-panel-body">
+      <p class="hint">{s.checkLead}</p>
+      <form class="row bg-check-form" id="bg-check-form">
+        <div class="field bg-narrow">
+          <label for="bg-check-id">{s.checkLabel}</label>
+          <input id="bg-check-id" type="number" min="1" max={MAX_CARDS} step="1" inputmode="numeric" />
+        </div>
+        <button class="btn" type="submit">{s.checkButton}</button>
+      </form>
+      <div class="notice" id="bg-check-note" hidden></div>
+      <div class="bg-check-result" id="bg-check-result" hidden></div>
+    </div>
+  </details>
+</div>
+
+<script>
+  import { $, copyText, flashButton, loadPref, savePref } from '../../lib/client';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { formatInteger } from '../../lib/format';
+  import { confetti } from '../birthday-candles/confetti';
+  import type { Strings } from './i18n';
+  import {
+    boardColumns,
+    callLabel,
+    cardFits,
+    cardNumbers,
+    clampMax,
+    columnLetter,
+    countLines,
+    DEFAULT_MAX,
+    drawNext,
+    formatHistory,
+    FREE,
+    generateCards,
+    hasFreeCenter,
+    LETTERED_MAX,
+    LETTERS,
+    MAX_CARDS,
+    paginate,
+    PRESETS,
+    remainingNumbers,
+    sanitizeDrawn,
+    type Card,
+    type CardSize,
+  } from './logic';
+  import { BingoSounds } from './sound';
+
+  interface Game {
+    max: number;
+    drawn: number[];
+    sound: boolean;
+    voice: boolean;
+  }
+  interface CardSet {
+    max: number;
+    size: CardSize;
+    freeCenter: boolean;
+    title: string;
+    perPage: number;
+    count: number;
+    cards: Card[];
+  }
+
+  const GAME_KEY = 'bingo';
+  const CARDS_KEY = 'bingo:cards';
+  const ROLL_MS = 950;
+  const RECENT = 5;
+  const RESET_WINDOW_MS = 4000;
+  /** Must match --bg-cols in the narrow container query below. */
+  const NARROW_COLUMNS = 10;
+  const CONFETTI = ['#f0522e', '#f5c24b', '#12936a', '#2f7de1', '#e84f86', '#7a5cf0', '#ffffff'];
+
+  const root = $('[data-tool="bingo"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const n = (value: number) => formatInteger(value, locale);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const stage = $('#bg-stage', root);
+  const progress = $('#bg-progress', root);
+  const ball = $('#bg-ball', root);
+  const letterEl = $('#bg-letter', root);
+  const numEl = $('#bg-num', root);
+  const status = $('#bg-status', root);
+  const recent = $('#bg-recent', root);
+  const board = $('#bg-board', root);
+  const confettiCanvas = $<HTMLCanvasElement>('#bg-confetti', root);
+  const drawBtn = $<HTMLButtonElement>('#bg-draw', root);
+  const undoBtn = $<HTMLButtonElement>('#bg-undo', root);
+  const copyBtn = $<HTMLButtonElement>('#bg-copy', root);
+  const resetBtn = $<HTMLButtonElement>('#bg-reset', root);
+  const resetCancel = $<HTMLButtonElement>('#bg-reset-cancel', root);
+  const customBox = $('#bg-custom', root);
+  const maxInput = $<HTMLInputElement>('#bg-max', root);
+  const rangeHint = $('#bg-range-hint', root);
+  const rangeRadios = Array.from(root.querySelectorAll<HTMLInputElement>('input[name="bg-range"]'));
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  /* ---------- Game state ---------- */
+  const stored = loadPref<Partial<Game>>(GAME_KEY, {});
+  const game: Game = {
+    max: clampMax(stored.max ?? DEFAULT_MAX),
+    drawn: [],
+    sound: stored.sound !== false,
+    voice: stored.voice === true,
+  };
+  game.drawn = sanitizeDrawn(stored.drawn, game.max);
+  const sounds = new BingoSounds(game.sound);
+  let busy = false;
+  let boardMax = 0;
+  let stopConfetti = () => {};
+
+  const saveGame = () => savePref(GAME_KEY, game);
+  const lettered = () => game.max === LETTERED_MAX;
+
+  function buildBoard() {
+    boardMax = game.max;
+    const cols = boardColumns(game.max);
+    const rows = Math.ceil(game.max / cols);
+    board.replaceChildren();
+    board.classList.toggle('is-lettered', lettered());
+    // Wide boards keep one row per letter; narrow ones (phones) fall back to rows of ten so the numbers stay readable.
+    board.style.setProperty('--bg-cols-wide', String(cols + (lettered() ? 1 : 0)));
+    board.style.setProperty('--bg-rows-wide', String(rows));
+    board.style.setProperty('--bg-rows-narrow', String(Math.ceil(game.max / NARROW_COLUMNS)));
+    for (let i = 1; i <= game.max; i++) {
+      if (lettered() && (i - 1) % cols === 0) {
+        const head = el('span', 'bg-cell bg-cell-letter', LETTERS[(i - 1) / cols]);
+        head.setAttribute('aria-hidden', 'true');
+        board.append(head);
+      }
+      const cell = el('span', 'bg-cell', n(i));
+      cell.dataset.n = String(i);
+      cell.setAttribute('role', 'listitem');
+      board.append(cell);
+    }
+  }
+
+  function showBall(value: number | null) {
+    letterEl.textContent = value === null ? '' : columnLetter(value, game.max);
+    numEl.textContent = value === null ? '?' : n(value);
+    ball.classList.toggle('has-letter', value !== null && lettered());
+  }
+
+  function render() {
+    if (boardMax !== game.max) buildBoard();
+    const { drawn, max } = game;
+    const current = drawn.length ? drawn[drawn.length - 1] : null;
+    const done = drawn.length >= max;
+    const called = new Set(drawn);
+
+    showBall(current);
+    stage.dataset.state = done ? 'done' : current === null ? 'idle' : 'shown';
+    progress.textContent = t(s.progress, { n: n(drawn.length), max: n(max) });
+    status.textContent = done
+      ? s.statusDone
+      : current === null
+        ? s.statusIdle
+        : t(s.statusCalled, { call: callLabel(current, max) });
+
+    recent.replaceChildren(
+      ...drawn
+        .slice(-(RECENT + 1), -1)
+        .reverse()
+        .map((value) => el('span', 'bg-chip', callLabel(value, max))),
+    );
+
+    for (const cell of board.querySelectorAll<HTMLElement>('[data-n]')) {
+      const value = Number(cell.dataset.n);
+      cell.classList.toggle('is-called', called.has(value));
+      cell.classList.toggle('is-current', value === current);
+    }
+
+    const started = drawn.length > 0;
+    drawBtn.disabled = busy || done;
+    undoBtn.disabled = busy || !started;
+    copyBtn.disabled = !started;
+    resetBtn.disabled = busy || !started;
+    for (const radio of rangeRadios) radio.disabled = started;
+    maxInput.disabled = started;
+    rangeHint.textContent = started ? s.rangeLocked : s.rangeHint;
+  }
+
+  /* ---------- Drawing ---------- */
+  function speak(value: number) {
+    if (!game.voice || !('speechSynthesis' in window)) return;
+    try {
+      const letter = columnLetter(value, game.max);
+      const utterance = new SpeechSynthesisUtterance(letter ? `${letter}, ${value}` : String(value));
+      utterance.lang = s.voiceLang;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utterance);
+    } catch {
+      /* speech unavailable */
+    }
+  }
+
+  /** Flickers through numbers that are still in the cage; the result was fixed before this starts. */
+  function roll(pool: number[]): Promise<void> {
+    if (reducedMotion.matches || pool.length < 2) return Promise.resolve();
+    stage.dataset.state = 'rolling';
+    status.textContent = s.statusRolling;
+    const start = performance.now();
+    return new Promise((resolve) => {
+      let last = 0;
+      const tick = (now: number) => {
+        const elapsed = now - start;
+        // Slow down toward the end so the stop feels natural.
+        const interval = 45 + 150 * (elapsed / ROLL_MS) ** 2;
+        if (now - last >= interval) {
+          // Display-only flicker; the ball was already drawn with crypto randomness.
+          showBall(pool[Math.floor(Math.random() * pool.length)]);
+          sounds.play('tick');
+          last = now;
+        }
+        if (elapsed < ROLL_MS) requestAnimationFrame(tick);
+        else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  async function draw() {
+    if (busy) return;
+    const pool = remainingNumbers(game.max, game.drawn);
+    const value = drawNext(game.max, game.drawn);
+    if (value === null) return;
+    cancelReset();
+    busy = true;
+    drawBtn.disabled = true;
+    undoBtn.disabled = true;
+    // Saved before the animation, so closing the page mid-roll cannot change the result.
+    game.drawn.push(value);
+    saveGame();
+    await roll(pool);
+    busy = false;
+    render();
+    ball.classList.remove('is-pop');
+    void ball.offsetWidth;
+    ball.classList.add('is-pop');
+    const done = game.drawn.length >= game.max;
+    sounds.play(done ? 'finish' : 'reveal');
+    if (done && !reducedMotion.matches) stopConfetti = confetti(confettiCanvas, CONFETTI, 3600);
+    speak(value);
+    refreshCheck();
+  }
+
+  drawBtn.addEventListener('click', draw);
+  undoBtn.addEventListener('click', () => {
+    if (busy || game.drawn.length === 0) return;
+    game.drawn.pop();
+    stopConfetti();
+    saveGame();
+    sounds.play('undo');
+    render();
+    refreshCheck();
+  });
+  // On a projector the host usually has a clicker or a keyboard, not a mouse.
+  document.addEventListener('keydown', (event) => {
+    if (!stage.classList.contains('is-fullscreen') || event.repeat) return;
+    if (event.key !== ' ' && event.key !== 'Enter') return;
+    if ((event.target as Element | null)?.closest('button, a, input, summary')) return;
+    event.preventDefault();
+    void draw();
+  });
+
+  /* ---------- Reset (two taps, no dialog) ---------- */
+  let resetTimer: number | undefined;
+  function cancelReset() {
+    window.clearTimeout(resetTimer);
+    resetBtn.textContent = s.reset;
+    resetBtn.classList.remove('bg-danger');
+    resetCancel.hidden = true;
+    delete resetBtn.dataset.armed;
+  }
+  resetBtn.addEventListener('click', () => {
+    if (resetBtn.dataset.armed) {
+      cancelReset();
+      stopConfetti();
+      game.drawn = [];
+      saveGame();
+      render();
+      refreshCheck();
+      return;
+    }
+    resetBtn.dataset.armed = '1';
+    resetBtn.textContent = s.resetConfirm;
+    resetBtn.classList.add('bg-danger');
+    resetCancel.hidden = false;
+    resetTimer = window.setTimeout(cancelReset, RESET_WINDOW_MS);
+  });
+  resetCancel.addEventListener('click', cancelReset);
+
+  copyBtn.addEventListener('click', async () => {
+    if (game.drawn.length && (await copyText(formatHistory(game.drawn, game.max)))) flashButton(copyBtn);
+  });
+
+  /* ---------- Range ---------- */
+  function syncRangeControls() {
+    const preset = (PRESETS as readonly number[]).includes(game.max);
+    for (const radio of rangeRadios) radio.checked = radio.value === (preset ? String(game.max) : 'custom');
+    customBox.hidden = preset;
+    maxInput.value = String(game.max);
+  }
+  function setMax(value: number) {
+    if (game.drawn.length > 0) return;
+    game.max = clampMax(value);
+    saveGame();
+    render();
+  }
+  for (const radio of rangeRadios) {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      if (radio.value === 'custom') {
+        customBox.hidden = false;
+        maxInput.focus();
+        maxInput.select();
+      } else {
+        customBox.hidden = true;
+        setMax(Number(radio.value));
+        maxInput.value = String(game.max);
+      }
+    });
+  }
+  maxInput.addEventListener('input', () => {
+    if (maxInput.value.trim() !== '') setMax(Number(maxInput.value));
+  });
+  maxInput.addEventListener('change', () => {
+    setMax(Number(maxInput.value));
+    maxInput.value = String(game.max);
+  });
+
+  /* ---------- Sound, voice, full screen ---------- */
+  const soundBtn = $<HTMLButtonElement>('#bg-sound', root);
+  const soundOn = $('#bg-sound-on', root);
+  const soundOff = $('#bg-sound-off', root);
+  function syncSound() {
+    const label = game.sound ? s.soundOff : s.soundOn;
+    soundOn.hidden = !game.sound;
+    soundOff.hidden = game.sound;
+    soundBtn.setAttribute('aria-label', label);
+    soundBtn.title = label;
+  }
+  soundBtn.addEventListener('click', () => {
+    game.sound = !game.sound;
+    sounds.setEnabled(game.sound);
+    saveGame();
+    syncSound();
+    if (game.sound) sounds.play('tick');
+  });
+
+  const voiceBtn = $<HTMLButtonElement>('#bg-voice', root);
+  voiceBtn.hidden = !('speechSynthesis' in window);
+  const syncVoice = () => {
+    voiceBtn.setAttribute('aria-pressed', String(game.voice));
+    voiceBtn.classList.toggle('is-on', game.voice);
+  };
+  voiceBtn.addEventListener('click', () => {
+    game.voice = !game.voice;
+    saveGame();
+    syncVoice();
+    if (!game.voice && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+
+  const fsBtn = $<HTMLButtonElement>('#bg-fs', root);
+  const fsLabel = $('#bg-fs-label', root);
+  let wakeLock: WakeLockSentinel | null = null;
+  async function keepAwake(on: boolean) {
+    try {
+      if (on && !wakeLock && 'wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => (wakeLock = null));
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch {
+      /* not allowed (battery saver, unsupported); the caller still works */
+    }
+  }
+  fsBtn.hidden = !(document.fullscreenEnabled && typeof stage.requestFullscreen === 'function');
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement === stage) void document.exitFullscreen();
+    else void stage.requestFullscreen().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === stage;
+    fsLabel.textContent = on ? s.exitFullscreen : s.fullscreen;
+    stage.classList.toggle('is-fullscreen', on);
+    void keepAwake(on);
+    if (on) drawBtn.focus();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && document.fullscreenElement === stage) void keepAwake(true);
+  });
+
+  /* ---------- Cards ---------- */
+  const cardCount = $<HTMLInputElement>('#bg-card-count', root);
+  const cardTitle = $<HTMLInputElement>('#bg-card-title', root);
+  const freeBox = $<HTMLInputElement>('#bg-free', root);
+  const generateBtn = $<HTMLButtonElement>('#bg-generate', root);
+  const printBtn = $<HTMLButtonElement>('#bg-print', root);
+  const cardError = $('#bg-card-error', root);
+  const cardReady = $('#bg-card-ready', root);
+  const preview = $('#bg-preview', root);
+  const checked = (name: string) => $<HTMLInputElement>(`input[name="${name}"]:checked`, root).value;
+  const setChecked = (name: string, value: string) => {
+    const input = root.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
+    if (input) input.checked = true;
+  };
+
+  let cardSet = loadPref<CardSet | null>(CARDS_KEY, null);
+  if (cardSet && !Array.isArray(cardSet.cards)) cardSet = null;
+
+  /** One card as DOM; `called` marks the squares that are already out. */
+  function cardEl(card: Card, id: number, set: Pick<CardSet, 'max' | 'title'>, called?: Set<number>) {
+    const size = card.length;
+    const node = el('div', 'bg-card');
+    node.style.setProperty('--bg-n', String(size));
+    const head = el('div', 'bg-card-head');
+    head.append(el('span', 'bg-card-title', set.title || s.defaultCardTitle), el('span', 'bg-card-id', t(s.cardNo, { n: n(id) })));
+    const wrap = el('div', 'bg-card-wrap');
+    const grid = el('div', 'bg-card-grid');
+    if (set.max === LETTERED_MAX && size === LETTERS.length) {
+      for (const letter of LETTERS) grid.append(el('span', 'bg-card-cell bg-card-letter', letter));
+      node.classList.add('has-letters');
+    }
+    for (const row of card) {
+      for (const value of row) {
+        const cell = el('span', 'bg-card-cell', value === FREE ? s.free : n(value));
+        if (value === FREE) cell.classList.add('is-free');
+        if (called && (value === FREE || called.has(value))) cell.classList.add('is-hit');
+        grid.append(cell);
+      }
+    }
+    wrap.append(grid);
+    node.append(head, wrap);
+    return node;
+  }
+
+  function showCardSet() {
+    const ready = Boolean(cardSet && cardSet.cards.length);
+    printBtn.disabled = !ready;
+    cardReady.hidden = !ready;
+    preview.hidden = !ready;
+    if (!cardSet || !ready) return;
+    const made = cardSet.cards.length;
+    cardReady.textContent = plural(locale, made, made < cardSet.count ? s.cardsFewer : s.cardsReady, { n: n(made) });
+    preview.replaceChildren(
+      el('p', 'hint', s.previewLabel),
+      ...cardSet.cards.slice(0, 2).map((card, i) => cardEl(card, i + 1, cardSet!)),
+    );
+  }
+
+  generateBtn.addEventListener('click', () => {
+    const size = Number(checked('bg-size')) as CardSize;
+    const options = { max: game.max, size, freeCenter: freeBox.checked };
+    cardError.hidden = true;
+    if (!cardFits(options)) {
+      cardError.textContent = t(s.errorCardFit, { max: n(game.max), size, need: n(cardNumbers(options)) });
+      cardError.hidden = false;
+      return;
+    }
+    const count = Math.max(1, Math.min(MAX_CARDS, Math.floor(Number(cardCount.value)) || 1));
+    cardCount.value = String(count);
+    cardSet = {
+      ...options,
+      freeCenter: hasFreeCenter(options),
+      title: cardTitle.value.trim(),
+      perPage: Number(checked('bg-per')),
+      count,
+      cards: generateCards(count, options),
+    };
+    savePref(CARDS_KEY, cardSet);
+    showCardSet();
+    refreshCheck();
+  });
+
+  /* Printing moves the cards to a sheet directly under <body>, so the rest of the page can be left out. */
+  let sheet: HTMLElement | null = null;
+  function clearSheet() {
+    sheet?.remove();
+    sheet = null;
+    document.documentElement.classList.remove('bg-printing');
+  }
+  printBtn.addEventListener('click', () => {
+    if (!cardSet || cardSet.cards.length === 0) return;
+    clearSheet();
+    // Title and layout can still be changed after generating; the numbers stay the same.
+    cardSet.title = cardTitle.value.trim();
+    cardSet.perPage = Number(checked('bg-per'));
+    savePref(CARDS_KEY, cardSet);
+    showCardSet();
+    sheet = el('div', 'bg-sheet');
+    sheet.dataset.per = String(cardSet.perPage);
+    let id = 0;
+    for (const page of paginate(cardSet.cards, cardSet.perPage)) {
+      const pageEl = el('div', 'bg-page');
+      for (const card of page) pageEl.append(cardEl(card, ++id, cardSet));
+      sheet.append(pageEl);
+    }
+    document.body.append(sheet);
+    document.documentElement.classList.add('bg-printing');
+    window.print();
+  });
+  window.addEventListener('afterprint', clearSheet);
+
+  /* ---------- Checking a card ---------- */
+  const checkForm = $<HTMLFormElement>('#bg-check-form', root);
+  const checkId = $<HTMLInputElement>('#bg-check-id', root);
+  const checkNote = $('#bg-check-note', root);
+  const checkResult = $('#bg-check-result', root);
+  let checking = 0;
+
+  function refreshCheck() {
+    if (!checking) return;
+    checkResult.hidden = true;
+    checkNote.hidden = false;
+    checkNote.className = 'notice';
+    if (!cardSet || cardSet.cards.length === 0) {
+      checkNote.textContent = s.checkEmpty;
+      return;
+    }
+    const card = cardSet.cards[checking - 1];
+    if (!card) {
+      checkNote.textContent = t(s.checkMissing, { n: n(cardSet.cards.length) });
+      return;
+    }
+    const lines = countLines(card, game.drawn);
+    checkNote.textContent =
+      lines > 0 ? plural(locale, lines, s.checkLines, { id: n(checking) }) : t(s.checkNoLine, { id: n(checking) });
+    checkNote.className = lines > 0 ? 'notice ok' : 'notice';
+    checkResult.replaceChildren(cardEl(card, checking, cardSet, new Set(game.drawn)));
+    checkResult.hidden = false;
+  }
+  checkForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    checking = Math.max(0, Math.floor(Number(checkId.value)) || 0);
+    if (!checking) {
+      checkNote.hidden = true;
+      checkResult.hidden = true;
+      return;
+    }
+    refreshCheck();
+  });
+
+  /* ---------- Start ---------- */
+  if (cardSet) {
+    cardCount.value = String(cardSet.count);
+    cardTitle.value = cardSet.title;
+    freeBox.checked = cardSet.freeCenter || cardSet.size % 2 === 0;
+    setChecked('bg-size', String(cardSet.size));
+    setChecked('bg-per', String(cardSet.perPage));
+  }
+  syncRangeControls();
+  syncSound();
+  syncVoice();
+  render();
+  showCardSet();
+</script>
+
+<style>
+  .bg-stage {
+    position: relative;
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .bg-confetti {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .bg-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .bg-progress {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .bg-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .bg-bar-actions [hidden],
+  .bg-custom[hidden],
+  .notice[hidden],
+  .bg-preview[hidden],
+  .bg-check-result[hidden],
+  #bg-reset-cancel[hidden] {
+    display: none !important;
+  }
+  #bg-voice.is-on {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .bg-main {
+    display: grid;
+    gap: 18px;
+    align-items: center;
+  }
+  .bg-call {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .bg-ball {
+    --bg-ball: clamp(150px, 46vw, 210px);
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    width: var(--bg-ball);
+    height: var(--bg-ball);
+    border-radius: 50%;
+    color: var(--on-accent);
+    background: radial-gradient(circle at 32% 28%, #ff8a66, var(--accent) 58%, #c93d1c);
+    box-shadow: inset 0 -10px 24px rgb(0 0 0 / 0.14), var(--shadow-lg);
+    font-family: var(--display);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .bg-num {
+    font-size: calc(var(--bg-ball) * 0.46);
+    letter-spacing: -0.03em;
+  }
+  .bg-letter {
+    font-size: calc(var(--bg-ball) * 0.17);
+    opacity: 0.92;
+  }
+  .bg-ball:not(.has-letter) .bg-letter {
+    display: none;
+  }
+  .bg-stage[data-state='idle'] .bg-ball {
+    color: var(--muted);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 2px var(--border);
+  }
+  .bg-stage[data-state='rolling'] .bg-ball {
+    filter: saturate(0.7);
+  }
+  .bg-ball.is-pop {
+    animation: bg-pop 0.42s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+  @keyframes bg-pop {
+    from {
+      transform: scale(0.78);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  .bg-status {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-align: center;
+  }
+  .bg-recent {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+  }
+  .bg-recent :global(.bg-chip) {
+    display: grid;
+    place-items: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 9px;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: 999px;
+  }
+  .bg-recent :global(.bg-chip:first-child) {
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+  }
+  .bg-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .bg-draw {
+    min-height: 52px;
+    padding: 10px 28px;
+    font-size: 18px;
+  }
+  .bg-board-wrap {
+    container-type: inline-size;
+    min-width: 0;
+  }
+  .bg-board {
+    --bg-cols: var(--bg-cols-wide, 10);
+    --bg-rows: var(--bg-rows-wide, 8);
+    --bg-side: calc(100cqw / var(--bg-cols));
+    display: grid;
+    grid-template-columns: repeat(var(--bg-cols), minmax(0, 1fr));
+    gap: calc(var(--bg-side) * 0.08);
+    font-size: calc(var(--bg-side) * 0.4);
+  }
+  .bg-board :global(.bg-cell) {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--muted);
+    background: var(--surface-2);
+    border-radius: 22%;
+  }
+  .bg-board :global(.bg-cell-letter) {
+    color: var(--text);
+    background: transparent;
+    font-size: 1.15em;
+  }
+  .bg-board :global(.bg-cell.is-called) {
+    color: var(--on-ink);
+    background: var(--ink);
+  }
+  .bg-board :global(.bg-cell.is-current) {
+    color: var(--on-accent);
+    background: var(--accent);
+  }
+  @container (max-width: 520px) {
+    .bg-board {
+      --bg-cols: 10;
+      --bg-rows: var(--bg-rows-narrow, 8);
+    }
+    .bg-board :global(.bg-cell-letter) {
+      display: none;
+    }
+  }
+  @media (min-width: 860px) {
+    .bg-main {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    }
+  }
+  @media (max-width: 480px) {
+    /* Icon-only buttons on phones, so the bar stays on one line; the labels remain for screen readers. */
+    .bg-bar-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  /* ---------- Full screen: sized from the viewport so the back of the room can read it ---------- */
+  .bg-stage.is-fullscreen {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    padding: 2.5vh 3vw 3vh;
+    gap: 2vh;
+    grid-template-rows: auto minmax(0, 1fr);
+    border: 0;
+    border-radius: 0;
+  }
+  .bg-stage.is-fullscreen .bg-progress {
+    font-size: 2.6vh;
+  }
+  .bg-stage.is-fullscreen .btn.small {
+    min-height: 4.4vh;
+    padding: 0.6vh 1.2vh;
+    font-size: 2vh;
+  }
+  .bg-stage.is-fullscreen .btn :global(svg) {
+    width: 2.4vh;
+    height: 2.4vh;
+  }
+  .bg-stage.is-fullscreen .bg-main {
+    gap: 3vh 3vw;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .bg-stage.is-fullscreen .bg-call {
+    gap: 2vh;
+  }
+  .bg-stage.is-fullscreen .bg-ball {
+    --bg-ball: min(30vh, 60vw);
+  }
+  .bg-stage.is-fullscreen .bg-status {
+    font-size: 2.8vh;
+  }
+  .bg-stage.is-fullscreen .bg-recent {
+    gap: 1vh;
+    min-height: 5vh;
+  }
+  .bg-stage.is-fullscreen .bg-recent :global(.bg-chip) {
+    min-width: 5vh;
+    height: 5vh;
+    padding: 0 1.3vh;
+    font-size: 2.3vh;
+  }
+  .bg-stage.is-fullscreen .bg-actions .btn {
+    min-height: 6vh;
+    padding: 1vh 2.4vh;
+    font-size: 2.4vh;
+  }
+  .bg-stage.is-fullscreen .bg-draw {
+    min-height: 7.5vh;
+    padding: 1.2vh 4vh;
+    font-size: 3vh;
+  }
+  .bg-stage.is-fullscreen .bg-board-wrap {
+    container-type: size;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+  .bg-stage.is-fullscreen .bg-board {
+    /* The largest board that fits both the width and the height of its area. */
+    --bg-side: min(100cqw / var(--bg-cols), 100cqh / var(--bg-rows));
+    width: calc(var(--bg-side) * var(--bg-cols));
+  }
+  @media (min-aspect-ratio: 1/1) {
+    .bg-stage.is-fullscreen .bg-main {
+      grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+    .bg-stage.is-fullscreen .bg-ball {
+      --bg-ball: min(46vh, 30vw);
+    }
+  }
+
+  /* ---------- Settings, cards and checking ---------- */
+  .bg-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .bg-custom input {
+    width: 96px;
+  }
+  .btn.bg-danger {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  .bg-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .bg-panel summary {
+    padding: 14px 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bg-panel-body {
+    display: grid;
+    gap: 14px;
+    padding: 0 16px 16px;
+  }
+  .bg-panel-body > p {
+    margin: 0;
+  }
+  .bg-card-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    align-items: end;
+  }
+  .bg-narrow {
+    width: 120px;
+  }
+  .bg-check-form {
+    align-items: end;
+  }
+  .bg-preview,
+  .bg-check-result {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: start;
+  }
+  .bg-preview :global(.hint) {
+    flex: 0 0 100%;
+    margin: 0;
+  }
+  .bg-preview :global(.bg-card),
+  .bg-check-result :global(.bg-card) {
+    width: min(100%, 250px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-ball.is-pop {
+      animation: none;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Cards are built by the script and also printed from a sheet outside the tool, so these rules are global. */
+  .bg-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px;
+    padding: 10px;
+    color: #18191c;
+    background: #fff;
+    border: 1.5px solid #18191c;
+    border-radius: 10px;
+  }
+  .bg-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 700;
+  }
+  .bg-card-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+  }
+  .bg-card-id {
+    flex: none;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: #4a4d55;
+  }
+  .bg-card-wrap {
+    container-type: inline-size;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .bg-card-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--bg-n), minmax(0, 1fr));
+    border-top: 1.5px solid #18191c;
+    border-left: 1.5px solid #18191c;
+    font-size: calc(100cqw / var(--bg-n) * 0.42);
+  }
+  .bg-card-cell {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    border-right: 1.5px solid #18191c;
+    border-bottom: 1.5px solid #18191c;
+  }
+  .bg-card-letter {
+    aspect-ratio: 2;
+    color: #fff;
+    background: #18191c;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .bg-card-cell.is-free {
+    font-size: 0.5em;
+    letter-spacing: 0.04em;
+  }
+  .bg-card-cell.is-hit {
+    color: #fff;
+    background: #f0522e;
+  }
+
+  .bg-sheet {
+    display: none;
+  }
+  @media print {
+    html.bg-printing body > *:not(.bg-sheet) {
+      display: none !important;
+    }
+    html.bg-printing,
+    html.bg-printing body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    html.bg-printing .bg-sheet {
+      display: block;
+    }
+    /* Heights are budgeted for US Letter with default margins, the shorter of the two common sheets. */
+    .bg-page {
+      display: grid;
+      grid-template-columns: repeat(var(--bg-page-cols, 2), minmax(0, 1fr));
+      gap: 6mm;
+      align-items: start;
+      justify-items: center;
+      break-inside: avoid;
+      break-after: page;
+    }
+    .bg-page:last-child {
+      break-after: auto;
+    }
+    .bg-sheet .bg-card {
+      width: 100%;
+      height: var(--bg-card-h, 116mm);
+      padding: 4mm;
+      break-inside: avoid;
+    }
+    .bg-sheet .bg-card-title {
+      font-size: 13pt;
+    }
+    .bg-sheet .bg-card-id {
+      font-size: 9pt;
+    }
+    .bg-sheet .bg-card-wrap {
+      container-type: size;
+      display: grid;
+      place-items: start center;
+      height: 100%;
+    }
+    .bg-sheet .bg-card-grid {
+      /* A lettered card is one half-height row taller than it is wide. */
+      --bg-fit: min(100cqw, 100cqh * var(--bg-n) / (var(--bg-n) + var(--bg-extra, 0)));
+      width: var(--bg-fit);
+      font-size: calc(var(--bg-fit) / var(--bg-n) * 0.42);
+    }
+    .bg-sheet .bg-card.has-letters {
+      --bg-extra: 0.5;
+    }
+    .bg-sheet[data-per='1'] {
+      --bg-page-cols: 1;
+      --bg-card-h: 215mm;
+    }
+    .bg-sheet[data-per='1'] .bg-card {
+      max-width: 180mm;
+    }
+    .bg-sheet[data-per='2'] {
+      --bg-page-cols: 1;
+      --bg-card-h: 116mm;
+    }
+    .bg-sheet[data-per='2'] .bg-card {
+      max-width: 110mm;
+    }
+    .bg-sheet[data-per='4'] {
+      --bg-page-cols: 2;
+      --bg-card-h: 116mm;
+    }
+    .bg-sheet[data-per='6'] {
+      --bg-page-cols: 2;
+      --bg-card-h: 76mm;
+    }
+    .bg-sheet[data-per='6'] .bg-card {
+      max-width: 72mm;
+    }
+  }
+</style>

@@ -1,0 +1,461 @@
+---
+// ja-only tool: strings are written in Japanese here (see docs/i18n.md §3).
+import type { ToolProps } from '../../i18n/tool';
+import { formatInteger } from '../../lib/format';
+import {
+  AGE_GROUPS,
+  comparisonText,
+  DENOMINATION_LABEL,
+  DENOMINATIONS,
+  listText,
+  rowNote,
+  summarize,
+  SURVEY,
+  TARGET_YEAR_LABEL,
+  yen,
+  type GroupId,
+} from './logic';
+
+type Props = ToolProps;
+const { locale = 'ja' } = Astro.props;
+
+// The page is rendered for this example so the result is in the HTML; the script replaces it with the
+// visitor's saved list.
+const EXAMPLE: Partial<Record<GroupId, number>> = { elementaryLower: 1, juniorHigh: 1, highSchool: 1 };
+const rows = AGE_GROUPS.map((g) => ({ ...g, count: EXAMPLE[g.id] ?? 0 }));
+const summary = summarize(rows.map((r) => ({ groupId: r.id, count: r.count, amount: r.defaultAmount })));
+---
+
+<div class="tool" data-tool="otoshidama" data-locale={locale}>
+  <div class="field">
+    <span class="label">あげる相手</span>
+    <div class="ot-list">
+      {
+        rows.map((g) => (
+          <div class:list={['ot-row', { 'is-active': g.count > 0 }]} data-group={g.id} data-default={g.defaultAmount}>
+            <div class="ot-head">
+              <span class="ot-name">{g.label}</span>
+              <span class="ot-mode">調査で最多：{g.bracketLabel}</span>
+            </div>
+            <div class="ot-controls">
+              <div class="ot-control">
+                <label for={`ot-count-${g.id}`}>人数</label>
+                <div class="ot-stepper">
+                  <button class="btn ot-step" type="button" data-step="-1" aria-label={`${g.label}の人数を1人減らす`}>
+                    −
+                  </button>
+                  <input
+                    id={`ot-count-${g.id}`}
+                    class="ot-count"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    maxlength="2"
+                    value={g.count}
+                  />
+                  <button class="btn ot-step" type="button" data-step="1" aria-label={`${g.label}の人数を1人増やす`}>
+                    ＋
+                  </button>
+                  <span class="ot-unit">人</span>
+                </div>
+              </div>
+              <div class="ot-control">
+                <label for={`ot-amount-${g.id}`}>1人あたり</label>
+                <div class="ot-money">
+                  <input
+                    id={`ot-amount-${g.id}`}
+                    class="ot-amount"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    maxlength="9"
+                    value={g.defaultAmount}
+                  />
+                  <span class="ot-unit">円</span>
+                </div>
+              </div>
+            </div>
+            <div class="ot-extra" hidden={g.count === 0}>
+              <label class="visually-hidden" for={`ot-names-${g.id}`}>
+                {g.label}の名前メモ
+              </label>
+              <input
+                id={`ot-names-${g.id}`}
+                class="ot-names"
+                type="text"
+                autocomplete="off"
+                maxlength="60"
+                placeholder="名前メモ（任意）"
+              />
+              <span class="ot-note">{rowNote(g.count, g.defaultAmount)}</span>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+    <div class="row">
+      <button class="btn small" type="button" id="ot-reset">相場の金額に戻す</button>
+      <button class="btn small" type="button" id="ot-clear">人数をすべて0にする</button>
+    </div>
+    <span class="hint">
+      金額の初期値は、{SURVEY.publisher}「{SURVEY.title}」で最も多かった金額帯の上限です。家庭や親戚の決まりに合わせて書き換えてください。
+    </span>
+  </div>
+
+  <div class="result" aria-live="polite">
+    <div class="result-label">合計</div>
+    <div class="result-value" id="ot-total">{yen(summary.total)}</div>
+    <div class="result-label" id="ot-people">{summary.people}人分・ポチ袋 {summary.envelopes}枚</div>
+  </div>
+
+  <div class="field">
+    <span class="label">用意する新札とポチ袋</span>
+    <div class="stats ot-stats">
+      {
+        DENOMINATIONS.map((d) => (
+          <div class="stat" data-note={d} hidden={d === 500 && summary.notes[d] === 0}>
+            <span class="stat-value">{summary.notes[d]}枚</span>
+            <span class="stat-label">{DENOMINATION_LABEL[d]}</span>
+          </div>
+        ))
+      }
+      <div class="stat">
+        <span class="stat-value" id="ot-envelopes">{summary.envelopes}枚</span>
+        <span class="stat-label">ポチ袋</span>
+      </div>
+    </div>
+    <span class="hint" id="ot-coins" hidden={summary.remainder === 0}>
+      500円未満の端数が合計 {yen(summary.remainder)}あります。100円玉などの硬貨で用意してください。
+    </span>
+    <span class="hint">
+      お札はポチ袋ごとに数えています（5,000円は5千円札1枚、3,000円は千円札3枚）。急に人数が増えたときのために、千円札とポチ袋は少し多めにあると安心です。
+    </span>
+  </div>
+
+  <p class="notice" id="ot-compare">{comparisonText(summary.total)}</p>
+
+  <div class="row">
+    <button class="btn small" type="button" data-copy="#ot-summary">準備リストをコピー</button>
+  </div>
+  <textarea id="ot-summary" hidden readonly aria-hidden="true">{listText(summary)}</textarea>
+
+  <div class="field">
+    <span class="label" id="ot-survey-title">お年玉の相場（{SURVEY.title}で最も多かった金額帯）</span>
+    <div class="table-wrap">
+      <table class="table ot-table" aria-labelledby="ot-survey-title">
+        <thead>
+          <tr><th scope="col">あげる相手</th><th scope="col">最も多かった金額帯</th></tr>
+        </thead>
+        <tbody>
+          {
+            AGE_GROUPS.map((g) => (
+              <tr>
+                <th scope="row">{g.surveyLabel}</th>
+                <td>
+                  <span class="ot-bracket">{g.bracketLabel}</span>
+                  {g.share && <span class="ot-share">{g.share}がこの金額帯</span>}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <span class="hint">
+      「1人あたりの金額」でいちばん多かった回答の金額帯で、平均額ではありません。同じ調査のお年玉の予算総額は {
+        yen(SURVEY.budgetTotal)
+      }（2年連続の微減）です。
+    </span>
+    <span class="hint">
+      出典：<a href={SURVEY.url} target="_blank" rel="noopener">{SURVEY.publisher}「{SURVEY.title}」</a>（{SURVEY.published}公表、{
+        SURVEY.region
+      }の{SURVEY.ages}の男女 {formatInteger(SURVEY.sampleSize, locale)}人、{SURVEY.fielded}実施）
+    </span>
+  </div>
+
+  <p class="notice">
+    {TARGET_YEAR_LABEL}のお正月に向けた目安です。お年玉の金額に決まりはなく、相手との関係や地域、家庭の考え方で変わります。新札への両替の手数料や枚数の上限は金融機関ごとに違うので、年末に窓口へ行く前に確認してください。
+  </p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { parseNumber } from '../../lib/format';
+  import {
+    comparisonText,
+    DENOMINATIONS,
+    groupById,
+    listText,
+    MAX_COUNT,
+    rowNote,
+    sanitizeAmount,
+    sanitizeCount,
+    summarize,
+    yen,
+    type Entry,
+    type GroupId,
+  } from './logic';
+
+  interface SavedRow {
+    count: number;
+    amount: number;
+    names: string;
+  }
+  type Prefs = Partial<Record<GroupId, SavedRow>>;
+
+  interface Row {
+    id: GroupId;
+    el: HTMLElement;
+    count: HTMLInputElement;
+    amount: HTMLInputElement;
+    names: HTMLInputElement;
+    extra: HTMLElement;
+    note: HTMLElement;
+    fallback: number;
+  }
+
+  const root = $('[data-tool="otoshidama"]');
+  const rows: Row[] = $$('.ot-row', root).flatMap((el) => {
+    const group = groupById(el.dataset.group ?? '');
+    if (!group) return [];
+    return [
+      {
+        id: group.id,
+        el,
+        count: $<HTMLInputElement>('.ot-count', el),
+        amount: $<HTMLInputElement>('.ot-amount', el),
+        names: $<HTMLInputElement>('.ot-names', el),
+        extra: $('.ot-extra', el),
+        note: $('.ot-note', el),
+        fallback: group.defaultAmount,
+      },
+    ];
+  });
+
+  const readCount = (row: Row) => sanitizeCount(parseNumber(row.count.value));
+  const readAmount = (row: Row) => sanitizeAmount(parseNumber(row.amount.value));
+
+  function render() {
+    const entries: Entry[] = rows.map((row) => ({
+      groupId: row.id,
+      count: readCount(row),
+      amount: readAmount(row),
+      names: row.names.value,
+    }));
+    const summary = summarize(entries);
+
+    rows.forEach((row, i) => {
+      const { count, amount } = entries[i];
+      row.el.classList.toggle('is-active', count > 0);
+      row.extra.hidden = count === 0;
+      row.note.textContent = rowNote(count, amount);
+      row.note.classList.toggle('is-warning', count > 0 && amount === 0);
+      $<HTMLButtonElement>('[data-step="-1"]', row.el).disabled = count === 0;
+      $<HTMLButtonElement>('[data-step="1"]', row.el).disabled = count >= MAX_COUNT;
+    });
+
+    $('#ot-total', root).textContent = yen(summary.total);
+    $('#ot-people', root).textContent =
+      summary.people > 0 ? `${summary.people}人分・ポチ袋 ${summary.envelopes}枚` : '人数を入れると計算します';
+    for (const d of DENOMINATIONS) {
+      const stat = $(`[data-note="${d}"]`, root);
+      $('.stat-value', stat).textContent = `${summary.notes[d]}枚`;
+      if (d === 500) stat.hidden = summary.notes[d] === 0;
+    }
+    $('#ot-envelopes', root).textContent = `${summary.envelopes}枚`;
+    const coins = $('#ot-coins', root);
+    coins.hidden = summary.remainder === 0;
+    coins.textContent = `500円未満の端数が合計 ${yen(summary.remainder)}あります。100円玉などの硬貨で用意してください。`;
+    $('#ot-compare', root).textContent = comparisonText(summary.total);
+    $<HTMLTextAreaElement>('#ot-summary', root).value = listText(summary);
+    $<HTMLButtonElement>('[data-copy="#ot-summary"]', root).disabled = summary.lines.length === 0;
+
+    const prefs: Prefs = {};
+    rows.forEach((row, i) => {
+      prefs[row.id] = { count: entries[i].count, amount: entries[i].amount, names: row.names.value.trim() };
+    });
+    savePref('otoshidama', prefs);
+  }
+
+  root.addEventListener('input', (event) => {
+    if ((event.target as Element | null)?.closest('.ot-row')) render();
+  });
+
+  // Normalize what was typed (full-width digits, commas, out-of-range values) once the field loses focus.
+  root.addEventListener('focusout', (event) => {
+    const input = event.target as HTMLInputElement | null;
+    const row = rows.find((r) => r.count === input || r.amount === input);
+    if (!row || !input) return;
+    input.value = String(input === row.count ? readCount(row) : readAmount(row));
+  });
+
+  root.addEventListener('click', (event) => {
+    const button = (event.target as Element | null)?.closest<HTMLButtonElement>('[data-step]');
+    const row = rows.find((r) => r.el === button?.closest('.ot-row'));
+    if (!button || !row) return;
+    row.count.value = String(sanitizeCount(readCount(row) + Number(button.dataset.step)));
+    render();
+  });
+
+  $('#ot-reset', root).addEventListener('click', () => {
+    for (const row of rows) row.amount.value = String(row.fallback);
+    render();
+  });
+
+  $('#ot-clear', root).addEventListener('click', () => {
+    for (const row of rows) {
+      row.count.value = '0';
+      row.names.value = '';
+    }
+    render();
+  });
+
+  // A returning visitor gets the saved list back; a first visit keeps the example rendered in the HTML.
+  const saved = loadPref<Prefs | null>('otoshidama', null);
+  if (saved && typeof saved === 'object') {
+    for (const row of rows) {
+      const s = saved[row.id];
+      if (!s) continue;
+      row.count.value = String(sanitizeCount(Number(s.count)));
+      row.amount.value = String(sanitizeAmount(Number(s.amount)));
+      row.names.value = typeof s.names === 'string' ? s.names.slice(0, 60) : '';
+    }
+  }
+  render();
+</script>
+
+<style>
+  .ot-list {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 760px) {
+    .ot-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .ot-row {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    min-width: 0;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .ot-row.is-active {
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .ot-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 10px;
+  }
+  .ot-name {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .ot-mode {
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .ot-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: end;
+  }
+  .ot-control {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .ot-control > label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .ot-stepper,
+  .ot-money {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ot-step {
+    flex: none;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .ot-count {
+    flex: none;
+    width: 48px;
+    min-height: 44px;
+    padding-inline: 4px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .ot-amount {
+    flex: 1 1 auto;
+    min-height: 44px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ot-unit {
+    flex: none;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .ot-extra {
+    display: grid;
+    gap: 6px;
+  }
+  .ot-names {
+    font-size: 16px;
+  }
+  .ot-note {
+    font-size: 13px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    text-wrap: pretty;
+  }
+  .ot-note.is-warning {
+    color: var(--warning);
+  }
+  .ot-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 560px) {
+    .ot-stats {
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    }
+  }
+  .ot-table th,
+  .ot-table td {
+    white-space: normal;
+    vertical-align: top;
+  }
+  .ot-table tbody th {
+    background: none;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .ot-bracket {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .ot-share {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>

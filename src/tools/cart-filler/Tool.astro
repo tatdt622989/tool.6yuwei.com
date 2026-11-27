@@ -1,0 +1,475 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="cart-filler" {...i18nAttrs(locale, s.client)}>
+  <div class="grid-2">
+    <div class="field">
+      <label for="cf-target">{s.targetLabel}</label>
+      <input id="cf-target" type="text" inputmode={s.inputMode} autocomplete="off" placeholder={s.targetPlaceholder} />
+      <span class="hint">{s.targetHint}</span>
+    </div>
+    <div class="field">
+      <label for="cf-off">{s.offLabel}</label>
+      <input id="cf-off" type="text" inputmode={s.inputMode} autocomplete="off" placeholder={s.offPlaceholder} />
+      <span class="hint">{s.offHint}</span>
+    </div>
+  </div>
+  <label class="check"><input type="checkbox" id="cf-repeat" /> {s.repeat}</label>
+
+  <div class="field">
+    <label for="cf-items">{s.itemsLabel}</label>
+    <textarea id="cf-items" rows="8" spellcheck="false" autocomplete="off" placeholder={s.itemsPlaceholder}></textarea>
+    <span class="hint">{s.itemsHint}</span>
+    <div class="row between">
+      <span class="hint" id="cf-count"></span>
+      <div class="row">
+        <button class="btn small ghost" type="button" id="cf-sample">{s.sample}</button>
+        <button class="btn small ghost" type="button" id="cf-clear">{s.clear}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="field" id="cf-preview-wrap" hidden>
+    <span class="label">{s.previewLabel}</span>
+    <span class="hint">{s.previewHint}</span>
+    <ul class="cf-preview" id="cf-preview"></ul>
+  </div>
+  <p class="hint" id="cf-skipped" hidden></p>
+
+  <p class="notice" id="cf-idle">{s.client.idleTarget}</p>
+  <p class="notice error" id="cf-error" hidden></p>
+
+  <div id="cf-out" aria-live="polite" hidden>
+    <div class="result">
+      <div class="result-value" id="cf-total">—</div>
+      <div class="result-label" id="cf-total-label"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="stat-value" id="cf-gap">—</span><span class="stat-label" id="cf-gap-label">{s.client.statOver}</span></div>
+      <div class="stat"><span class="stat-value" id="cf-added">—</span><span class="stat-label" id="cf-added-label"></span></div>
+      <div class="stat" id="cf-paid-stat" hidden>
+        <span class="stat-value" id="cf-paid">—</span><span class="stat-label" id="cf-paid-label"></span>
+      </div>
+    </div>
+
+    <ul class="cf-picks" id="cf-picks"></ul>
+    <div class="cf-notes" id="cf-notes"></div>
+
+    <div class="field" id="cf-alts-wrap" hidden>
+      <span class="label">{s.altLabel}</span>
+      <div class="cf-combos" id="cf-alts"></div>
+    </div>
+
+    <div class="field" id="cf-tiers-wrap" hidden>
+      <span class="label">{s.tiersLabel}</span>
+      <div class="cf-combos" id="cf-tiers"></div>
+      <span class="hint" id="cf-tiers-note"></span>
+    </div>
+
+    <div class="row">
+      <button class="btn small" type="button" data-copy="#cf-summary">{s.copyResult}</button>
+    </div>
+    <textarea id="cf-summary" hidden readonly aria-hidden="true"></textarea>
+  </div>
+</div>
+
+<script>
+  import { $, debounce, loadPref, savePref } from '../../lib/client';
+  import { formatFixed, formatInteger, formatNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import {
+    MAX_LINES,
+    parseAmount,
+    parseItems,
+    priceOffer,
+    setLineMust,
+    solveCart,
+    solveTiers,
+    type Combo,
+    type Offer,
+    type ParsedItem,
+    type ParsedList,
+  } from './logic';
+  import type { Strings } from './i18n';
+
+  interface Prefs {
+    target: string;
+    off: string;
+    repeat: boolean;
+    text: string;
+  }
+
+  const root = $('[data-tool="cart-filler"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const scale = s.scale;
+
+  const targetInput = $<HTMLInputElement>('#cf-target', root);
+  const offInput = $<HTMLInputElement>('#cf-off', root);
+  const repeat = $<HTMLInputElement>('#cf-repeat', root);
+  const list = $<HTMLTextAreaElement>('#cf-items', root);
+  const count = $('#cf-count', root);
+  const previewWrap = $('#cf-preview-wrap', root);
+  const preview = $('#cf-preview', root);
+  const skipped = $('#cf-skipped', root);
+  const idle = $('#cf-idle', root);
+  const error = $('#cf-error', root);
+  const out = $('#cf-out', root);
+  const total = $('#cf-total', root);
+  const totalLabel = $('#cf-total-label', root);
+  const gap = $('#cf-gap', root);
+  const gapLabel = $('#cf-gap-label', root);
+  const added = $('#cf-added', root);
+  const addedLabel = $('#cf-added-label', root);
+  const paidStat = $('#cf-paid-stat', root);
+  const paid = $('#cf-paid', root);
+  const paidLabel = $('#cf-paid-label', root);
+  const picks = $('#cf-picks', root);
+  const notes = $('#cf-notes', root);
+  const altsWrap = $('#cf-alts-wrap', root);
+  const alts = $('#cf-alts', root);
+  const tiersWrap = $('#cf-tiers-wrap', root);
+  const tiersBox = $('#cf-tiers', root);
+  const tiersNote = $('#cf-tiers-note', root);
+  const summary = $<HTMLTextAreaElement>('#cf-summary', root);
+
+  /** Minor units → localized amount with its currency. */
+  const money = (minor: number) =>
+    t(s.money, { n: scale === 100 ? formatFixed(minor / 100, 2, locale) : formatInteger(minor, locale) });
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  const nameOf = (items: ParsedItem[], index: number) => items[index].name || t(s.unnamed, { n: index + 1 });
+  const withQty = (name: string, qty: number) => (qty > 1 ? t(s.times, { name, n: qty }) : name);
+
+  function renderList(parsed: ParsedList) {
+    const { items } = parsed;
+    const must = items.filter((item) => item.must).length;
+    count.textContent = plural(locale, items.length, s.count) + (must > 0 ? plural(locale, must, s.countMust) : '');
+    previewWrap.hidden = items.length === 0;
+    preview.replaceChildren(
+      ...items.map((item, index) => {
+        const row = el('label', 'cf-row');
+        const box = el('input');
+        box.type = 'checkbox';
+        box.checked = item.must;
+        box.dataset.line = String(item.line);
+        // A must-have takes its whole quantity; for a candidate the quantity is a ceiling.
+        const name = el('span', 'cf-name', item.must ? withQty(nameOf(items, index), item.qty) : nameOf(items, index));
+        if (item.qty > 1 && !item.must) name.append(el('span', 'cf-qty', t(s.upTo, { n: item.qty })));
+        row.append(box, name, el('span', 'cf-price', money(item.price)));
+        const li = el('li');
+        li.append(row);
+        return li;
+      }),
+    );
+    const problems: string[] = [];
+    if (parsed.invalid.length > 0) {
+      const shown = parsed.invalid.slice(0, 8).join(s.nameSeparator) + (parsed.invalid.length > 8 ? '…' : '');
+      problems.push(t(s.skipped, { lines: shown }));
+    }
+    if (parsed.truncated) problems.push(t(s.truncated, { max: MAX_LINES }));
+    skipped.textContent = problems.join(' ');
+    skipped.hidden = problems.length === 0;
+  }
+
+  function showMessage(target: HTMLElement, message: string) {
+    idle.hidden = target !== idle;
+    error.hidden = target !== error;
+    target.textContent = message;
+    out.hidden = true;
+    summary.value = '';
+  }
+
+  /** The optional items of a cart as one line: 「洗髮精、牙膏 ×2」. */
+  function addedNames(items: ParsedItem[], combo: Combo): string {
+    return combo.picks
+      .filter((p) => !items[p.item].must)
+      .map((p) => withQty(nameOf(items, p.item), p.qty))
+      .join(s.nameSeparator);
+  }
+
+  function comboBlock(head: string, sub: string, body: string, badge = ''): HTMLElement {
+    const block = el('div', badge ? 'cf-combo is-best' : 'cf-combo');
+    const title = el('div', 'cf-combo-head', head);
+    if (badge) title.append(el('span', 'cf-tag is-add', badge));
+    block.append(title);
+    if (sub) block.append(el('div', 'cf-combo-sub', sub));
+    if (body) block.append(el('div', 'cf-combo-body', s.addPrefix + body));
+    return block;
+  }
+
+  function render() {
+    savePref(s.prefKey, { target: targetInput.value, off: offInput.value, repeat: repeat.checked, text: list.value } satisfies Prefs);
+
+    const parsed = parseItems(list.value, scale);
+    const { items } = parsed;
+    renderList(parsed);
+
+    const targetText = targetInput.value.trim();
+    const target = parseAmount(targetText, scale);
+    if (!(target > 0)) return showMessage(targetText ? error : idle, targetText ? s.targetInvalid : s.idleTarget);
+    if (items.length === 0) return showMessage(idle, s.idleItems);
+
+    const result = solveCart(items, target);
+    const best = result.best;
+    if (result.status === 'too-large' || result.status === 'empty' || !best) return showMessage(error, s.tooLarge);
+
+    const offText = offInput.value.trim();
+    const offValue = offText ? parseAmount(offText, scale) : 0;
+    const off = offValue > 0 && offValue < target ? offValue : 0;
+    const offer = (sum: number): Offer => priceOffer(sum, target, off, repeat.checked);
+    const reached = result.status === 'ok';
+    const bestOffer = offer(best.total);
+    const vars = { target: money(target), total: money(best.total), over: money(result.over), short: money(result.short) };
+
+    idle.hidden = true;
+    error.hidden = true;
+    out.hidden = false;
+
+    total.textContent = money(best.total);
+    totalLabel.textContent = t(
+      !reached ? s.labelShort : best.added === 0 ? s.labelMustEnough : result.over === 0 ? s.labelExact : s.labelOver,
+      vars,
+    );
+    gap.textContent = reached ? vars.over : vars.short;
+    gapLabel.textContent = reached ? s.statOver : s.statShort;
+    added.textContent = money(best.addedTotal);
+    addedLabel.textContent = plural(locale, best.added, s.statAdded);
+    paidStat.hidden = !(reached && off > 0);
+    paid.textContent = money(bestOffer.paid);
+    paidLabel.textContent = t(s.statPaid, { off: money(bestOffer.discount) });
+
+    picks.replaceChildren(
+      ...best.picks.map((p) => {
+        const item = items[p.item];
+        const li = el('li', 'cf-pick');
+        li.append(
+          el('span', item.must ? 'cf-tag' : 'cf-tag is-add', item.must ? s.tagMust : s.tagAdd),
+          el('span', 'cf-name', withQty(nameOf(items, p.item), p.qty)),
+          el('span', 'cf-price', money(item.price * p.qty)),
+        );
+        return li;
+      }),
+    );
+
+    const messages: string[] = [];
+    if (!reached) {
+      messages.push(t(s.noteShort, vars));
+    } else if (best.added > 0 && result.mustTotal > 0) {
+      const diff = bestOffer.paid - result.mustTotal;
+      const noteVars = {
+        must: money(result.mustTotal),
+        added: money(best.addedTotal),
+        off: money(bestOffer.discount),
+        paid: money(bestOffer.paid),
+        diff: money(Math.abs(diff)),
+      };
+      messages.push(t(off === 0 ? s.noteNoDiscount : diff < 0 ? s.noteLess : diff === 0 ? s.noteSame : s.noteMore, noteVars));
+    }
+    if (offText && off === 0 && offValue !== 0) messages.push(s.offInvalid);
+    notes.replaceChildren(...messages.map((message) => el('p', 'notice', message)));
+    notes.hidden = messages.length === 0;
+
+    const describe = (combo: Combo) => {
+      const parts = [money(combo.total), combo.total === target ? s.altExact : t(s.altOver, { over: money(combo.total - target) })];
+      if (off > 0) parts.push(t(s.altPaid, { paid: money(offer(combo.total).paid) }));
+      return parts.join(s.partSeparator);
+    };
+    altsWrap.hidden = result.alternatives.length === 0;
+    alts.replaceChildren(...result.alternatives.map((combo) => comboBlock(describe(combo), '', addedNames(items, combo))));
+
+    const tiers = reached && off > 0 && repeat.checked ? solveTiers(items, target, off, { first: result }) : null;
+    const showTiers = tiers !== null && (tiers.tiers.length > 1 || tiers.skipped);
+    tiersWrap.hidden = !showTiers;
+    if (tiers && showTiers) {
+      tiersBox.replaceChildren(
+        ...tiers.tiers.map((tier, index) =>
+          comboBlock(
+            t(s.tierHead, { discount: money(tier.discount), total: money(tier.total), paid: money(tier.paid) }),
+            t(s.tierRate, { pct: formatNumber((1 - tier.ratio) * 100, 1, locale) }),
+            addedNames(items, tier.combo),
+            index === tiers.best && tiers.tiers.length > 1 ? s.tierBest : '',
+          ),
+        ),
+      );
+      tiersNote.textContent = [tiers.tiers.length > 1 ? s.tiersNote : '', tiers.skipped ? s.tiersSkipped : ''].filter(Boolean).join(' ');
+    }
+
+    summary.value = [
+      t(s.summaryTitle, vars),
+      t(!reached ? s.summaryShort : result.over === 0 ? s.summaryExact : s.summaryOver, vars),
+      ...(reached && off > 0 ? [t(s.summaryPaid, { off: money(bestOffer.discount), paid: money(bestOffer.paid) })] : []),
+      ...best.picks.map(
+        (p) =>
+          t(s.summaryLine, { name: withQty(nameOf(items, p.item), p.qty), price: money(items[p.item].price * p.qty) }) +
+          (items[p.item].must ? s.summaryMust : ''),
+      ),
+    ].join('\n');
+  }
+
+  const prefs = { target: '', off: '', repeat: false, text: '', ...loadPref<Partial<Prefs>>(s.prefKey, {}) };
+  targetInput.value = String(prefs.target ?? '');
+  offInput.value = String(prefs.off ?? '');
+  repeat.checked = prefs.repeat === true;
+  list.value = String(prefs.text ?? '');
+
+  const renderSoon = debounce(render, 150);
+  for (const input of [targetInput, offInput, list]) input.addEventListener('input', renderSoon);
+  repeat.addEventListener('change', render);
+
+  // The list text is the single source of truth: a toggle rewrites the mark on its line.
+  preview.addEventListener('change', (event) => {
+    const box = event.target as HTMLInputElement;
+    const line = Number(box.dataset.line);
+    if (!Number.isInteger(line)) return;
+    list.value = setLineMust(list.value, line, box.checked);
+    render();
+    preview.querySelector<HTMLInputElement>(`input[data-line="${line}"]`)?.focus();
+  });
+
+  $('#cf-sample', root).addEventListener('click', () => {
+    targetInput.value = s.sample.target;
+    offInput.value = s.sample.off;
+    repeat.checked = s.sample.repeat;
+    list.value = s.sample.items.join('\n');
+    render();
+  });
+  $('#cf-clear', root).addEventListener('click', () => {
+    list.value = '';
+    render();
+    list.focus();
+  });
+  render();
+</script>
+
+<style>
+  #cf-out {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  #cf-out[hidden],
+  .field[hidden],
+  .stat[hidden],
+  .cf-notes[hidden] {
+    display: none;
+  }
+  #cf-items {
+    min-height: 200px;
+  }
+
+  .cf-preview,
+  .cf-picks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .cf-preview {
+    max-height: 272px;
+    overflow-y: auto;
+  }
+  .cf-preview :global(li + li),
+  .cf-picks :global(li + li) {
+    border-top: 1px solid var(--border);
+  }
+  .cf-preview :global(.cf-row),
+  .cf-picks :global(.cf-pick) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 12px;
+    font-size: 15px;
+  }
+  .cf-preview :global(.cf-row) {
+    cursor: pointer;
+  }
+  .cf-preview :global(.cf-row:has(input:checked)) {
+    background: var(--surface-2);
+  }
+  .tool :global(.cf-name) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .tool :global(.cf-qty) {
+    margin-left: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tool :global(.cf-price) {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--text-2);
+  }
+  .cf-picks :global(.cf-price) {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .tool :global(.cf-tag) {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: 999px;
+  }
+  .tool :global(.cf-tag.is-add) {
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+  }
+
+  .cf-notes,
+  .cf-combos {
+    display: grid;
+    gap: 8px;
+  }
+  .cf-notes :global(.notice) {
+    margin: 0;
+  }
+  .cf-combos :global(.cf-combo) {
+    display: grid;
+    gap: 2px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+  }
+  .cf-combos :global(.cf-combo.is-best) {
+    background: var(--surface);
+    border-color: var(--accent);
+  }
+  .cf-combos :global(.cf-combo-head) {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .cf-combos :global(.cf-combo-head .cf-tag) {
+    margin-left: 8px;
+  }
+  .cf-combos :global(.cf-combo-sub),
+  .cf-combos :global(.cf-combo-body) {
+    font-size: 14px;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+</style>

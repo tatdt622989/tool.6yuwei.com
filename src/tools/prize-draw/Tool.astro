@@ -1,0 +1,1399 @@
+---
+import Icon from '../../components/Icon.astro';
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { LIMITS } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="prize-draw" {...i18nAttrs(locale, s.client)}>
+  <section class="pd-setup" id="pd-setup">
+    <div class="field">
+      <div class="pd-label-row">
+        <label for="pd-people">{s.peopleLabel}</label>
+        <span class="hint pd-count" id="pd-people-count"></span>
+        <button class="btn small ghost" type="button" id="pd-sample">{s.sample}</button>
+      </div>
+      <textarea id="pd-people" rows="7" placeholder={s.peoplePlaceholder} autocomplete="off" spellcheck="false"></textarea>
+      <label class="check"><input id="pd-dedupe" type="checkbox" checked /> {s.dedupe}</label>
+    </div>
+
+    <div class="field">
+      <div class="pd-label-row">
+        <label for="pd-prizes">{s.prizesLabel}</label>
+        <span class="hint pd-count" id="pd-prizes-count"></span>
+      </div>
+      <textarea id="pd-prizes" rows="5" placeholder={s.prizesPlaceholder} autocomplete="off" spellcheck="false"></textarea>
+      <p class="hint pd-hint">{s.prizesHint}</p>
+    </div>
+
+    <label class="check"><input id="pd-no-repeat" type="checkbox" checked /> {s.noRepeat}</label>
+
+    <div class="notice error" id="pd-error" role="alert" hidden></div>
+    <button class="btn primary pd-start" type="button" id="pd-start"><Icon name="Trophy" size={20} />{s.start}</button>
+    <p class="pd-note"><Icon name="ShieldCheck" size={18} class="pd-note-icon" /><span>{s.privacyNote}</span></p>
+  </section>
+
+  <section class="pd-stage" id="pd-stage" hidden>
+    <div class="pd-screen" id="pd-screen">
+      <canvas class="pd-confetti" id="pd-confetti" aria-hidden="true"></canvas>
+
+      <div class="pd-bar">
+        <span class="pd-progress" id="pd-progress"></span>
+        <button class="btn small ghost" type="button" id="pd-sound">
+          <span class="pd-sound-icon" id="pd-sound-on"><Icon name="Volume2" size={16} /></span>
+          <span class="pd-sound-icon" id="pd-sound-off" hidden><Icon name="VolumeX" size={16} /></span>
+        </button>
+        <button class="btn small ghost" type="button" id="pd-fs" hidden><Icon name="Maximize" size={16} /><span class="pd-fs-label" id="pd-fs-label">{s.client.fullscreen}</span></button>
+      </div>
+
+      <div class="pd-picker" id="pd-picker" role="radiogroup" aria-label={s.pickerAria}></div>
+
+      <div class="pd-head">
+        <p class="pd-prize" id="pd-prize" role="heading" aria-level="2"></p>
+        <p class="pd-sub" id="pd-sub"></p>
+      </div>
+
+      <div class="pd-show" id="pd-show">
+        <p class="pd-ready" id="pd-ready"></p>
+        <ol class="pd-names" id="pd-names"></ol>
+      </div>
+
+      <div class="notice error pd-stage-error" id="pd-stage-error" role="alert" hidden></div>
+
+      <div class="pd-controls">
+        <div class="seg" id="pd-batch" role="radiogroup" aria-label={s.batchAria}>
+          <label><input type="radio" name="pd-batch" value="one" checked /><span>{s.batchOne}</span></label>
+          <label><input type="radio" name="pd-batch" value="all" /><span>{s.batchAll}</span></label>
+        </div>
+        <button class="btn primary pd-go" type="button" id="pd-go">{s.client.draw}</button>
+        <p class="pd-finished" id="pd-finished" hidden>{s.allDone}</p>
+        <p class="hint pd-key-hint" id="pd-key-hint">{s.keyHint}</p>
+      </div>
+      <p class="visually-hidden" id="pd-live" aria-live="polite"></p>
+    </div>
+
+    <div class="pd-below">
+      <div class="pd-board-head">
+        <p class="pd-heading" role="heading" aria-level="2">{s.boardHeading}</p>
+        <button class="btn small" type="button" id="pd-copy"><Icon name="Copy" size={16} /><span>{s.copy}</span></button>
+        <button class="btn small" type="button" id="pd-csv"><Icon name="Download" size={16} /><span>{s.csv}</span></button>
+      </div>
+      <div class="pd-board" id="pd-board"></div>
+
+      <details class="pd-more" id="pd-bonus">
+        <summary>{s.bonusSummary}</summary>
+        <div class="pd-more-body">
+          <p class="hint">{s.bonusHint}</p>
+          <div class="pd-bonus-row">
+            <div class="field">
+              <label for="pd-bonus-name">{s.bonusNameLabel}</label>
+              <input id="pd-bonus-name" type="text" placeholder={s.bonusNamePlaceholder} autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="pd-bonus-quantity">{s.bonusQuantityLabel}</label>
+              <input id="pd-bonus-quantity" type="number" min="1" max={LIMITS.quantity} step="1" value="1" inputmode="numeric" />
+            </div>
+            <button class="btn" type="button" id="pd-bonus-add"><Icon name="Plus" size={18} />{s.bonusAdd}</button>
+          </div>
+          <p class="hint pd-bonus-error" id="pd-bonus-error" role="alert" hidden></p>
+        </div>
+      </details>
+
+      <div class="pd-foot">
+        <button class="btn small ghost" type="button" id="pd-restart"><Icon name="RotateCcw" size={16} /><span>{s.client.restart}</span></button>
+      </div>
+    </div>
+  </section>
+
+  <template id="pd-chip-tpl">
+    <label class="pd-chip">
+      <input type="radio" name="pd-prize" />
+      <span class="pd-chip-body"><span class="pd-chip-name"></span><span class="pd-chip-count"></span></span>
+    </label>
+  </template>
+  <template id="pd-card-tpl">
+    <li class="pd-card">
+      <span class="pd-card-name"></span>
+      <button class="btn small ghost pd-redraw" type="button" data-redraw><Icon name="RotateCcw" size={14} /><span>{s.client.redraw}</span></button>
+    </li>
+  </template>
+  <template id="pd-group-tpl">
+    <section class="pd-group">
+      <p class="pd-group-head" role="heading" aria-level="3">
+        <span class="pd-group-name"></span>
+        <span class="pd-tag" hidden>{s.bonusTag}</span>
+        <span class="pd-group-count"></span>
+      </p>
+      <ol class="pd-winners"></ol>
+      <p class="hint pd-pending"></p>
+    </section>
+  </template>
+  <template id="pd-winner-tpl">
+    <li class="pd-winner">
+      <span class="pd-winner-name"></span>
+      <button class="btn small ghost pd-redraw" type="button" data-redraw><Icon name="RotateCcw" size={14} /><span>{s.client.redraw}</span></button>
+      <span class="pd-absent" hidden></span>
+    </li>
+  </template>
+</div>
+
+<script>
+  import { $, $$, copyText, debounce, downloadBlob, flashButton, loadPref, savePref } from '../../lib/client';
+  import { formatInteger } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { confetti } from '../birthday-candles/confetti';
+  import { countDuplicates, parseEntries } from '../random-picker/logic';
+  import type { Strings } from './i18n';
+  import { DrawSounds } from './sound';
+  import {
+    addBonusPrize,
+    checkSetup,
+    cleanQuantity,
+    defaultPrize,
+    drawWinners,
+    eligible,
+    estimateEm,
+    fitNames,
+    formatResults,
+    isBatch,
+    isFinished,
+    LIMITS,
+    normalizeDraft,
+    normalizeSession,
+    parsePrizes,
+    progress,
+    redrawSlot,
+    remainingOf,
+    resultsCsv,
+    spareCapacity,
+    startSession,
+    totalSlots,
+    unbreakableParts,
+    type Draft,
+    type Session,
+  } from './logic';
+
+  const root = $('[data-tool="prize-draw"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const DRAFT_KEY = `prize-draw:${locale}`;
+  const SESSION_KEY = `prize-draw:${locale}:session`;
+  const SOUND_KEY = 'prize-draw:sound';
+  const CONFETTI = ['#f0522e', '#f5c24b', '#12936a', '#2f7de1', '#e84f86', '#7a5cf0', '#ffffff'];
+  /** How long the names roll before the first one stops, for one winner and for several. */
+  const ROLL_ONE_MS = 2400;
+  const ROLL_MANY_MS = 1800;
+  /** The winners of a batch stop one after another, within this long in total. */
+  const STAGGER_TOTAL_MS = 1800;
+  const STAGGER_MAX_MS = 260;
+  /** A second press right after a reveal is ignored, so a double tap cannot draw twice. */
+  const COOLDOWN_MS = 600;
+  /** Largest name on a full screen, as a share of its height. */
+  const FULLSCREEN_NAME_SHARE = 0.22;
+  const MIN_NAME_PX = 14;
+  /** On the page: the height the names aim to stay within, and the size below which they grow past it instead. */
+  const PAGE_NAMES_MIN_HEIGHT = 200;
+  const PAGE_NAMES_MAX_HEIGHT = 420;
+  const PAGE_NAME_MIN_PX = 22;
+  /** Space and Enter draw only while at least this much of the draw area is in the window. */
+  const KEYS_NEED_VISIBLE_PX = 120;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const split = s.split ?? 'lines';
+  const n = (value: number) => formatInteger(value, locale);
+
+  function clone(templateId: string): HTMLElement {
+    return $<HTMLTemplateElement>(templateId, root).content.firstElementChild!.cloneNode(true) as HTMLElement;
+  }
+
+  /* ---------- Setup form ---------- */
+  const setupEl = $('#pd-setup', root);
+  const stage = $('#pd-stage', root);
+  const peopleInput = $<HTMLTextAreaElement>('#pd-people', root);
+  const prizesInput = $<HTMLTextAreaElement>('#pd-prizes', root);
+  const dedupeInput = $<HTMLInputElement>('#pd-dedupe', root);
+  const noRepeatInput = $<HTMLInputElement>('#pd-no-repeat', root);
+  const peopleCount = $('#pd-people-count', root);
+  const prizesCount = $('#pd-prizes-count', root);
+  const errorEl = $('#pd-error', root);
+
+  let draft: Draft = normalizeDraft(loadPref<unknown>(DRAFT_KEY, null));
+  const saveDraft = debounce(() => savePref(DRAFT_KEY, draft), 300);
+
+  function readForm(): Draft {
+    return { people: peopleInput.value, prizes: prizesInput.value, noRepeat: noRepeatInput.checked, dedupe: dedupeInput.checked };
+  }
+
+  function writeForm() {
+    peopleInput.value = draft.people;
+    prizesInput.value = draft.prizes;
+    noRepeatInput.checked = draft.noRepeat;
+    dedupeInput.checked = draft.dedupe;
+  }
+
+  function showError(message: string) {
+    errorEl.textContent = message;
+    errorEl.hidden = message === '';
+  }
+
+  function renderSetup() {
+    const people = parseEntries(draft.people, draft.dedupe, split).length;
+    const dupes = countDuplicates(draft.people, split);
+    peopleCount.textContent =
+      plural(locale, people, s.peopleCount) + (dupes > 0 ? plural(locale, dupes, draft.dedupe ? s.dupesSkipped : s.dupesIncluded) : '');
+    const prizes = parsePrizes(draft.prizes);
+    prizesCount.textContent = prizes.length
+      ? plural(locale, prizes.length, s.prizeCount) + s.countJoin + plural(locale, totalSlots(prizes), s.slotCount)
+      : '';
+  }
+
+  function onFormChange() {
+    draft = readForm();
+    saveDraft();
+    showError('');
+    renderSetup();
+  }
+  setupEl.addEventListener('input', onFormChange);
+  setupEl.addEventListener('change', onFormChange);
+
+  $('#pd-sample', root).addEventListener('click', () => {
+    peopleInput.value = s.samplePeople.join('\n');
+    prizesInput.value = s.samplePrizes.join('\n');
+    onFormChange();
+  });
+
+  $('#pd-start', root).addEventListener('click', () => {
+    draft = readForm();
+    savePref(DRAFT_KEY, draft);
+    const people = parseEntries(draft.people, draft.dedupe, split);
+    const prizes = parsePrizes(draft.prizes);
+    const error = checkSetup(people.length, prizes, draft.noRepeat);
+    if (error) {
+      showError(t(s.errors[error], { people: n(people.length), slots: n(totalSlots(prizes)), max: n(LIMITS.slots) }));
+      return;
+    }
+    session = startSession(people, prizes, draft.noRepeat, session?.batch);
+    saveSession();
+    showStage();
+    goBtn.focus({ preventScroll: true });
+    stage.scrollIntoView({ block: 'start', behavior: 'instant' });
+  });
+
+  /* ---------- Stage ---------- */
+  /** What the big area shows instead of the "ready" line: some winners of one prize. */
+  interface View {
+    prize: number;
+    slots: number[];
+    note: string;
+  }
+
+  const screenEl = $('#pd-screen', root);
+  const progressEl = $('#pd-progress', root);
+  const picker = $('#pd-picker', root);
+  const prizeEl = $('#pd-prize', root);
+  const subEl = $('#pd-sub', root);
+  const showEl = $('#pd-show', root);
+  const readyEl = $('#pd-ready', root);
+  const namesEl = $('#pd-names', root);
+  const stageError = $('#pd-stage-error', root);
+  const batchEl = $('#pd-batch', root);
+  const batchRadios = $$<HTMLInputElement>('input[name="pd-batch"]', root);
+  const goBtn = $<HTMLButtonElement>('#pd-go', root);
+  const finishedEl = $('#pd-finished', root);
+  const keyHint = $('#pd-key-hint', root);
+  const liveEl = $('#pd-live', root);
+  const board = $('#pd-board', root);
+  const confettiCanvas = $<HTMLCanvasElement>('#pd-confetti', root);
+
+  let session: Session | null = null;
+  let view: View | null = null;
+  /** True while names are rolling and for a moment after; every action waits. */
+  let busy = false;
+  /** A one-off message under the names, cleared by the next action. */
+  let message = '';
+  /** The names on screen, in card order; the type is sized for these. */
+  let shownNames: string[] = [];
+  let stopConfetti = () => {};
+  const sounds = new DrawSounds(loadPref(SOUND_KEY, true));
+
+  function saveSession() {
+    savePref(SESSION_KEY, session);
+  }
+
+  function setBusy(on: boolean) {
+    busy = on;
+    stage.classList.toggle('is-busy', on);
+    goBtn.setAttribute('aria-disabled', String(on || !canPress()));
+    for (const input of $$<HTMLInputElement>('input', picker)) input.disabled = on;
+    for (const input of batchRadios) input.disabled = on;
+  }
+
+  /** The main button draws, or moves on once the selected prize is finished. */
+  function canPress(): boolean {
+    if (!session) return false;
+    const prize = session.prizes[session.current];
+    return remainingOf(prize) === 0 ? !isFinished(session) : eligible(session, session.current).length > 0;
+  }
+
+  /** On a full screen the prizes sit in one row that scrolls sideways; this centres the selected one in it. */
+  function revealChip() {
+    const chip = picker.querySelector('input:checked')?.closest<HTMLElement>('.pd-chip');
+    if (!chip || picker.scrollWidth <= picker.clientWidth) return;
+    const row = picker.getBoundingClientRect();
+    const box = chip.getBoundingClientRect();
+    picker.scrollLeft += box.left - row.left - (row.width - box.width) / 2;
+  }
+
+  /** Everything on the stage except the names: counts, the prize picker, the main button and the board. */
+  function renderChrome() {
+    if (!session) return;
+    const current = session.current;
+    const prize = session.prizes[current];
+    const left = remainingOf(prize);
+    const pool = eligible(session, current).length;
+    const { done, total } = progress(session);
+    progressEl.textContent = t(s.progress, { done: n(done), total: n(total) });
+
+    const pickerHadFocus = picker.contains(document.activeElement);
+    picker.replaceChildren(
+      ...session.prizes.map((item, i) => {
+        const chip = clone('#pd-chip-tpl');
+        const input = $<HTMLInputElement>('input', chip);
+        input.value = String(i);
+        input.checked = i === current;
+        input.disabled = busy;
+        $('.pd-chip-name', chip).textContent = item.name;
+        $('.pd-chip-count', chip).textContent = `${n(item.slots.length)}/${n(item.quantity)}`;
+        chip.classList.toggle('is-done', remainingOf(item) === 0);
+        return chip;
+      }),
+    );
+    if (pickerHadFocus) picker.querySelector<HTMLInputElement>('input:checked')?.focus({ preventScroll: true });
+    revealChip();
+
+    prizeEl.textContent = prize.name;
+    const showing = view && view.prize === current ? view : null;
+    subEl.textContent =
+      showing?.note ||
+      (left === 0 ? plural(locale, prize.quantity, s.prizeDone) : t(s.prizeLeft, { total: n(prize.quantity), left: n(left) }));
+
+    const drawCount = session.batch === 'all' ? Math.min(left, pool) : Math.min(1, pool);
+    readyEl.textContent = left > 0 && drawCount > 0 ? plural(locale, drawCount, s.ready) : '';
+    const notice = message || (left > 0 && pool === 0 ? s.poolEmpty : '');
+    stageError.textContent = notice;
+    stageError.hidden = notice === '';
+
+    for (const input of batchRadios) input.checked = input.value === session.batch;
+    const finished = isFinished(session);
+    goBtn.hidden = finished;
+    batchEl.hidden = finished;
+    keyHint.hidden = finished;
+    finishedEl.hidden = !finished;
+    goBtn.textContent = left === 0 && !finished ? t(s.next, { prize: session.prizes[defaultPrize(session)].name }) : s.draw;
+    goBtn.setAttribute('aria-disabled', String(busy || !canPress()));
+
+    board.replaceChildren(
+      ...session.prizes.map((item, p) => {
+        const group = clone('#pd-group-tpl');
+        $('.pd-group-name', group).textContent = item.name;
+        $('.pd-tag', group).hidden = !item.bonus;
+        $('.pd-group-count', group).textContent = `${n(item.slots.length)}/${n(item.quantity)}`;
+        const list = $('.pd-winners', group);
+        item.slots.forEach((slot, i) => {
+          const row = clone('#pd-winner-tpl');
+          $('.pd-winner-name', row).textContent = session!.participants[slot.person];
+          const absent = $('.pd-absent', row);
+          absent.hidden = slot.absent.length === 0;
+          absent.textContent = slot.absent.map((person) => t(s.absent, { name: session!.participants[person] })).join(s.nameSeparator);
+          const button = $('[data-redraw]', row);
+          button.dataset.prize = String(p);
+          button.dataset.slot = String(i);
+          list.append(row);
+        });
+        const pending = $('.pd-pending', group);
+        const itemLeft = remainingOf(item);
+        pending.hidden = itemLeft === 0;
+        pending.textContent = item.slots.length === 0 ? s.none : plural(locale, itemLeft, s.pending);
+        return group;
+      }),
+    );
+  }
+
+  /**
+   * The names in the big area: the winners just drawn, or every winner of a finished prize.
+   * With `rolling`, the cards start blank so the result cannot be read before the animation ends.
+   */
+  function renderShow(rolling = false): HTMLElement[] {
+    if (!session) return [];
+    const current = session.current;
+    const prize = session.prizes[current];
+    let slots: number[] = [];
+    if (view && view.prize === current) slots = view.slots;
+    else if (remainingOf(prize) === 0) slots = prize.slots.map((_, i) => i);
+    shownNames = slots.map((i) => session!.participants[prize.slots[i].person]);
+    const cards = slots.map((slot, i) => {
+      const card = clone('#pd-card-tpl');
+      $('.pd-card-name', card).textContent = rolling ? ' ' : shownNames[i];
+      card.classList.toggle('is-rolling', rolling);
+      const button = $('[data-redraw]', card);
+      button.dataset.prize = String(current);
+      button.dataset.slot = String(slot);
+      return card;
+    });
+    namesEl.replaceChildren(...cards);
+    readyEl.hidden = cards.length > 0;
+    layoutNames();
+    return cards;
+  }
+
+  function render() {
+    renderChrome();
+    renderShow();
+  }
+
+  /* ---------- Sizing the names ---------- */
+  const measure = document.createElement('canvas').getContext('2d');
+
+  /** Width of the widest of some texts at 1em, measured in the font the cards use. */
+  function widestEm(texts: string[], sample: HTMLElement): number {
+    const style = getComputedStyle(sample);
+    if (measure) {
+      measure.font = `${style.fontWeight} 100px ${style.fontFamily}`;
+      // An unparsable font string leaves the old font in place; fall back to an estimate then.
+      if (measure.font.includes('100px')) return Math.max(0, ...texts.map((text) => measure.measureText(text).width / 100));
+    }
+    return Math.max(0, ...texts.map(estimateEm));
+  }
+
+  /** Largest name on the page (not full screen): one winner gets the most room, a crowd the least. */
+  function pageNameMax(count: number, width: number): number {
+    if (count === 1) return Math.max(64, Math.min(96, width * 0.12));
+    if (count <= 4) return 44;
+    return count <= 12 ? 32 : 24;
+  }
+
+  function layoutNames() {
+    const card = namesEl.querySelector<HTMLElement>('.pd-card');
+    const width = namesEl.clientWidth;
+    const count = shownNames.length;
+    if (!card || width === 0 || count === 0) return;
+    const fullscreen = stage.classList.contains('is-fullscreen');
+    const px = (value: string) => parseFloat(value) || 0;
+    const list = getComputedStyle(namesEl);
+    const box = getComputedStyle(card);
+    const label = $('.pd-card-name', card);
+    const options = {
+      wordEm: widestEm(shownNames.flatMap(unbreakableParts), label),
+      gap: px(list.columnGap),
+      padX: px(box.paddingLeft) + px(box.paddingRight) + px(box.borderLeftWidth) + px(box.borderRightWidth),
+      extraY: px(box.paddingTop) + px(box.paddingBottom) + px(box.borderTopWidth) + px(box.borderBottomWidth) + px(box.rowGap) + $('.pd-redraw', card).offsetHeight,
+      max: fullscreen ? window.innerHeight * FULLSCREEN_NAME_SHARE : pageNameMax(count, width),
+      min: MIN_NAME_PX,
+    };
+    // On the page the names aim for about half a screen, so the draw button stays close; when that would
+    // make them too small to read, the block grows downward instead.
+    const height = fullscreen ? showEl.clientHeight : Math.max(PAGE_NAMES_MIN_HEIGHT, Math.min(PAGE_NAMES_MAX_HEIGHT, window.innerHeight * 0.5));
+    const widest = widestEm(shownNames, label);
+    let fit = fitNames(count, widest, width, height, options);
+    if (!fullscreen && fit.size < PAGE_NAME_MIN_PX) fit = fitNames(count, widest, width, Infinity, { ...options, max: PAGE_NAME_MIN_PX });
+    namesEl.style.setProperty('--pd-cols', String(fit.columns));
+    namesEl.style.setProperty('--pd-size', `${fit.size}px`);
+    if (!fullscreen) return;
+    // The fit works from estimates of how names wrap; if the real text still overflows the screen, step down.
+    let size = fit.size;
+    for (let i = 0; i < 16 && size > MIN_NAME_PX && showEl.scrollHeight > showEl.clientHeight + 1; i++) {
+      size = Math.max(MIN_NAME_PX, Math.floor(size * 0.94));
+      namesEl.style.setProperty('--pd-size', `${size}px`);
+    }
+  }
+  new ResizeObserver(() => {
+    layoutNames();
+    revealChip();
+  }).observe(showEl);
+
+  /* ---------- Drawing ---------- */
+  const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+  /**
+   * Rolls names over the cards, then stops them one by one on `finals`. Display only: the winners were
+   * already drawn with crypto randomness. Skipped when the visitor prefers reduced motion.
+   */
+  function roll(cards: HTMLElement[], finals: string[], pool: string[]): Promise<void> {
+    const labels = cards.map((card) => $('.pd-card-name', card));
+    const settle = (i: number) => {
+      labels[i].textContent = finals[i];
+      cards[i].classList.remove('is-rolling');
+      cards[i].classList.add('is-set');
+    };
+    if (reducedMotion.matches || pool.length < 2) {
+      cards.forEach((_, i) => settle(i));
+      return Promise.resolve();
+    }
+    const base = cards.length === 1 ? ROLL_ONE_MS : ROLL_MANY_MS;
+    const stagger = Math.min(STAGGER_MAX_MS, STAGGER_TOTAL_MS / cards.length);
+    const start = performance.now();
+    let lastFlip = 0;
+    let settled = 0;
+    return new Promise((resolve) => {
+      const frame = (now: number) => {
+        const elapsed = now - start;
+        while (settled < cards.length && elapsed >= base + settled * stagger) settle(settled++);
+        if (settled === cards.length) return resolve();
+        // Slow down toward the first stop so it feels like a wheel running out of speed.
+        const interval = 55 + 150 * Math.min(1, elapsed / base) ** 2;
+        if (now - lastFlip >= interval) {
+          lastFlip = now;
+          for (let i = settled; i < cards.length; i++) labels[i].textContent = pool[Math.floor(Math.random() * pool.length)];
+          sounds.play('tick');
+        }
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function celebrate(big: boolean) {
+    sounds.play(big ? 'fanfare' : 'reveal');
+    if (reducedMotion.matches) return;
+    stopConfetti();
+    stopConfetti = confetti(confettiCanvas, CONFETTI, big ? 4800 : 2800);
+  }
+
+  /** Plays out a result that is already saved in the session: roll, reveal, then update the rest of the stage. */
+  async function reveal(next: View, poolNames: string[], big: boolean) {
+    if (!session) return;
+    view = next;
+    message = '';
+    stopConfetti();
+    setBusy(true);
+    prizeEl.textContent = session.prizes[next.prize].name;
+    subEl.textContent = s.rolling;
+    stageError.hidden = true;
+    liveEl.textContent = '';
+    const cards = renderShow(true);
+    await roll(cards, shownNames, poolNames);
+    renderChrome();
+    liveEl.textContent = t(s.announce, { prize: session.prizes[next.prize].name, names: shownNames.join(s.nameSeparator) });
+    celebrate(big);
+    if (!root.contains(document.activeElement) || document.activeElement === document.body) goBtn.focus({ preventScroll: true });
+    await wait(COOLDOWN_MS);
+    setBusy(false);
+  }
+
+  function selectPrize(index: number) {
+    if (!session || busy || !session.prizes[index]) return;
+    session = { ...session, current: index };
+    view = null;
+    message = '';
+    saveSession();
+    stopConfetti();
+    render();
+  }
+
+  /** The main button: draw for the selected prize, or move to the next prize when this one is finished. */
+  function press() {
+    if (!session || busy) return;
+    const current = session.current;
+    const prize = session.prizes[current];
+    if (remainingOf(prize) === 0) {
+      const next = defaultPrize(session);
+      if (next !== -1) selectPrize(next);
+      return;
+    }
+    const pool = eligible(session, current);
+    if (pool.length === 0) return;
+    const poolNames = pool.map((person) => session!.participants[person]);
+    // Decided here, at the moment of the press, and saved before anything moves on screen.
+    const result = drawWinners(session, current, session.batch === 'all' ? remainingOf(prize) : 1);
+    if (result.slots.length === 0) return;
+    session = result.session;
+    saveSession();
+    void reveal({ prize: current, slots: result.slots, note: '' }, poolNames, remainingOf(session.prizes[current]) === 0);
+  }
+
+  function redraw(prizeIndex: number, slotIndex: number) {
+    if (!session || busy) return;
+    const poolNames = eligible(session, prizeIndex).map((person) => session!.participants[person]);
+    const result = redrawSlot(session, prizeIndex, slotIndex);
+    if (!result) {
+      message = s.redrawEmpty;
+      renderChrome();
+      return;
+    }
+    const absentName = session.participants[result.absent];
+    session = { ...result.session, current: prizeIndex };
+    saveSession();
+    bringScreenIntoView();
+    void reveal({ prize: prizeIndex, slots: [slotIndex], note: t(s.redrawNote, { name: absentName }) }, poolNames, false);
+  }
+
+  function bringScreenIntoView() {
+    if (stage.classList.contains('is-fullscreen')) stage.scrollTo({ top: 0 });
+    else if (screenEl.getBoundingClientRect().top < 0) screenEl.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+
+  goBtn.addEventListener('click', press);
+  // A held Enter would otherwise press the focused button again and again.
+  goBtn.addEventListener('keydown', (event) => {
+    if (event.repeat) event.preventDefault();
+  });
+  // Click rather than change, so pressing the selected prize again brings back its full list of winners.
+  picker.addEventListener('click', (event) => {
+    const input = (event.target as Element | null)?.closest<HTMLInputElement>('input');
+    if (input) selectPrize(Number(input.value));
+  });
+  for (const input of batchRadios) {
+    input.addEventListener('change', () => {
+      if (!session || busy || !isBatch(input.value)) return;
+      session = { ...session, batch: input.value };
+      saveSession();
+      renderChrome();
+    });
+  }
+
+  // Space and Enter press the main button from anywhere on the stage, so the host does not have to aim.
+  document.addEventListener('keydown', (event) => {
+    if (stage.hidden || goBtn.hidden || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key !== ' ' && event.key !== 'Enter') return;
+    const target = event.target as Element | null;
+    // After choosing a prize or a draw mode the focus sits on that radio button, where the keys still count.
+    const onStageRadio = target instanceof HTMLInputElement && target.type === 'radio' && stage.contains(target);
+    if (!onStageRadio && target?.closest('input, textarea, select, button, a, summary, [contenteditable]')) return;
+    // Not when the draw has been scrolled out of sight: Space is then a page scroll, as anywhere else.
+    const rect = screenEl.getBoundingClientRect();
+    if (rect.bottom < KEYS_NEED_VISIBLE_PX || rect.top > window.innerHeight - KEYS_NEED_VISIBLE_PX) return;
+    event.preventDefault();
+    press();
+  });
+
+  /* ---------- Redraw (two presses) ---------- */
+  const armTimers = new WeakMap<HTMLElement, number>();
+
+  function disarm(button: HTMLElement, label: string) {
+    window.clearTimeout(armTimers.get(button));
+    button.classList.remove('is-armed');
+    $('span', button).textContent = label;
+  }
+
+  /** First press arms the button and changes its label; a second press within four seconds runs the action. */
+  function pressTwice(button: HTMLElement, label: string, armedLabel: string, action: () => void) {
+    if (!button.classList.contains('is-armed')) {
+      button.classList.add('is-armed');
+      $('span', button).textContent = armedLabel;
+      armTimers.set(button, window.setTimeout(() => disarm(button, label), 4000));
+      return;
+    }
+    disarm(button, label);
+    action();
+  }
+
+  stage.addEventListener('click', (event) => {
+    const button = (event.target as Element | null)?.closest<HTMLElement>('[data-redraw]');
+    if (!button || busy) return;
+    pressTwice(button, s.redraw, s.redrawArm, () => redraw(Number(button.dataset.prize), Number(button.dataset.slot)));
+  });
+
+  /* ---------- Bonus prize ---------- */
+  const bonusEl = $<HTMLDetailsElement>('#pd-bonus', root);
+  const bonusName = $<HTMLInputElement>('#pd-bonus-name', root);
+  const bonusQuantity = $<HTMLInputElement>('#pd-bonus-quantity', root);
+  const bonusError = $('#pd-bonus-error', root);
+
+  function showBonusError(text: string) {
+    bonusError.textContent = text;
+    bonusError.hidden = text === '';
+  }
+
+  function addBonus() {
+    if (!session || busy) return;
+    const name = bonusName.value.trim();
+    const quantity = cleanQuantity(Number(bonusQuantity.value));
+    if (!name) return showBonusError(s.bonusErrorName);
+    const spare = spareCapacity(session);
+    if (quantity > spare) return showBonusError(t(s.bonusErrorPool, { left: n(spare), count: n(quantity) }));
+    session = addBonusPrize(session, name, quantity);
+    view = null;
+    message = '';
+    saveSession();
+    bonusName.value = '';
+    bonusQuantity.value = '1';
+    showBonusError('');
+    bonusEl.open = false;
+    render();
+    bringScreenIntoView();
+    goBtn.focus({ preventScroll: true });
+  }
+  $('#pd-bonus-add', root).addEventListener('click', addBonus);
+  for (const input of [bonusName, bonusQuantity]) {
+    input.addEventListener('input', () => showBonusError(''));
+    input.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      addBonus();
+    });
+  }
+
+  /* ---------- Results ---------- */
+  const copyBtn = $<HTMLButtonElement>('#pd-copy', root);
+  copyBtn.addEventListener('click', async () => {
+    if (!session) return;
+    const lines = formatResults(session, (prize, names) =>
+      t(s.resultLine, { prize: prize.name, names: names.length ? names.join(s.nameSeparator) : s.none }),
+    );
+    if (await copyText(`${s.resultsTitle}\n${lines}`)) flashButton($('span', copyBtn));
+  });
+  $('#pd-csv', root).addEventListener('click', () => {
+    if (!session) return;
+    const csv = resultsCsv(session, { header: s.csvHeader, won: s.csvWon, absent: s.csvAbsent });
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), s.csvName);
+  });
+
+  /* ---------- Starting over ---------- */
+  const restartBtn = $<HTMLButtonElement>('#pd-restart', root);
+  restartBtn.addEventListener('click', () => {
+    if (busy) return;
+    pressTwice(restartBtn, s.restart, s.restartArm, () => {
+      session = null;
+      view = null;
+      message = '';
+      saveSession();
+      stopConfetti();
+      showSetup();
+      root.scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
+  });
+
+  /* ---------- Full screen ---------- */
+  const fsBtn = $<HTMLButtonElement>('#pd-fs', root);
+  const fsLabel = $('#pd-fs-label', root);
+  fsBtn.hidden = !(document.fullscreenEnabled && typeof stage.requestFullscreen === 'function');
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement === stage) void document.exitFullscreen();
+    else void stage.requestFullscreen().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === stage;
+    fsLabel.textContent = on ? s.exitFullscreen : s.fullscreen;
+    stage.classList.toggle('is-fullscreen', on);
+    layoutNames();
+    revealChip();
+  });
+
+  /* ---------- Sound on and off ---------- */
+  const soundBtn = $<HTMLButtonElement>('#pd-sound', root);
+  const soundOnIcon = $('#pd-sound-on', root);
+  const soundOffIcon = $('#pd-sound-off', root);
+
+  function renderSound() {
+    const label = sounds.enabled ? s.soundOff : s.soundOn;
+    soundBtn.setAttribute('aria-label', label);
+    soundBtn.title = label;
+    soundOnIcon.hidden = !sounds.enabled;
+    soundOffIcon.hidden = sounds.enabled;
+  }
+  soundBtn.addEventListener('click', () => {
+    sounds.setEnabled(!sounds.enabled);
+    savePref(SOUND_KEY, sounds.enabled);
+    renderSound();
+  });
+  renderSound();
+
+  /* ---------- Views ---------- */
+  function showSetup() {
+    if (document.fullscreenElement === stage) void document.exitFullscreen();
+    stage.hidden = true;
+    setupEl.hidden = false;
+    writeForm();
+    renderSetup();
+  }
+
+  function showStage() {
+    setupEl.hidden = true;
+    stage.hidden = false;
+    view = null;
+    message = '';
+    showError('');
+    render();
+  }
+
+  session = normalizeSession(loadPref<unknown>(SESSION_KEY, null));
+  writeForm();
+  renderSetup();
+  if (session) showStage();
+</script>
+
+<style>
+  .pd-setup {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  .pd-setup .notice,
+  .pd-hint {
+    margin: 0;
+  }
+  .pd-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    min-height: 32px;
+  }
+  .pd-label-row label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .pd-count {
+    margin-right: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .pd-start {
+    min-height: 52px;
+    font-size: 17px;
+  }
+  .pd-note {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .pd-note :global(.pd-note-icon) {
+    flex: none;
+    margin-top: 2px;
+    color: var(--accent);
+  }
+
+  /* ---------- Stage ---------- */
+  .pd-stage {
+    min-width: 0;
+    background: linear-gradient(180deg, #fff7ea, #fffdf8 70%);
+    border-radius: var(--radius);
+  }
+  .pd-screen {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px 12px 20px;
+  }
+  .pd-confetti {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .pd-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .pd-progress {
+    margin-right: auto;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .pd-sound-icon {
+    display: inline-flex;
+  }
+  /* Icon only on a phone, so the bar stays on one row; screen readers still get the words. */
+  @media (max-width: 480px) {
+    .pd-fs-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  /* Prize picker */
+  .pd-picker {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .pd-chip {
+    position: relative;
+    min-width: 0;
+    cursor: pointer;
+  }
+  .pd-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pd-chip-body {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .pd-chip-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .pd-chip-count {
+    flex: none;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pd-chip.is-done .pd-chip-body {
+    color: var(--muted);
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  .pd-chip input:checked + .pd-chip-body {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .pd-chip input:checked + .pd-chip-body .pd-chip-count {
+    color: inherit;
+  }
+  .pd-chip input:focus-visible + .pd-chip-body {
+    box-shadow: var(--focus);
+  }
+  .pd-chip input:disabled + .pd-chip-body {
+    cursor: default;
+  }
+
+  /* The prize being drawn and its winners */
+  .pd-head {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    text-align: center;
+  }
+  .pd-prize {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(24px, 6.5vw, 36px);
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--accent);
+    overflow-wrap: anywhere;
+  }
+  .pd-sub {
+    margin: 0;
+    min-height: 1.6em;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .pd-show {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: clamp(150px, 30vh, 230px);
+  }
+  .pd-ready {
+    margin: auto;
+    font-size: clamp(20px, 5.5vw, 28px);
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+  }
+  .pd-names {
+    --pd-gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--pd-gap);
+    width: 100%;
+    /* Centred while there is room, scrollable from the top when a full screen overflows. */
+    margin: auto 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pd-names:empty {
+    display: none;
+  }
+  .pd-card {
+    /* Half a pixel spare so rounding cannot push the last card of a row onto the next one. */
+    flex: 0 0 calc((100% - (var(--pd-cols, 1) - 1) * var(--pd-gap)) / var(--pd-cols, 1) - 0.5px);
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 8px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .pd-card-name {
+    max-width: 100%;
+    font-family: var(--display);
+    font-size: var(--pd-size, 32px);
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--ink);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .pd-card.is-rolling .pd-card-name {
+    overflow: hidden;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .pd-card.is-rolling .pd-redraw {
+    visibility: hidden;
+  }
+  .pd-card.is-set {
+    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pd-card.is-set {
+      animation: pd-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+    }
+  }
+  @keyframes pd-pop {
+    from {
+      transform: scale(0.82);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  .pd-redraw {
+    min-height: 28px;
+    max-width: 100%;
+    padding: 2px 8px;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--muted);
+    white-space: normal;
+  }
+  .btn.is-armed {
+    color: var(--danger);
+    border-color: var(--danger);
+    white-space: normal;
+  }
+  .pd-stage-error {
+    margin: 0;
+    text-align: center;
+  }
+
+  /* Draw controls */
+  .pd-controls {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .pd-go {
+    min-width: min(100%, 240px);
+    min-height: 56px;
+    padding-inline: 28px;
+    font-size: 20px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .pd-go[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .pd-finished {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    text-align: center;
+  }
+  .pd-key-hint {
+    margin: 0;
+    text-align: center;
+  }
+  /* No keyboard to press on a phone or tablet. */
+  @media (hover: none) {
+    .pd-key-hint {
+      display: none;
+    }
+  }
+
+  /* ---------- Winner board and the tools under it ---------- */
+  .pd-below {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 4px 12px 16px;
+  }
+  .pd-board-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .pd-heading {
+    margin: 0;
+    margin-right: auto;
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+  .pd-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+    gap: 10px;
+    min-width: 0;
+  }
+  .pd-group {
+    min-width: 0;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .pd-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+  .pd-group-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .pd-tag {
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+    border-radius: 999px;
+  }
+  .pd-group-count {
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pd-winners {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pd-winners:empty {
+    display: none;
+  }
+  .pd-winner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 8px;
+    font-size: 15px;
+  }
+  .pd-winner-name {
+    flex: 1 1 0;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .pd-absent {
+    flex: 0 0 100%;
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .pd-pending {
+    margin: 4px 0 0;
+  }
+
+  /* Folded section */
+  .pd-more {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .pd-more summary {
+    padding: 11px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pd-more-body {
+    display: grid;
+    gap: 12px;
+    padding: 0 14px 14px;
+  }
+  .pd-more-body .hint {
+    margin: 0;
+  }
+  .pd-bonus-row {
+    display: grid;
+    gap: 10px;
+    align-items: end;
+  }
+  @media (min-width: 560px) {
+    .pd-bonus-row {
+      grid-template-columns: minmax(0, 1fr) 110px auto;
+    }
+  }
+  .pd-bonus-error {
+    color: var(--danger);
+  }
+  .pd-foot {
+    display: flex;
+    justify-content: center;
+  }
+
+  /* ---------- Full screen: read from the back of a room, so everything scales with the screen ---------- */
+  .pd-stage.is-fullscreen {
+    overflow: auto;
+    border-radius: 0;
+  }
+  .pd-stage.is-fullscreen .pd-screen {
+    height: 100vh;
+    gap: 1.8vh;
+    padding: 2.4vh 4vw 3.2vh;
+  }
+  .pd-stage.is-fullscreen .pd-progress {
+    font-size: max(14px, 2.2vh);
+  }
+  .pd-stage.is-fullscreen .btn.small {
+    min-height: max(32px, 4.2vh);
+    padding-inline: max(10px, 1.5vh);
+    font-size: max(14px, 1.9vh);
+  }
+  .pd-stage.is-fullscreen .btn :global(svg) {
+    width: 1.15em;
+    height: 1.15em;
+  }
+  /* One row that scrolls sideways, so a long prize list cannot take the height the names need. */
+  .pd-stage.is-fullscreen .pd-picker {
+    flex: none;
+    flex-wrap: nowrap;
+    justify-content: safe center;
+    gap: 1vh;
+    padding: 4px;
+    overflow-x: auto;
+  }
+  .pd-stage.is-fullscreen .pd-chip {
+    flex: none;
+    max-width: 60vw;
+  }
+  .pd-stage.is-fullscreen .pd-chip-body {
+    gap: 1.2vh;
+    padding: 0.6vh 2vh;
+    font-size: max(14px, 2.1vh);
+  }
+  .pd-stage.is-fullscreen .pd-chip-count {
+    font-size: max(12px, 1.7vh);
+  }
+  /* min() with vw keeps an upright phone or a narrow window from wrapping the big lines. */
+  .pd-stage.is-fullscreen .pd-prize {
+    font-size: min(7vh, 7.5vw);
+  }
+  .pd-stage.is-fullscreen .pd-sub {
+    font-size: max(15px, 2.8vh);
+  }
+  .pd-stage.is-fullscreen .pd-show {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+  }
+  .pd-stage.is-fullscreen .pd-ready {
+    font-size: min(6vh, 8vw);
+  }
+  .pd-stage.is-fullscreen .pd-names {
+    --pd-gap: 1.6vh;
+  }
+  .pd-stage.is-fullscreen .pd-card {
+    gap: 0.4vh;
+    padding: 1.6vh 1.4vh 0.8vh;
+    border-radius: 2vh;
+  }
+  .pd-stage.is-fullscreen .pd-redraw {
+    min-height: max(28px, 3.4vh);
+    font-size: max(13px, 1.7vh);
+  }
+  .pd-stage.is-fullscreen .pd-stage-error {
+    font-size: max(14px, 2.2vh);
+  }
+  .pd-stage.is-fullscreen .pd-controls {
+    gap: 1.4vh;
+  }
+  .pd-stage.is-fullscreen .seg span {
+    padding: 0.7vh 1.8vh;
+    font-size: max(14px, 2vh);
+  }
+  .pd-stage.is-fullscreen .pd-go {
+    min-width: min(100%, 36vh);
+    min-height: max(56px, 8.4vh);
+    padding-inline: 5vh;
+    font-size: max(20px, min(3.6vh, 5vw));
+    border-radius: 1.4vh;
+  }
+  .pd-stage.is-fullscreen .pd-finished {
+    font-size: min(4vh, 6vw);
+  }
+  .pd-stage.is-fullscreen .pd-key-hint {
+    font-size: max(13px, 1.8vh);
+  }
+  .pd-stage.is-fullscreen .pd-below {
+    gap: 2vh;
+    padding: 1vh 4vw 4vh;
+  }
+  .pd-stage.is-fullscreen .pd-heading {
+    font-size: min(3.6vh, 6vw);
+  }
+  .pd-stage.is-fullscreen .pd-more summary,
+  .pd-stage.is-fullscreen .pd-more .hint {
+    font-size: max(15px, 2.2vh);
+  }
+  .pd-stage.is-fullscreen .pd-board {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 34vh), 1fr));
+    gap: 1.6vh;
+  }
+  .pd-stage.is-fullscreen .pd-group {
+    padding: 1.6vh 2vh;
+  }
+  .pd-stage.is-fullscreen .pd-group-head {
+    font-size: max(16px, 2.6vh);
+  }
+  .pd-stage.is-fullscreen .pd-winner {
+    font-size: max(15px, 2.4vh);
+  }
+  .pd-stage.is-fullscreen .pd-tag,
+  .pd-stage.is-fullscreen .pd-group-count,
+  .pd-stage.is-fullscreen .pd-absent,
+  .pd-stage.is-fullscreen .pd-pending {
+    font-size: max(13px, 1.9vh);
+  }
+</style>

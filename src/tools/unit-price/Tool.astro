@@ -1,0 +1,563 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool" data-tool="unit-price" {...i18nAttrs(locale, s.client)}>
+  <p class="hint up-list-hint">{s.listHint}</p>
+
+  <div class="up-list" id="up-list" role="group" aria-label={s.listAria}></div>
+
+  <template id="up-row">
+    <div class="up-opt" role="group">
+      <div class="up-head">
+        <span class="up-num" data-role="num"></span>
+        <input class="up-name" data-k="name" type="text" autocomplete="off" maxlength="40" placeholder={s.name.placeholder} aria-label={s.name.label} />
+        <button class="btn small ghost" type="button" data-role="remove">{s.remove}</button>
+      </div>
+      <div class="up-fields">
+        <label class="field">
+          <span class="label">{s.price.label}</span>
+          <input data-k="price" type="text" inputmode="decimal" autocomplete="off" placeholder={s.price.placeholder} />
+        </label>
+        <label class="field">
+          <span class="label">{s.packs.label}</span>
+          <input data-k="packs" type="text" inputmode="decimal" autocomplete="off" placeholder={s.packs.placeholder} />
+        </label>
+        <div class="field up-amount">
+          <span class="label">{s.amount.label}</span>
+          <div class="up-amount-row">
+            <input data-k="amount" type="text" inputmode="decimal" autocomplete="off" placeholder={s.amount.placeholder} aria-label={s.amount.label} />
+            <select data-k="unit" aria-label={s.unitAria}>
+              {
+                s.unitGroups.map((group) => (
+                  <optgroup label={group.label}>
+                    {group.units.map((u) => (
+                      <option value={u.value}>{u.label}</option>
+                    ))}
+                  </optgroup>
+                ))
+              }
+            </select>
+          </div>
+        </div>
+      </div>
+      <details class="up-more">
+        <summary>{s.moreSummary}</summary>
+        <div class="up-more-body">
+          <label class="field">
+            <span class="label">{s.shipping.label}</span>
+            <input data-k="shipping" type="text" inputmode="decimal" autocomplete="off" placeholder={s.shipping.placeholder} />
+            <span class="hint">{s.shipping.hint}</span>
+          </label>
+          <label class="field">
+            <span class="label">{s.discount.label}</span>
+            <input data-k="discount" type="text" inputmode="decimal" autocomplete="off" placeholder={s.discount.placeholder} />
+            <span class="hint">{s.discount.hint}</span>
+          </label>
+        </div>
+      </details>
+      <p class="up-status" data-role="status" hidden></p>
+    </div>
+  </template>
+
+  <div class="row">
+    <button class="btn" type="button" id="up-add">{s.add}</button>
+    <button class="btn" type="button" id="up-sample">{s.sample}</button>
+    <button class="btn ghost" type="button" id="up-clear">{s.clear}</button>
+    <span class="hint" id="up-max" hidden>{s.client.maxNote}</span>
+  </div>
+
+  <div class="up-results" id="up-results" role="region" aria-label={s.resultsAria} aria-live="polite">
+    <div class="result" id="up-best" hidden>
+      <div class="up-best-tag" id="up-best-tag"></div>
+      <div class="result-value" id="up-best-name"></div>
+      <div class="result-label" id="up-best-price"></div>
+    </div>
+
+    <ol class="up-rank" id="up-rank" hidden></ol>
+
+    <p class="notice" id="up-message" hidden></p>
+    <p class="hint up-note" id="up-note" hidden></p>
+  </div>
+
+  <template id="up-item">
+    <li class="up-item">
+      <span class="up-item-rank" data-role="rank"></span>
+      <div class="up-item-main">
+        <div class="up-item-top">
+          <span class="up-item-name" data-role="name"></span>
+          <span class="up-tag" data-role="tag" hidden></span>
+        </div>
+        <div class="up-item-detail" data-role="detail"></div>
+        <div class="up-item-more" data-role="more" hidden></div>
+      </div>
+      <div class="up-item-price">
+        <strong data-role="price"></strong>
+        <span data-role="base"></span>
+      </div>
+    </li>
+  </template>
+
+  <div class="row">
+    <button class="btn small" type="button" id="up-copy" data-copy="#up-summary">{s.copy}</button>
+  </div>
+  <textarea id="up-summary" hidden readonly aria-hidden="true"></textarea>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { formatFixed, formatInteger, formatNumber, parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { formatList, t } from '../../i18n/format';
+  import {
+    chooseBase,
+    compareOptions,
+    evaluateOption,
+    priceDigits,
+    priceForBase,
+    type Base,
+    type EvaluatedOption,
+    type Evaluation,
+    type RankedOption,
+  } from './logic';
+  import type { SampleRow, Strings, UnitChoice } from './i18n';
+
+  /** What is typed in one row; this is also what is saved in the browser. */
+  type Row = SampleRow;
+  const KEYS = ['name', 'price', 'packs', 'amount', 'unit', 'shipping', 'discount'] as const;
+  const MIN_ROWS = 2;
+  const MAX_ROWS = 6;
+
+  const root = $('[data-tool="unit-price"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const list = $('#up-list', root);
+  const rowTemplate = $<HTMLTemplateElement>('#up-row', root);
+  const itemTemplate = $<HTMLTemplateElement>('#up-item', root);
+  const addButton = $<HTMLButtonElement>('#up-add', root);
+  const maxNote = $('#up-max', root);
+  const best = $('#up-best', root);
+  const bestTag = $('#up-best-tag', root);
+  const bestName = $('#up-best-name', root);
+  const bestPrice = $('#up-best-price', root);
+  const rank = $('#up-rank', root);
+  const message = $('#up-message', root);
+  const note = $('#up-note', root);
+  const copyButton = $<HTMLButtonElement>('#up-copy', root);
+  const summary = $<HTMLTextAreaElement>('#up-summary', root);
+
+  const rule = { countPer100Below: s.countPer100Below };
+  const config = { discountKind: s.discountKind, rounding: s.rounding };
+  const choiceOf = (value: string): UnitChoice => s.units.find((u) => u.value === value) ?? s.units[0];
+  const blankRow = (unit = s.defaultUnit): Row => ({ name: '', price: '', packs: '', amount: '', unit, shipping: '', discount: '' });
+
+  const num = (text: string): number | null => (text.trim() === '' ? null : parseNumber(text));
+  const money = (v: number) =>
+    t(s.money, {
+      n: s.moneyFormat === 'integer' ? formatInteger(v, locale) : s.moneyFormat === 'fixed2' ? formatFixed(v, 2, locale) : formatNumber(v, 2, locale),
+    });
+  /** Unit prices get more decimals than money: 15.87 元, $0.129, 23.3円. */
+  const unitMoney = (v: number) => {
+    const digits = priceDigits(v);
+    return t(s.money, { n: s.unitPriceFixed ? formatFixed(v, Math.max(2, digits), locale) : formatNumber(v, digits, locale) });
+  };
+  const percent = (v: number) => formatNumber(v, v < 1 ? 2 : 1, locale);
+  const qty = (n: number, unit: UnitChoice) => t(s.qty, { n: formatNumber(n, 3, locale), unit: n === 1 ? unit.one : unit.other });
+  /** "per 100 g", "每抽", "1 枚あたり". Count bases borrow the row's own word. */
+  function baseLabel(base: Base, own: UnitChoice): string {
+    if (base.unit === 'count') {
+      return base.amount === 1 ? t(s.perOne, { unit: own.one }) : t(s.perMany, { n: formatInteger(base.amount, locale), unit: own.other });
+    }
+    const unit = s.units.find((u) => u.unit === base.unit) ?? own;
+    return base.amount === 1
+      ? t(s.perOneSymbol ?? s.perOne, { unit: unit.one })
+      : t(s.perManySymbol ?? s.perMany, { n: formatInteger(base.amount, locale), unit: unit.other });
+  }
+  const unitLine = (price: number, base: Base, own: UnitChoice) => t(s.unitLine, { base: baseLabel(base, own), price: unitMoney(price) });
+
+  function addRow(data: Row): HTMLElement {
+    const row = $('.up-opt', rowTemplate.content.cloneNode(true) as DocumentFragment);
+    for (const key of KEYS) {
+      const control = $<HTMLInputElement | HTMLSelectElement>(`[data-k="${key}"]`, row);
+      control.value = key === 'unit' ? choiceOf(data.unit).value : data[key];
+    }
+    if (data.shipping.trim() !== '' || data.discount.trim() !== '') $<HTMLDetailsElement>('details', row).open = true;
+    list.append(row);
+    return row;
+  }
+
+  const rowElements = () => $$<HTMLElement>('.up-opt', list);
+  const readRow = (row: HTMLElement): Row =>
+    Object.fromEntries(KEYS.map((key) => [key, $<HTMLInputElement | HTMLSelectElement>(`[data-k="${key}"]`, row).value])) as unknown as Row;
+
+  function setRows(rows: Row[]): void {
+    list.replaceChildren();
+    rows.slice(0, MAX_ROWS).forEach(addRow);
+    while (list.children.length < MIN_ROWS) addRow(blankRow());
+    render();
+  }
+
+  function detail(o: EvaluatedOption, unit: UnitChoice): string {
+    const amount = o.packs === 1 ? qty(o.quantity, unit) : t(s.qtyPacks, { packs: formatNumber(o.packs, 3, locale), amount: qty(o.amount, unit), total: qty(o.quantity, unit) });
+    const discounted = o.factor !== 1;
+    const paid = discounted && o.shipping > 0 ? s.paidBoth : discounted ? s.paidDiscount : o.shipping > 0 ? s.paidShipping : '{money}';
+    return `${amount} · ${t(paid, { money: money(o.total) })}`;
+  }
+
+  function show(el: HTMLElement, text: string): void {
+    el.textContent = text;
+    el.hidden = text === '';
+  }
+
+  function render(): void {
+    const elements = rowElements();
+    const rows = elements.map(readRow);
+    savePref(s.prefKey, { rows });
+
+    const units = rows.map((r) => choiceOf(r.unit));
+    const names = rows.map((r, i) => r.name.trim() || t(s.optionN, { n: i + 1 }));
+    const evaluations: Evaluation[] = rows.map((r, i) =>
+      evaluateOption(
+        { price: num(r.price), amount: num(r.amount), unit: units[i].unit, packs: num(r.packs), shipping: num(r.shipping), discount: num(r.discount) },
+        config,
+      ),
+    );
+    const result = compareOptions(evaluations, rule);
+    const hasRanking = result.status === 'ranked' || result.status === 'single';
+    const byIndex = new Map<number, RankedOption>(hasRanking ? result.ranked.map((r) => [r.index, r]) : []);
+
+    // Input rows: number, remove button, and a status line under each one.
+    elements.forEach((row, i) => {
+      const label = t(s.optionN, { n: i + 1 });
+      $('[data-role="num"]', row).textContent = label;
+      row.setAttribute('aria-label', label);
+      $<HTMLButtonElement>('[data-role="remove"]', row).disabled = elements.length <= MIN_ROWS;
+      const status = $('[data-role="status"]', row);
+      const e = evaluations[i];
+      const ranked = byIndex.get(i);
+      const isBest = result.status === 'ranked' && !!ranked?.best;
+      row.classList.toggle('is-best', isBest);
+      status.classList.toggle('is-error', e.status === 'invalid');
+      if (e.status === 'ok') {
+        const base = hasRanking ? result.base : chooseBase(e.option.dimension, [e.option], rule);
+        const line = unitLine(priceForBase(e.option.unitPrice, base), base, units[i]);
+        show(status, isBest ? `${result.allTied ? s.allTied : s.bestTag} · ${line}` : line);
+      } else if (e.status === 'invalid') {
+        show(status, s.rowInvalid[e.field]);
+        if (e.field === 'shipping' || e.field === 'discount') $<HTMLDetailsElement>('details', row).open = true;
+      } else if (e.status === 'incomplete') {
+        show(status, e.field === 'amount' ? s.rowIncomplete.amount : s.rowIncomplete.price);
+      } else {
+        show(status, '');
+      }
+    });
+    addButton.disabled = elements.length >= MAX_ROWS;
+    maxNote.hidden = elements.length < MAX_ROWS;
+
+    const notes: string[] = [];
+    if (result.skipped.length > 0) notes.push(t(s.skipped, { list: formatList(result.skipped.map((i) => names[i]), locale) }));
+
+    if (!hasRanking) {
+      best.hidden = true;
+      rank.hidden = true;
+      rank.replaceChildren();
+      show(
+        message,
+        result.status === 'mixed' ? t(s.mixed, { list: formatList(result.dimensions.map((d) => s.dimensions[d]), locale) }) : s.emptyHint,
+      );
+      show(note, notes.join(' '));
+      summary.value = '';
+      copyButton.disabled = true;
+      return;
+    }
+
+    const { ranked, base } = result;
+    const winners = ranked.filter((r) => r.best);
+    const top = winners[0];
+    const title = baseLabel(base, units[top.index]);
+    const words = [...new Set(ranked.filter((r) => r.unit === 'count').map((r) => units[r.index].other))];
+    if (words.length > 1) notes.push(t(s.countWords, { list: formatList(words, locale) }));
+
+    best.hidden = false;
+    if (result.status === 'single') {
+      bestTag.textContent = names[top.index];
+      bestName.textContent = unitMoney(top.basePrice);
+      bestPrice.textContent = `${title} · ${detail(top, units[top.index])}`;
+      rank.hidden = true;
+      rank.replaceChildren();
+      show(message, s.singleHint);
+      show(note, notes.join(' '));
+      summary.value = t(s.summarySingle, { name: names[top.index], line: unitLine(top.basePrice, base, units[top.index]) });
+      copyButton.disabled = false;
+      return;
+    }
+
+    const winnerTag = result.allTied ? s.allTied : winners.length > 1 ? s.tieTag : s.bestTag;
+    bestTag.textContent = winnerTag;
+    bestName.textContent = formatList(winners.map((r) => names[r.index]), locale);
+    bestPrice.textContent = unitLine(top.basePrice, base, units[top.index]);
+    show(message, '');
+    show(note, notes.join(' '));
+
+    const moreOf = (r: RankedOption) => t(s.more, { pct: percent(r.percentMore), money: money(r.extraCost) });
+    rank.hidden = false;
+    rank.replaceChildren(
+      ...ranked.map((r) => {
+        const item = $('.up-item', itemTemplate.content.cloneNode(true) as DocumentFragment);
+        item.classList.toggle('is-best', r.best);
+        $('[data-role="rank"]', item).textContent = String(r.rank);
+        $('[data-role="name"]', item).textContent = names[r.index];
+        show($('[data-role="tag"]', item), r.best ? winnerTag : '');
+        $('[data-role="detail"]', item).textContent = detail(r, units[r.index]);
+        show($('[data-role="more"]', item), r.best ? '' : moreOf(r));
+        $('[data-role="price"]', item).textContent = unitMoney(r.basePrice);
+        $('[data-role="base"]', item).textContent = baseLabel(base, units[r.index]);
+        return item;
+      }),
+    );
+
+    summary.value = [
+      t(s.summaryTitle, { base: title }),
+      ...ranked.map((r) =>
+        t(s.summaryLine, { rank: r.rank, name: names[r.index], price: unitMoney(r.basePrice), note: r.best ? winnerTag : moreOf(r) }),
+      ),
+    ].join('\n');
+    copyButton.disabled = false;
+  }
+
+  // A unit picked in one row is copied to rows that are still untouched, so a list is set up in one go.
+  function syncUnit(source: HTMLElement): void {
+    const unit = readRow(source).unit;
+    for (const row of rowElements()) {
+      const r = readRow(row);
+      if (row !== source && r.price.trim() === '' && r.amount.trim() === '') $<HTMLSelectElement>('[data-k="unit"]', row).value = unit;
+    }
+  }
+
+  root.addEventListener('input', render);
+  root.addEventListener('change', (event) => {
+    const target = event.target as Element | null;
+    if (target?.matches('[data-k="unit"]')) syncUnit(target.closest<HTMLElement>('.up-opt')!);
+    render();
+  });
+  list.addEventListener('click', (event) => {
+    const button = (event.target as Element | null)?.closest('[data-role="remove"]');
+    if (!button || list.children.length <= MIN_ROWS) return;
+    button.closest('.up-opt')?.remove();
+    render();
+  });
+  addButton.addEventListener('click', () => {
+    if (list.children.length >= MAX_ROWS) return;
+    const last = rowElements().at(-1);
+    const row = addRow(blankRow(last ? readRow(last).unit : s.defaultUnit));
+    render();
+    $<HTMLInputElement>('[data-k="price"]', row).focus();
+  });
+  $('#up-sample', root).addEventListener('click', () => setRows(s.sample));
+  $('#up-clear', root).addEventListener('click', () => setRows([]));
+
+  // Restore the saved list; anything that is not a row of strings is dropped.
+  const saved = loadPref<{ rows?: unknown }>(s.prefKey, {});
+  const savedRows = (Array.isArray(saved?.rows) ? saved.rows : [])
+    .filter((r): r is Partial<Row> => typeof r === 'object' && r !== null)
+    .map((r) => {
+      const clean = blankRow();
+      for (const key of KEYS) {
+        const value = r[key];
+        if (typeof value === 'string') clean[key] = value;
+      }
+      return clean;
+    });
+  setRows(savedRows);
+</script>
+
+<style>
+  .up-list-hint {
+    margin: 0;
+  }
+  .up-list {
+    display: grid;
+    gap: 12px;
+  }
+  .up-opt {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .up-opt.is-best {
+    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  .up-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .up-num {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .up-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+  .up-amount {
+    grid-column: 1 / -1;
+  }
+  .up-amount-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+  @media (min-width: 640px) {
+    .up-fields {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1.9fr);
+    }
+    .up-amount {
+      grid-column: auto;
+    }
+  }
+  .up-more summary {
+    width: fit-content;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .up-more-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding-top: 10px;
+  }
+  .up-status {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .up-opt.is-best .up-status {
+    font-weight: 600;
+    color: var(--accent-hover);
+  }
+  .up-status.is-error {
+    color: var(--danger);
+  }
+
+  .up-results {
+    display: grid;
+    gap: 12px;
+  }
+  .up-results p {
+    margin: 0;
+  }
+  .up-best-tag {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-hover);
+  }
+  #up-best .result-value {
+    font-size: clamp(24px, 6.4vw, 34px);
+  }
+  .up-rank {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .up-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+  }
+  .up-item.is-best {
+    background: var(--surface);
+    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  .up-item-rank {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+  }
+  .up-item.is-best .up-item-rank {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .up-item-main {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .up-item-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .up-item-name {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .up-tag {
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-hover);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .up-item-detail {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .up-item-more {
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .up-item-price {
+    display: grid;
+    justify-items: end;
+    text-align: right;
+  }
+  .up-item-price strong {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .up-item-price span {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+</style>
