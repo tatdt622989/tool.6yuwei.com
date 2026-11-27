@@ -1,0 +1,688 @@
+---
+import { i18nAttrs, pickStrings, type ToolProps } from '../../i18n/tool';
+import { CYCLE_COUNTS, CYCLE_RANGE, LATENCY_RANGE, SLEEP_DEFAULTS, formatTime } from './logic';
+import i18n from './i18n';
+
+type Props = ToolProps;
+const { locale = 'zh-TW' } = Astro.props;
+const s = pickStrings(i18n, locale);
+---
+
+<div class="tool sl" data-tool="sleep-calculator" {...i18nAttrs(locale, s.client)}>
+  <div class="seg sl-mode" role="radiogroup" aria-label={s.modeAria}>
+    <label><input type="radio" name="sl-mode" value="wake" checked /><span>{s.modes.wake}</span></label>
+    <label><input type="radio" name="sl-mode" value="bed" /><span>{s.modes.bed}</span></label>
+  </div>
+
+  <div class="sl-inputs" id="sl-wake-inputs">
+    <div class="field">
+      <label for="sl-wake">{s.wakeLabel}</label>
+      <input id="sl-wake" type="time" value={formatTime(SLEEP_DEFAULTS.wake)} required />
+    </div>
+    <div class="field">
+      <label for="sl-plan">{s.planLabel}</label>
+      <input id="sl-plan" type="time" value="" />
+    </div>
+  </div>
+  <div class="sl-inputs" id="sl-bed-inputs" hidden>
+    <div class="field">
+      <label for="sl-bed">{s.bedLabel}</label>
+      <input id="sl-bed" type="time" value="23:00" required />
+    </div>
+    <div class="field sl-now-field">
+      <button class="btn" type="button" id="sl-now">{s.now}</button>
+    </div>
+  </div>
+
+  <div class="notice error" id="sl-error" role="alert" hidden></div>
+
+  <section class="sl-stage" id="sl-stage" aria-label={s.resultAria}>
+    <p class="sl-lead" id="sl-lead" aria-live="polite"></p>
+    <div class="sl-options" id="sl-options">
+      {
+        CYCLE_COUNTS.map(() => (
+          <button class="sl-option" type="button" aria-pressed="false">
+            <span class="sl-opt-head">
+              <span class="sl-opt-time"></span>
+              <span class="sl-opt-day"></span>
+            </span>
+            <span class="sl-opt-meta"><span class="sl-opt-cycles"></span> · <span class="sl-opt-sleep"></span></span>
+            <span class="sl-opt-tier"></span>
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="sl-check" id="sl-check" aria-live="polite" hidden>
+      <p class="sl-check-text" id="sl-check-text"></p>
+      <p class="sl-check-suggest" id="sl-check-suggest"></p>
+    </div>
+
+    <div class="sl-timeline" id="sl-timeline">
+      <div class="sl-ends">
+        <span class="sl-end"><span class="sl-end-label">{s.client.inBed}</span> <span id="sl-start-time"></span></span>
+        <span class="sl-end is-alarm"><span class="sl-end-label">{s.client.alarm}</span> <span id="sl-end-time"></span></span>
+      </div>
+      <div class="sl-bar" id="sl-bar" role="img"></div>
+      <div class="sl-ticks" id="sl-ticks" aria-hidden="true"></div>
+    </div>
+    <p class="sl-caption" id="sl-caption"></p>
+    <ul class="sl-legend">
+      <li><span class="sl-swatch" data-kind="latency"></span>{s.legend.latency}</li>
+      <li><span class="sl-swatch" data-kind="cycle"></span>{s.legend.cycle}</li>
+      <li id="sl-legend-partial"><span class="sl-swatch" data-kind="partial"></span>{s.legend.partial}</li>
+    </ul>
+  </section>
+
+  <details class="sl-settings">
+    <summary>{s.settings} <span class="sl-settings-sum" id="sl-settings-sum"></span></summary>
+    <div class="sl-settings-body">
+      <div class="grid-2">
+        <div class="field">
+          <label for="sl-latency">{s.latencyLabel}</label>
+          <input
+            id="sl-latency"
+            type="number"
+            inputmode="numeric"
+            min={LATENCY_RANGE.min}
+            max={LATENCY_RANGE.max}
+            step="1"
+            value={SLEEP_DEFAULTS.latency}
+          />
+          <span class="hint">{s.latencyHint}</span>
+        </div>
+        <div class="field">
+          <label for="sl-cycle">{s.cycleLabel}</label>
+          <input
+            id="sl-cycle"
+            type="number"
+            inputmode="numeric"
+            min={CYCLE_RANGE.min}
+            max={CYCLE_RANGE.max}
+            step="1"
+            value={SLEEP_DEFAULTS.cycle}
+          />
+          <span class="hint">{s.cycleHint}</span>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <p class="notice">{s.disclaimer}</p>
+</div>
+
+<script>
+  import { $, $$, loadPref, savePref } from '../../lib/client';
+  import { parseNumber } from '../../lib/format';
+  import { readI18n } from '../../i18n/client';
+  import { plural, t } from '../../i18n/format';
+  import { LOCALE_INFO } from '../../i18n/locales';
+  import {
+    bedtimesFor,
+    checkPlan,
+    checkSettings,
+    durationParts,
+    formatTime,
+    parseTime,
+    roundToStep,
+    SLEEP_DEFAULTS,
+    sleepTimeline,
+    wakeTimesFor,
+    wrapMinutes,
+    type SleepOption,
+    type SleepSettings,
+  } from './logic';
+  import type { SleepMode, Strings } from './i18n';
+
+  const root = $('[data-tool="sleep-calculator"]');
+  const { locale, s } = readI18n<Strings['client']>(root);
+  const intl = LOCALE_INFO[locale].intl;
+  const prefKey = 'sleep-calculator';
+
+  const modes = $$<HTMLInputElement>('input[name="sl-mode"]', root);
+  const wakeBox = $('#sl-wake-inputs', root);
+  const bedBox = $('#sl-bed-inputs', root);
+  const wakeInput = $<HTMLInputElement>('#sl-wake', root);
+  const planInput = $<HTMLInputElement>('#sl-plan', root);
+  const bedInput = $<HTMLInputElement>('#sl-bed', root);
+  const nowBtn = $<HTMLButtonElement>('#sl-now', root);
+  const latencyInput = $<HTMLInputElement>('#sl-latency', root);
+  const cycleInput = $<HTMLInputElement>('#sl-cycle', root);
+  const errorEl = $('#sl-error', root);
+  const stage = $('#sl-stage', root);
+  const leadEl = $('#sl-lead', root);
+  const optionsEl = $('#sl-options', root);
+  const optionBtns = $$<HTMLButtonElement>('.sl-option', optionsEl);
+  const checkBox = $('#sl-check', root);
+  const checkText = $('#sl-check-text', root);
+  const checkSuggest = $('#sl-check-suggest', root);
+  const bar = $('#sl-bar', root);
+  const ticks = $('#sl-ticks', root);
+  const startTime = $('#sl-start-time', root);
+  const endTime = $('#sl-end-time', root);
+  const captionEl = $('#sl-caption', root);
+  const legendPartial = $('#sl-legend-partial', root);
+  const settingsSum = $('#sl-settings-sum', root);
+
+  interface Prefs {
+    wake?: string;
+    latency?: string;
+    cycle?: string;
+  }
+  const saved = loadPref<Prefs>(prefKey, {});
+  if (saved.wake && parseTime(saved.wake) !== null) wakeInput.value = saved.wake;
+  if (saved.latency) latencyInput.value = saved.latency;
+  if (saved.cycle) cycleInput.value = saved.cycle;
+
+  /** Cycles picked per mode; 5 cycles (7.5 hours by default) to start with. */
+  const selected: Record<SleepMode, number> = { wake: 5, bed: 5 };
+
+  const nowMinutes = () => {
+    const d = new Date();
+    return roundToStep(d.getHours() * 60 + d.getMinutes(), 5);
+  };
+  bedInput.value = formatTime(nowMinutes());
+
+  /* ---------- Text helpers ---------- */
+  const clock12 = new Intl.DateTimeFormat(intl, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' });
+  const asDate = (minutes: number) => new Date(Date.UTC(2000, 0, 3, 0, wrapMinutes(minutes)));
+  /** 23:15, or 11:15 PM where the locale reads a 12-hour clock. */
+  const clock = (minutes: number) => (s.clock12 ? clock12.format(asDate(minutes)).replace(/\s/g, '\u00a0') : formatTime(minutes));
+  /** Compact tick label: 23:15, or 11:15 without AM/PM on a 12-hour clock. */
+  const tickLabel = (minutes: number) => {
+    if (!s.clock12) return formatTime(minutes);
+    const t = wrapMinutes(minutes);
+    return `${((Math.floor(t / 60) + 11) % 12) + 1}:${String(t % 60).padStart(2, '0')}`;
+  };
+  /** 7.5 小時 / 6 小時 40 分 / 7.5 hours. */
+  const duration = (minutes: number) => {
+    const { h, m } = durationParts(minutes);
+    if (m === 0 || m === 30) return plural(locale, h + m / 60, s.hours);
+    return t(s.hoursMinutes, { h, m });
+  };
+  const cycles = (n: number) => plural(locale, n, s.cycles);
+
+  const mode = (): SleepMode => (modes.find((m) => m.checked)?.value === 'bed' ? 'bed' : 'wake');
+
+  function readSettings(): SleepSettings {
+    return { latency: parseNumber(latencyInput.value), cycle: parseNumber(cycleInput.value) };
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderOptions(options: SleepOption[], current: SleepMode, pressed: (o: SleepOption) => boolean) {
+    options.forEach((option, i) => {
+      const btn = optionBtns[i];
+      if (!btn) return;
+      const time = current === 'wake' ? option.bed : option.wake;
+      const day = current === 'wake' ? (option.dayOffset === -1 ? s.dayBefore : '') : option.dayOffset === 1 ? s.dayAfter : '';
+      btn.dataset.cycles = String(option.cycles);
+      btn.dataset.tier = option.tier;
+      btn.dataset.time = formatTime(time);
+      btn.setAttribute('aria-pressed', String(pressed(option)));
+      $('.sl-opt-time', btn).textContent = clock(time);
+      $('.sl-opt-day', btn).textContent = day;
+      $('.sl-opt-cycles', btn).textContent = cycles(option.cycles);
+      $('.sl-opt-sleep', btn).textContent = duration(option.sleepMin);
+      $('.sl-opt-tier', btn).textContent = s.tiers[option.tier];
+    });
+  }
+
+  /** Bed → alarm as blocks: falling asleep, full cycles, and the cycle the alarm cuts into. */
+  function renderTimeline(bed: number, wake: number, settings: SleepSettings, label: string) {
+    const { total, segments } = sleepTimeline(bed, wake, settings);
+    startTime.textContent = clock(bed);
+    endTime.textContent = clock(wake);
+    bar.setAttribute('aria-label', label);
+    bar.replaceChildren(
+      ...segments.map((seg) => {
+        const el = document.createElement('span');
+        el.className = 'sl-seg';
+        el.dataset.kind = seg.kind;
+        el.style.flexGrow = String(seg.minutes);
+        el.title = `${clock(bed + seg.start)}–${clock(bed + seg.start + seg.minutes)}`;
+        if (seg.kind === 'cycle') el.textContent = String(seg.index);
+        if (seg.kind === 'partial') el.textContent = `+${seg.minutes}`;
+        return el;
+      }),
+    );
+    // Cycle boundaries under the bar; ones crowding the alarm or each other are left out.
+    const gap = 0.09;
+    let last = -1;
+    const kept: HTMLElement[] = [];
+    for (const seg of segments) {
+      if (seg.kind !== 'cycle') continue;
+      const at = seg.start + seg.minutes;
+      const pos = at / total;
+      if (pos > 1 - gap || pos - last < gap || pos < gap) continue;
+      last = pos;
+      const el = document.createElement('span');
+      el.className = 'sl-tick';
+      el.style.left = `${(pos * 100).toFixed(3)}%`;
+      el.textContent = tickLabel(bed + at);
+      kept.push(el);
+    }
+    ticks.replaceChildren(...kept);
+    const hasPartial = segments.some((seg) => seg.kind === 'partial');
+    bar.classList.toggle('has-partial', hasPartial);
+    legendPartial.hidden = !hasPartial;
+  }
+
+  function showError(message: string) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+    stage.hidden = true;
+  }
+
+  function render() {
+    const current = mode();
+    wakeBox.hidden = current !== 'wake';
+    bedBox.hidden = current !== 'bed';
+    root.dataset.mode = current;
+
+    const settings = readSettings();
+    savePref(prefKey, { wake: wakeInput.value, latency: latencyInput.value, cycle: cycleInput.value } satisfies Prefs);
+    const problem = checkSettings(settings);
+    if (problem) return showError(s.problems[problem]);
+    settingsSum.textContent = t(s.settingsSummary, { latency: settings.latency, cycle: settings.cycle });
+
+    const typed = parseTime(current === 'wake' ? wakeInput.value : bedInput.value);
+    if (typed === null) return showError(s.problems.time);
+    errorEl.hidden = true;
+    stage.hidden = false;
+
+    if (current === 'bed') {
+      const options = wakeTimesFor(typed, settings);
+      const pick = options.find((o) => o.cycles === selected.bed) ?? options[0];
+      leadEl.textContent = t(s.lead.bed, { bed: clock(typed) });
+      renderOptions(options, 'bed', (o) => o === pick);
+      checkBox.hidden = true;
+      const caption = captionFor(pick, settings);
+      captionEl.textContent = caption;
+      renderTimeline(pick.bed, pick.wake, settings, caption);
+      return;
+    }
+
+    const wake = typed;
+    const options = bedtimesFor(wake, settings);
+    const plan = parseTime(planInput.value);
+    leadEl.textContent = t(s.lead.wake, { wake: clock(wake) });
+
+    if (plan === null) {
+      const pick = options.find((o) => o.cycles === selected.wake) ?? options[1];
+      renderOptions(options, 'wake', (o) => o === pick);
+      checkBox.hidden = true;
+      const caption = captionFor(pick, settings);
+      captionEl.textContent = caption;
+      renderTimeline(pick.bed, wake, settings, caption);
+      return;
+    }
+
+    // A planned bedtime: how many cycles fit, and where the alarm lands.
+    renderOptions(options, 'wake', (o) => o.bed === plan);
+    const check = checkPlan(plan, wake, settings);
+    checkBox.hidden = false;
+    root.dataset.check = !check ? 'none' : check.aligned ? 'aligned' : 'partial';
+    if (!check) {
+      checkText.textContent = s.check.tooShort;
+      checkSuggest.textContent = '';
+    } else {
+      const vars = { bed: clock(plan), wake: clock(wake), cycles: cycles(check.fullCycles), sleep: duration(check.fullCycles * settings.cycle) };
+      checkText.textContent = check.aligned
+        ? t(s.check.aligned, vars)
+        : t(s.check.partial, { ...vars, next: check.fullCycles + 1, m: plural(locale, check.intoNext, s.minutes) });
+      const [a, b] = check.alternatives;
+      checkSuggest.textContent = !a
+        ? ''
+        : b
+          ? t(s.check.suggest, { a: clock(a.bed), aCycles: cycles(a.cycles), b: clock(b.bed), bCycles: cycles(b.cycles) })
+          : t(s.check.suggestOne, { a: clock(a.bed), aCycles: cycles(a.cycles) });
+    }
+    captionEl.textContent = '';
+    renderTimeline(plan, wake, settings, checkText.textContent ?? '');
+  }
+
+  function captionFor(option: SleepOption, settings: SleepSettings): string {
+    return t(s.caption, {
+      bed: clock(option.bed),
+      asleep: clock(option.bed + settings.latency),
+      cycles: cycles(option.cycles),
+      sleep: duration(option.sleepMin),
+      wake: clock(option.wake),
+    });
+  }
+
+  /* ---------- Events ---------- */
+  optionsEl.addEventListener('click', (event) => {
+    const btn = (event.target as Element).closest<HTMLButtonElement>('.sl-option');
+    const n = Number(btn?.dataset.cycles);
+    if (!btn || !Number.isFinite(n)) return;
+    const current = mode();
+    selected[current] = n;
+    if (current === 'wake') planInput.value = '';
+    render();
+  });
+  nowBtn.addEventListener('click', () => {
+    bedInput.value = formatTime(nowMinutes());
+    render();
+  });
+  modes.forEach((m) => m.addEventListener('change', render));
+  [wakeInput, planInput, bedInput, latencyInput, cycleInput].forEach((el) => el.addEventListener('input', render));
+  // Some browsers only fire change when a native time picker closes.
+  [wakeInput, planInput, bedInput].forEach((el) => el.addEventListener('change', render));
+
+  if (!wakeInput.value) wakeInput.value = formatTime(SLEEP_DEFAULTS.wake);
+  render();
+</script>
+
+<style>
+  .sl-mode {
+    justify-self: start;
+  }
+  /* Two time fields side by side even on a phone, so the result stays above the fold. */
+  .sl-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .sl-inputs input[type='time'] {
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-height: 46px;
+  }
+  .sl-now-field {
+    justify-items: start;
+  }
+  .sl-now-field .btn {
+    min-height: 46px;
+  }
+
+  .sl-stage {
+    --sl-cycle: #5856d6;
+    --sl-cycle-2: #7a78e6;
+    --sl-cycle-soft: #efeffc;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 12px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  @media (min-width: 640px) {
+    .sl-stage {
+      padding: 22px;
+    }
+  }
+  .sl-lead {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-wrap: pretty;
+  }
+
+  .sl-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (min-width: 640px) {
+    .sl-options {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+  }
+  .sl-option {
+    display: grid;
+    gap: 2px;
+    align-content: start;
+    justify-items: start;
+    min-height: 84px;
+    padding: 8px 10px;
+    font: inherit;
+    text-align: start;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  .sl-option:hover {
+    border-color: var(--sl-cycle-2);
+  }
+  .sl-option:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+  .sl-option[aria-pressed='true'] {
+    background: var(--sl-cycle-soft);
+    border-color: var(--sl-cycle);
+    box-shadow: 0 0 0 1px var(--sl-cycle);
+  }
+  .sl-opt-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 5px;
+  }
+  .sl-opt-time {
+    font-family: var(--display);
+    font-size: clamp(22px, 6.6vw, 30px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .sl-opt-day {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .sl-opt-meta {
+    font-size: 12px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-opt-cycles,
+  .sl-opt-sleep {
+    white-space: nowrap;
+  }
+  .sl-opt-tier {
+    margin-top: 3px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--surface-2);
+  }
+  .sl-option[data-tier='recommended'] .sl-opt-tier {
+    color: var(--success);
+    background: color-mix(in oklab, var(--success) 12%, transparent);
+  }
+  .sl-option[data-tier='short'] .sl-opt-tier {
+    color: var(--warning);
+    background: color-mix(in oklab, var(--warning) 12%, transparent);
+  }
+  .sl-opt-tier:empty,
+  .sl-opt-day:empty {
+    display: none;
+  }
+
+  .sl-check {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-inline-start: 4px solid var(--sl-cycle);
+  }
+  .sl[data-check='partial'] .sl-check,
+  .sl[data-check='none'] .sl-check {
+    border-inline-start-color: var(--accent);
+  }
+  .sl-check p {
+    margin: 0;
+  }
+  .sl-check-text {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-check-suggest {
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-check-suggest:empty {
+    display: none;
+  }
+
+  /* Timeline: bedtime on the left, alarm on the right, one block per cycle. */
+  .sl-timeline {
+    display: grid;
+    gap: 4px;
+  }
+  .sl-ends {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-end-label {
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .sl-end.is-alarm {
+    text-align: end;
+  }
+  .sl-bar {
+    display: flex;
+    gap: 2px;
+    height: 44px;
+    padding: 2px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .sl-bar :global(.sl-seg) {
+    display: grid;
+    place-items: center;
+    flex: 0 1 0;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .sl-bar :global(.sl-seg[data-kind='latency']) {
+    background: repeating-linear-gradient(135deg, var(--border-strong) 0 4px, var(--surface-2) 4px 8px);
+  }
+  .sl-bar :global(.sl-seg[data-kind='cycle']) {
+    background: var(--sl-cycle);
+  }
+  .sl-bar :global(.sl-seg[data-kind='cycle']:nth-child(even)) {
+    background: var(--sl-cycle-2);
+  }
+  .sl-bar :global(.sl-seg[data-kind='partial']) {
+    min-width: 30px;
+    font-size: 12px;
+    background: repeating-linear-gradient(135deg, var(--accent) 0 5px, var(--accent-hover) 5px 10px);
+  }
+  .sl-ticks {
+    position: relative;
+    height: 18px;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-ticks :global(.sl-tick) {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .sl-caption {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    text-wrap: pretty;
+  }
+  .sl-caption:empty {
+    display: none;
+  }
+  .sl-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .sl-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sl-swatch {
+    width: 14px;
+    height: 10px;
+    border-radius: 3px;
+  }
+  .sl-swatch[data-kind='latency'] {
+    background: repeating-linear-gradient(135deg, var(--border-strong) 0 3px, var(--surface) 3px 6px);
+    border: 1px solid var(--border-strong);
+  }
+  .sl-swatch[data-kind='cycle'] {
+    background: var(--sl-cycle);
+  }
+  .sl-swatch[data-kind='partial'] {
+    background: var(--accent);
+  }
+
+  .sl-settings {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .sl-settings summary {
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .sl-settings-sum {
+    display: inline-block;
+    margin-inline-start: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sl-settings[open] summary {
+    border-bottom: 1px solid var(--border);
+  }
+  .sl-settings-body {
+    padding: 14px;
+  }
+  .sl-settings-body .hint {
+    margin: 0;
+  }
+</style>
